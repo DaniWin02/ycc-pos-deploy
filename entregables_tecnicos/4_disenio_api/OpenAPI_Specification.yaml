@@ -1,0 +1,1458 @@
+openapi: 3.0.3
+info:
+  title: Country Club POS API
+  description: API para sistema de Punto de Venta del Country Club Mérida
+  version: 1.0.0
+  contact:
+    name: Country Club POS Team
+    email: dev@countryclubmerida.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.countryclubmerida.com/v1
+    description: Producción
+  - url: https://staging-api.countryclubmerida.com/v1
+    description: Staging
+  - url: http://localhost:3000/api/v1
+    description: Desarrollo
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Iniciar sesión
+      description: Autentica usuario y retorna tokens de acceso
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refrescar token de acceso
+      description: Genera nuevo access token usando refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refrescado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Cerrar sesión
+      description: Invalida refresh token
+      operationId: logout
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Sales
+  /sales:
+    get:
+      tags:
+        - Sales
+      summary: Listar ventas
+      description: Obtiene lista paginada de ventas con filtros
+      operationId: getSales
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: status
+          in: query
+          description: Filtrar por estado de venta
+          schema:
+            $ref: '#/components/schemas/SaleStatus'
+        - name: terminal_id
+          in: query
+          description: Filtrar por terminal
+          schema:
+            type: string
+            format: uuid
+        - name: member_id
+          in: query
+          description: Filtrar por socio
+          schema:
+            type: string
+            format: uuid
+        - name: date_from
+          in: query
+          description: Fecha inicial (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: date_to
+          in: query
+          description: Fecha final (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Lista de ventas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Sales
+      summary: Crear venta
+      description: Crea nueva venta con líneas y pagos
+      operationId: createSale
+      headers:
+        Idempotency-Key:
+          description: Clave de idempotencia para evitar duplicados
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSaleRequest'
+      responses:
+        '201':
+          description: Venta creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /sales/{saleId}:
+    get:
+      tags:
+        - Sales
+      summary: Obtener venta
+      description: Obtiene detalles de una venta específica
+      operationId: getSale
+      parameters:
+        - name: saleId
+          in: path
+          required: true
+          description: ID de la venta
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalles de la venta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      tags:
+        - Sales
+      summary: Actualizar venta
+      description: Actualiza estado o notas de una venta
+      operationId: updateSale
+      parameters:
+        - name: saleId
+          in: path
+          required: true
+          description: ID de la venta
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSaleRequest'
+      responses:
+        '200':
+          description: Venta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags:
+        - Sales
+      summary: Cancelar venta
+      description: Cancela una venta (soft delete)
+      operationId: voidSale
+      parameters:
+        - name: saleId
+          in: path
+          required: true
+          description: ID de la venta
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoidSaleRequest'
+      responses:
+        '200':
+          description: Venta cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # Products
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Listar productos
+      description: Obtiene catálogo de productos activos
+      operationId: getProducts
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          description: Búsqueda por nombre o SKU
+          schema:
+            type: string
+        - name: category_id
+          in: query
+          description: Filtrar por categoría
+          schema:
+            type: string
+            format: uuid
+        - name: active
+          in: query
+          description: Filtrar por estado activo
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductsPaginatedResponse'
+
+  /products/{productId}:
+    get:
+      tags:
+        - Products
+      summary: Obtener producto
+      description: Obtiene detalles de un producto
+      operationId: getProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: ID del producto
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalles del producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Members
+  /members:
+    get:
+      tags:
+        - Members
+      summary: Buscar socios
+      description: Busca socios por número, nombre o email
+      operationId: searchMembers
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Término de búsqueda
+          schema:
+            type: string
+            minLength: 2
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Lista de socios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembersSearchResponse'
+
+  /members/{memberId}:
+    get:
+      tags:
+        - Members
+      summary: Obtener socio
+      description: Obtiene detalles de un socio
+      operationId: getMember
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          description: ID del socio
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalles del socio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Shifts
+  /shifts:
+    get:
+      tags:
+        - Shifts
+      summary: Listar turnos
+      description: Obtiene lista de turnos del usuario
+      operationId: getShifts
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          description: Filtrar por estado
+          schema:
+            $ref: '#/components/schemas/ShiftStatus'
+        - name: terminal_id
+          in: query
+          description: Filtrar por terminal
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de turnos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftsPaginatedResponse'
+
+    post:
+      tags:
+        - Shifts
+      summary: Abrir turno
+      description: Abre nuevo turno de caja
+      operationId: openShift
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenShiftRequest'
+      responses:
+        '201':
+          description: Turno abierto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftResponse'
+
+  /shifts/{shiftId}/close:
+    post:
+      tags:
+        - Shifts
+      summary: Cerrar turno
+      description: Cierra turno y genera corte Z
+      operationId: closeShift
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          description: ID del turno
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseShiftRequest'
+      responses:
+        '200':
+          description: Turno cerrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftResponse'
+
+  # Sync (Offline)
+  /sync/bootstrap:
+    get:
+      tags:
+        - Sync
+      summary: Bootstrap datos
+      description: Obtiene datos maestros para sincronización inicial
+      operationId: syncBootstrap
+      parameters:
+        - name: since
+          in: query
+          description: Obtener cambios desde esta fecha
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Datos de bootstrap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncBootstrapResponse'
+
+  /sync/outbox:
+    post:
+      tags:
+        - Sync
+      summary: Enviar eventos offline
+      description: Procesa eventos generados offline
+      operationId: syncOutbox
+      headers:
+        Idempotency-Key:
+          description: Clave de idempotencia
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncOutboxRequest'
+      responses:
+        '200':
+          description: Eventos procesados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncOutboxResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Número de página (empezando en 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      description: Elementos por página
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    SortParam:
+      name: sort
+      in: query
+      description: Campo de ordenamiento
+      schema:
+        type: string
+        enum: [created_at, updated_at, total_amount, folio]
+        default: created_at
+
+  schemas:
+    # Authentication Schemas
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+        - terminal_id
+      properties:
+        username:
+          type: string
+          description: Nombre de usuario
+        password:
+          type: string
+          format: password
+          description: Contraseña
+        terminal_id:
+          type: string
+          format: uuid
+          description: ID de terminal
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/UserResponse'
+            access_token:
+              type: string
+              description: JWT access token
+            refresh_token:
+              type: string
+              description: Refresh token
+            expires_in:
+              type: integer
+              description: Expiración en segundos
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+            expires_in:
+              type: integer
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    # Sales Schemas
+    CreateSaleRequest:
+      type: object
+      required:
+        - terminal_id
+        - lines
+      properties:
+        terminal_id:
+          type: string
+          format: uuid
+        member_id:
+          type: string
+          format: uuid
+        notes:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleLineRequest'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentRequest'
+
+    SaleLineRequest:
+      type: object
+      required:
+        - product_id
+        - quantity
+        - unit_price
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          format: decimal
+          minimum: 0.001
+        unit_price:
+          type: number
+          format: decimal
+          minimum: 0
+        modifiers:
+          type: object
+          description: Modificadores del producto
+        notes:
+          type: string
+
+    PaymentRequest:
+      type: object
+      required:
+        - method
+        - amount
+      properties:
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        amount:
+          type: number
+          format: decimal
+          minimum: 0
+        reference:
+          type: string
+          description: Referencia de pago (voucher, autorización)
+        member_account_id:
+          type: string
+          format: uuid
+          description: Cuenta de socio para cargo
+
+    SaleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Sale'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    SaleDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            sale:
+              $ref: '#/components/schemas/Sale'
+            lines:
+              type: array
+              items:
+                $ref: '#/components/schemas/SaleLine'
+            payments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Payment'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    UpdateSaleRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/SaleStatus'
+        notes:
+          type: string
+
+    VoidSaleRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: Motivo de cancelación
+
+    # Product Schemas
+    ProductResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Product'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    # Member Schemas
+    MemberResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Member'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    # Shift Schemas
+    OpenShiftRequest:
+      type: object
+      required:
+        - terminal_id
+        - opening_float
+      properties:
+        terminal_id:
+          type: string
+          format: uuid
+        opening_float:
+          type: number
+          format: decimal
+          minimum: 0
+
+    CloseShiftRequest:
+      type: object
+      required:
+        - closing_float
+      properties:
+        closing_float:
+          type: number
+          format: decimal
+          minimum: 0
+        notes:
+          type: string
+
+    ShiftResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Shift'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    # Sync Schemas
+    SyncBootstrapResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            server_time:
+              type: string
+              format: date-time
+            products:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+            members:
+              type: array
+              items:
+                $ref: '#/components/schemas/Member'
+            terminals:
+              type: array
+              items:
+                $ref: '#/components/schemas/Terminal'
+            areas:
+              type: array
+              items:
+                $ref: '#/components/schemas/Area'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    SyncOutboxRequest:
+      type: object
+      required:
+        - events
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncEvent'
+
+    SyncEvent:
+      type: object
+      required:
+        - id
+        - type
+        - occurred_at
+        - payload
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          description: Tipo de evento (SALE_CREATED, PAYMENT_CAPTURED, etc.)
+        occurred_at:
+          type: string
+          format: date-time
+        terminal_id:
+          type: string
+          format: uuid
+        payload:
+          type: object
+          description: Datos del evento
+
+    SyncOutboxResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            accepted:
+              type: array
+              items:
+                type: object
+                properties:
+                  eventId:
+                    type: string
+                  status:
+                    type: string
+            rejected:
+              type: array
+              items:
+                type: object
+                properties:
+                  eventId:
+                    type: string
+                  error:
+                    type: string
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    # Entity Schemas
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        active:
+          type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserResponse:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            permissions:
+              type: array
+              items:
+                type: string
+
+    Sale:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        folio:
+          type: string
+        status:
+          $ref: '#/components/schemas/SaleStatus'
+        terminal_id:
+          type: string
+          format: uuid
+        shift_id:
+          type: string
+          format: uuid
+        member_id:
+          type: string
+          format: uuid
+        subtotal:
+          type: number
+          format: decimal
+        tax_amount:
+          type: number
+          format: decimal
+        discount_amount:
+          type: number
+          format: decimal
+        total_amount:
+          type: number
+          format: decimal
+        tip_amount:
+          type: number
+          format: decimal
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        paid_at:
+          type: string
+          format: date-time
+        voided_at:
+          type: string
+          format: date-time
+        void_reason:
+          type: string
+
+    SaleLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sale_id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          format: decimal
+        unit_price:
+          type: number
+          format: decimal
+        tax_rate:
+          type: number
+          format: decimal
+        line_total:
+          type: number
+          format: decimal
+        modifiers:
+          type: object
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sale_id:
+          type: string
+          format: uuid
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        amount:
+          type: number
+          format: decimal
+        reference:
+          type: string
+        authorization_code:
+          type: string
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        captured_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+        price:
+          type: number
+          format: decimal
+        cost:
+          type: number
+          format: decimal
+        tax_rate:
+          type: number
+          format: decimal
+        track_inventory:
+          type: boolean
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        member_number:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        status:
+          $ref: '#/components/schemas/MemberStatus'
+        join_date:
+          type: string
+          format: date
+        birth_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberAccount'
+
+    MemberAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        credit_limit:
+          type: number
+          format: decimal
+        current_balance:
+          type: number
+          format: decimal
+        active:
+          type: boolean
+
+    Shift:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        terminal_id:
+          type: string
+          format: uuid
+        opened_by_user_id:
+          type: string
+          format: uuid
+        closed_by_user_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ShiftStatus'
+        opening_float:
+          type: number
+          format: decimal
+        closing_float:
+          type: number
+          format: decimal
+        opened_at:
+          type: string
+          format: date-time
+        closed_at:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    Terminal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        area_id:
+          type: string
+          format: uuid
+        location:
+          type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Area:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # Enums
+    SaleStatus:
+      type: string
+      enum:
+        - DRAFT
+        - HELD
+        - SENT_TO_KITCHEN
+        - PAID
+        - VOIDED
+        - REFUNDED
+
+    PaymentMethod:
+      type: string
+      enum:
+        - CASH
+        - CARD
+        - MEMBER_CHARGE
+        - MIXED
+
+    PaymentStatus:
+      type: string
+      enum:
+        - PENDING
+        - CAPTURED
+        - FAILED
+        - REFUNDED
+
+    MemberStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+        - SUSPENDED
+
+    ShiftStatus:
+      type: string
+      enum:
+        - OPEN
+        - CLOSED
+
+    # Response Schemas
+    SalesPaginatedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sale'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    ProductsPaginatedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    MembersSearchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    ShiftsPaginatedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shift'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 150
+        totalPages:
+          type: integer
+          example: 8
+        hasNext:
+          type: boolean
+          example: true
+        hasPrev:
+          type: boolean
+          example: false
+
+    ResponseMeta:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          example: v1
+        requestId:
+          type: string
+          format: uuid
+
+  responses:
+    Success:
+      description: Operación exitosa
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              data:
+                type: object
+              meta:
+                $ref: '#/components/schemas/ResponseMeta'
+
+    BadRequest:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                $ref: '#/components/schemas/ErrorDetail'
+              meta:
+                $ref: '#/components/schemas/ResponseMeta'
+
+    Unauthorized:
+      description: No autorizado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: UNAUTHORIZED
+                  message:
+                    type: string
+                    example: Invalid or expired token
+              meta:
+                $ref: '#/components/schemas/ResponseMeta'
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: NOT_FOUND
+                  message:
+                    type: string
+                    example: Resource not found
+              meta:
+                $ref: '#/components/schemas/ResponseMeta'
+
+    ValidationError:
+      description: Error de validación
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                $ref: '#/components/schemas/ErrorDetail'
+              meta:
+                $ref: '#/components/schemas/ResponseMeta'
+
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Invalid input data
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              value:
+                type: string
+              constraint:
+                type: string
+
+tags:
+  - name: Authentication
+    description: Operaciones de autenticación
+  - name: Sales
+    description: Gestión de ventas
+  - name: Products
+    description: Catálogo de productos
+  - name: Members
+    description: Gestión de socios
+  - name: Shifts
+    description: Gestión de turnos de caja
+  - name: Sync
+    description: Sincronización offline
