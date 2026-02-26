@@ -1,0 +1,478 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+  PROD_HOST: pos.yccpos.com
+  PROD_USER: deploy
+  PROD_PATH: /var/www/ycc-pos
+
+jobs:
+  pre-deploy:
+    name: Pre-deploy Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: ${{ env.PNPM_VERSION }}
+        
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Run all tests
+      run: |
+        cd 03_API_GATEWAY && pnpm test
+        cd ../04_CORE_POS && pnpm test
+        cd ../05_KDS_SYSTEM && pnpm test
+        cd ../06_ADMIN_PANEL && pnpm test
+        
+    - name: Run E2E tests
+      run: |
+        cd 04_CORE_POS
+        npx playwright test
+        
+    - name: Security audit
+      run: |
+        pnpm audit --audit-level high
+        
+    - name: Check for vulnerabilities
+      run: |
+        cd 03_API_GATEWAY
+        npx audit --audit-level high
+        cd ../04_CORE_POS
+        npx audit --audit-level high
+        cd ../05_KDS_SYSTEM
+        npx audit --audit-level high
+        cd ../06_ADMIN_PANEL
+        npx audit --audit-level high
+
+  backup:
+    name: Backup Production Database
+    runs-on: ubuntu-latest
+    needs: pre-deploy
+    
+    steps:
+    - name: Backup database
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.PROD_HOST }}
+        username: ${{ env.PROD_USER }}
+        key: ${{ secrets.PROD_SSH_KEY }}
+        script: |
+          # Create backup
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_DIR="/var/backups/ycc-pos/pre-deploy"
+          mkdir -p $BACKUP_DIR
+          
+          # Database backup
+          sudo -u postgres pg_dump ycc_pos > $BACKUP_DIR/pre_deploy_backup_$TIMESTAMP.sql
+          
+          # Files backup
+          tar -czf $BACKUP_DIR/files_backup_$TIMESTAMP.tar.gz -C /var/www/ycc-pos current/
+          
+          echo "Backup completed: $BACKUP_DIR/pre_deploy_backup_$TIMESTAMP.sql"
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [pre-deploy, backup]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: ${{ env.PNPM_VERSION }}
+        
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Build applications
+      run: |
+        cd 03_API_GATEWAY && pnpm build
+        cd ../04_CORE_POS && pnpm build
+        cd ../05_KDS_SYSTEM && pnpm build
+        cd ../06_ADMIN_PANEL && pnpm build
+        
+    - name: Build Docker images
+      run: |
+        # Build API image
+        docker build -t ycc-pos/api:${{ github.sha }} -f 03_API_GATEWAY/Dockerfile .
+        docker build -t ycc-pos/api:latest -f 03_API_GATEWAY/Dockerfile .
+        
+        # Build frontend images
+        docker build -t ycc-pos/frontend:${{ github.sha }} -f 04_CORE_POS/Dockerfile .
+        docker build -t ycc-pos/frontend:latest -f 04_CORE_POS/Dockerfile .
+        
+        docker build -t ycc-pos/kds:${{ github.sha }} -f 05_KDS_SYSTEM/Dockerfile .
+        docker build -t ycc-pos/kds:latest -f 05_KDS_SYSTEM/Dockerfile .
+        
+        docker build -t ycc-pos/admin:${{ github.sha }} -f 06_ADMIN_PANEL/Dockerfile .
+        docker build -t ycc-pos/admin:latest -f 06_ADMIN_PANEL/Dockerfile .
+        
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        
+    - name: Push Docker images
+      run: |
+        docker push ycc-pos/api:${{ github.sha }}
+        docker push ycc-pos/api:latest
+        docker push ycc-pos/frontend:${{ github.sha }}
+        docker push ycc-pos/frontend:latest
+        docker push ycc-pos/kds:${{ github.sha }}
+        docker push ycc-pos/kds:latest
+        docker push ycc-pos/admin:${{ github.sha }}
+        docker push ycc-pos/admin:latest
+        
+    - name: Deploy to production server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.PROD_HOST }}
+        username: ${{ env.PROD_USER }}
+        key: ${{ secrets.PROD_SSH_KEY }}
+        script: |
+          # Create deployment directory
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          DEPLOY_DIR="$PROD_PATH/deploy_$TIMESTAMP"
+          mkdir -p $DEPLOY_DIR
+          cd $PROD_PATH
+          
+          # Download latest images
+          docker pull ycc-pos/api:latest
+          docker pull ycc-pos/frontend:latest
+          docker pull ycc-pos/kds:latest
+          docker pull ycc-pos/admin:latest
+          
+          # Stop existing containers gracefully
+          docker-compose down --timeout 60 || true
+          
+          # Update docker-compose file
+          cat > docker-compose.yml << EOF
+          version: '3.8'
+          
+          services:
+            api:
+              image: ycc-pos/api:latest
+              container_name: ycc-pos-api
+              restart: unless-stopped
+              ports:
+                - "3001:3001"
+              environment:
+                - NODE_ENV=production
+                - DATABASE_URL=postgresql://yccpos_user:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/ycc_pos
+                - REDIS_URL=redis://redis:6379
+                - JWT_SECRET=${{ secrets.JWT_SECRET }}
+                - JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+                - CORS_ORIGIN=https://pos.yccpos.com,https://kds.yccpos.com,https://admin.yccpos.com
+              depends_on:
+                - postgres
+                - redis
+              volumes:
+                - ./logs:/app/logs
+                - ./uploads:/app/uploads
+              networks:
+                - ycc-pos-network
+              healthcheck:
+                test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+                interval: 30s
+                timeout: 10s
+                retries: 3
+                
+            frontend:
+              image: ycc-pos/frontend:latest
+              container_name: ycc-pos-frontend
+              restart: unless-stopped
+              ports:
+                - "3000:80"
+              depends_on:
+                - api
+              networks:
+                - ycc-pos-network
+                
+            kds:
+              image: ycc-pos/kds:latest
+              container_name: ycc-pos-kds
+              restart: unless-stopped
+              ports:
+                - "3002:80"
+              depends_on:
+                - api
+              networks:
+                - ycc-pos-network
+                
+            admin:
+              image: ycc-pos/admin:latest
+              container_name: ycc-pos-admin
+              restart: unless-stopped
+              ports:
+                - "3003:80"
+              depends_on:
+                - api
+              networks:
+                - ycc-pos-network
+                
+            postgres:
+              image: postgres:16
+              container_name: ycc-pos-postgres
+              restart: unless-stopped
+              environment:
+                - POSTGRES_DB=ycc_pos
+                - POSTGRES_USER=yccpos_user
+                - POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+              volumes:
+                - postgres_data:/var/lib/postgresql/data
+                - /var/backups/ycc-pos:/backups
+              networks:
+                - ycc-pos-network
+                
+            redis:
+              image: redis:7
+              container_name: ycc-pos-redis
+              restart: unless-stopped
+              volumes:
+                - redis_data:/data
+              networks:
+                - ycc-pos-network
+                
+          volumes:
+            postgres_data:
+            redis_data:
+            
+          networks:
+            ycc-pos-network:
+              driver: bridge
+          EOF
+          
+          # Start services
+          docker-compose up -d
+          
+          # Wait for database to be ready
+          echo "Waiting for database..."
+          sleep 30
+          
+          # Run database migrations
+          docker-compose exec -T api npx prisma migrate deploy
+          
+          # Wait for API to be ready
+          echo "Waiting for API..."
+          sleep 30
+          
+          # Health checks
+          echo "Checking API health..."
+          if ! curl -f http://localhost:3001/health; then
+            echo "API health check failed"
+            docker-compose logs api
+            exit 1
+          fi
+          
+          echo "Checking frontend..."
+          if ! curl -f http://localhost:3000; then
+            echo "Frontend health check failed"
+            docker-compose logs frontend
+            exit 1
+          fi
+          
+          echo "Checking KDS..."
+          if ! curl -f http://localhost:3002; then
+            echo "KDS health check failed"
+            docker-compose logs kds
+            exit 1
+          fi
+          
+          echo "Checking Admin..."
+          if ! curl -f http://localhost:3003; then
+            echo "Admin health check failed"
+            docker-compose logs admin
+            exit 1
+          fi
+          
+          echo "Deployment completed successfully!"
+          
+    - name: Update deployment symlink
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.PROD_HOST }}
+        username: ${{ env.PROD_USER }}
+        key: ${{ secrets.PROD_SSH_KEY }}
+        script: |
+          cd $PROD_PATH
+          
+          # Update current symlink
+          rm -f current
+          ln -s deploy_$(date +%Y%m%d_%H%M%S) current
+          
+          # Clean up old deployments (keep last 5)
+          ls -1t deploy_* | tail -n +6 | xargs rm -rf
+          
+    - name: Run post-deploy health checks
+      run: |
+        # Wait for deployment to be ready
+        sleep 60
+        
+        # Check API health
+        curl -f https://pos.yccpos.com/api/health || exit 1
+        
+        # Check frontend
+        curl -f https://pos.yccpos.com || exit 1
+        
+        # Check KDS
+        curl -f https://kds.yccpos.com || exit 1
+        
+        # Check Admin
+        curl -f https://admin.yccpos.com || exit 1
+        
+        # Check SSL certificates
+        curl -I https://pos.yccpos.com | grep -q "200 OK" || exit 1
+        
+    - name: Run smoke tests
+      run: |
+        # Test critical user flows
+        echo "Running smoke tests..."
+        
+        # Test login
+        LOGIN_RESPONSE=$(curl -s -X POST https://pos.yccpos.com/api/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"test@yccpos.com","password":"test123"}')
+        
+        if echo "$LOGIN_RESPONSE" | grep -q "token"; then
+          echo "✅ Login test passed"
+        else
+          echo "❌ Login test failed"
+          exit 1
+        fi
+        
+        # Test API endpoints
+        if curl -f https://pos.yccpos.com/api/menu/products > /dev/null; then
+          echo "✅ Menu API test passed"
+        else
+          echo "❌ Menu API test failed"
+          exit 1
+        fi
+        
+    - name: Create deployment tag
+      if: success()
+      run: |
+        git tag -a "deploy-$(date +%Y%m%d-%H%M%S)" -m "Deploy to production"
+        git push origin --tags
+        
+    - name: Notify Slack
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        channel: '#deployments'
+        text: '🚀 YCC POS deployed to production successfully!'
+        
+    - name: Notify Slack on failure
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#deployments'
+        text: '❌ YCC POS production deployment failed!'
+
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: failure()
+    
+    steps:
+    - name: Rollback deployment
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.PROD_HOST }}
+        username: ${{ env.PROD_USER }}
+        key: ${{ secrets.PROD_SSH_KEY }}
+        script: |
+          cd $PROD_PATH
+          
+          # Find previous deployment
+          PREV_DEPLOY=$(ls -1t deploy_* | head -2 | tail -1)
+          
+          if [ -n "$PREV_DEPLOY" ]; then
+            echo "Rolling back to $PREV_DEPLOY"
+            
+            # Stop current deployment
+            docker-compose down
+            
+            # Update symlink to previous deployment
+            rm -f current
+            ln -s $PREV_DEPLOY current
+            
+            # Start previous deployment
+            cd current
+            docker-compose up -d
+            
+            # Wait for services
+            sleep 30
+            
+            # Health checks
+            if curl -f http://localhost:3001/health; then
+              echo "Rollback successful"
+            else
+              echo "Rollback failed - manual intervention required"
+              exit 1
+            fi
+          else
+            echo "No previous deployment found"
+            exit 1
+          fi
+          
+    - name: Notify rollback
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        channel: '#deployments'
+        text: '🔄 YCC POS rolled back to previous version'

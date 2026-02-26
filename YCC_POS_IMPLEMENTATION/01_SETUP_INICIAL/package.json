@@ -1,0 +1,17 @@
+{
+  "name": "@ycc/setup",
+  "version": "1.0.0",
+  "description": "Setup inicial del monorepo YCC POS",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

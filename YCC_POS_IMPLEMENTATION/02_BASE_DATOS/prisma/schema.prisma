@@ -1,0 +1,320 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// USUARIOS Y AUTENTICACIÓN
+// ========================================
+
+model User {
+  id              String   @id @default(cuid())
+  username        String   @unique
+  email           String   @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  role            UserRole @default(CASHIER)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  permissions Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ========================================
+// TIENDAS Y TERMINALES
+// ========================================
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  address     String
+  phone       String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Terminal {
+  id          String   @id @default(cuid())
+  storeId     String
+  name        String
+  location    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  store       Store    @relation(fields: [storeId], references: [id])
+  cashSessions CashSession[]
+}
+
+// ========================================
+// SESIONES DE CAJA
+// ========================================
+
+model CashSession {
+  id              String   @id @default(cuid())
+  terminalId       String
+  openedByUserId  String
+  closedByUserId  String?
+  openingFloat    Decimal
+  closingFloat    Decimal?
+  status          CashSessionStatus @default(OPEN)
+  openedAt        DateTime @default(now())
+  closedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  terminal        Terminal @relation(fields: [terminalId], references: [id])
+  openedByUser   User @relation(fields: [openedByUserId], references: [id])
+  closedByUser   User? @relation(fields: [closedByUserId], references: [id])
+}
+
+// ========================================
+// CLIENTES/SOCIOS
+// ========================================
+
+model Customer {
+  id              String   @id @default(cuid())
+  memberNumber    String? @unique
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  address         String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  orders          Order[]
+}
+
+// ========================================
+// PRODUCTOS Y CATEGORÍAS
+// ========================================
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  parentId     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  parent      Category? @relation("CategoryChildren", fields: [parentId])
+  children    Category[] @relation("CategoryChildren")
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  sku             String   @unique
+  name            String
+  description     String?
+  categoryId      String
+  price           Decimal
+  cost            Decimal?
+  taxRate         Decimal   @default(0.16)
+  trackInventory Boolean  @default(true)
+  currentStock    Decimal   @default(0)
+  minStockLevel   Decimal?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  category        Category @relation(fields: [categoryId], references: [id])
+  inventoryMovements InventoryMovement[]
+}
+
+// ========================================
+// INVENTARIO
+// ========================================
+
+model Ingredient {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  description     String?
+  unit            String
+  currentCost     Decimal
+  supplierId      String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  inventoryMovements InventoryMovement[]
+}
+
+model InventoryMovement {
+  id              String   @id @default(cuid())
+  productId       String
+  ingredientId   String?
+  type            MovementType
+  quantity        Decimal
+  unitCost        Decimal?
+  reason          String?
+  reference       String?
+  storeId         String
+  terminalId       String?
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  product         Product? @relation(fields: [productId], references: [id])
+  ingredient      Ingredient? @relation(fields: [ingredientId], references: [id])
+  terminal        Terminal? @relation(fields: [terminalId], references: [id])
+  createdByUser    User? @relation(fields: [createdById], references: [id])
+}
+
+// ========================================
+// ÓRDENES Y VENTAS
+// ========================================
+
+model Order {
+  id              String   @id @default(cuid())
+  folio           String   @unique
+  customerId      String?
+  customerName    String?
+  tableId         String?
+  terminalId       String
+  storeId         String
+  createdByUserId  String
+  status          OrderStatus @default(PENDING)
+  subtotal         Decimal
+  taxAmount        Decimal   @default(0)
+  discountAmount   Decimal   @default(0)
+  tipAmount        Decimal   @default(0)
+  totalAmount     Decimal
+  paymentStatus    PaymentStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  terminal        Terminal @relation(fields: [terminalId], references: [id])
+  createdByUser   User @relation(fields: [createdByUserId], references: [id])
+  items           OrderItem[]
+  payments        Payment[]
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  productId       String
+  productName     String
+  sku             String
+  quantity         Decimal
+  unitPrice       Decimal
+  totalPrice      Decimal
+  taxRate         Decimal   @default(0.16)
+  taxAmount       Decimal
+  discountAmount   Decimal   @default(0)
+  modifiers        Json
+  notes           String?
+  status          OrderItemStatus @default(PENDING)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  order           Order @relation(fields: [orderId], references: [id])
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  orderId           String
+  method            PaymentMethod
+  amount            Decimal
+  reference         String?
+  authorizationCode String?
+  status            PaymentStatus @default(PENDING)
+  capturedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  order             Order @relation(fields: [orderId], references: [id])
+}
+
+// ========================================
+// MODIFICADORES
+// ========================================
+
+model ModifierGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isRequired  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  modifiers    Modifier[]
+}
+
+model Modifier {
+  id              String   @id @default(cuid())
+  modifierGroupId  String
+  name            String
+  description     String?
+  priceAdd        Decimal   @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  modifierGroup    ModifierGroup @relation(fields: [modifierGroupId], references: [id])
+}
+
+// ========================================
+// ENUMS DEL SISTEMA
+// ========================================
+
+enum OrderStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderItemStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  CAPTURED
+  VOIDED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MEMBER_ACCOUNT
+  MIXED
+}
+
+enum UserRole {
+  ADMIN
+  CASHIER
+  MANAGER
+  KITCHEN
+}
+
+enum CashSessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  TRANSFER
+}

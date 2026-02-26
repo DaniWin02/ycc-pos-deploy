@@ -1,0 +1,32 @@
+{
+  "name": "ycc-pos",
+  "version": "1.0.0",
+  "description": "Sistema POS completo para Country Club",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter api dev\" \"pnpm --filter pos dev\" \"pnpm --filter kds dev\" \"pnpm --filter admin dev\"",
+    "build": "pnpm --filter api build && pnpm --filter pos build && pnpm --filter kds build && pnpm --filter admin build",
+    "typecheck": "pnpm --filter api typecheck && pnpm --filter pos typecheck && pnpm --filter kds typecheck && pnpm --filter admin typecheck",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write ./**/*.{ts,tsx,json,md}\"",
+    "test": "pnpm --filter api test && pnpm --filter pos test && pnpm --filter kds test && pnpm --filter admin test",
+    "clean": "rm -rf packages/*/dist apps/*/dist",
+    "setup": "pnpm install && pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "concurrently": "^8.0.0"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "framer-motion": "^10.16.0"
+  }
+}

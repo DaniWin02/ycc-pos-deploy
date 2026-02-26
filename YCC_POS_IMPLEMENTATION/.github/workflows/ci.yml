@@ -1,0 +1,338 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: ${{ env.PNPM_VERSION }}
+        
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Run ESLint
+      run: pnpm lint
+      
+    - name: Run TypeScript check
+      run: pnpm typecheck
+
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ycc_pos_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: ${{ env.PNPM_VERSION }}
+        
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Setup database
+      run: |
+        cd 03_API_GATEWAY
+        npx prisma migrate reset --force --skip-seed
+        npx prisma migrate dev
+        npx prisma generate
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ycc_pos_test
+        
+    - name: Run backend tests
+      run: |
+        cd 03_API_GATEWAY
+        pnpm test
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ycc_pos_test
+        JWT_SECRET: test-secret-key-for-ci
+        JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci
+        
+    - name: Run backend tests with coverage
+      run: |
+        cd 03_API_GATEWAY
+        pnpm test:coverage
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ycc_pos_test
+        JWT_SECRET: test-secret-key-for-ci
+        JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./03_API_GATEWAY/coverage/lcov.info
+        flags: backend
+
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: ${{ env.PNPM_VERSION }}
+        
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Run POS tests
+      run: |
+        cd 04_CORE_POS
+        pnpm test
+        pnpm test:coverage
+        
+    - name: Run KDS tests
+      run: |
+        cd 05_KDS_SYSTEM
+        pnpm test
+        pnpm test:coverage
+        
+    - name: Run Admin tests
+      run: |
+        cd 06_ADMIN_PANEL
+        pnpm test
+        pnpm test:coverage
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        directory: ./coverage
+        flags: frontend
+
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: ${{ env.PNPM_VERSION }}
+        
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Install Playwright
+      run: |
+        cd 04_CORE_POS
+        npx playwright install --with-deps
+        
+    - name: Build applications
+      run: |
+        cd 03_API_GATEWAY && pnpm build
+        cd ../04_CORE_POS && pnpm build
+        cd ../05_KDS_SYSTEM && pnpm build
+        cd ../06_ADMIN_PANEL && pnpm build
+        
+    - name: Start services
+      run: |
+        cd 03_API_GATEWAY
+        npm run start &
+        sleep 10
+        
+    - name: Run E2E tests
+      run: |
+        cd 04_CORE_POS
+        npx playwright test
+      env:
+        CI: true
+        
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: playwright-report
+        path: 04_CORE_POS/playwright-report/
+        
+    - name: Upload E2E coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./04_CORE_POS/coverage/lcov.info
+        flags: e2e
+
+  build:
+    name: Build Applications
+    runs-on: ubuntu-latest
+    needs: [lint, test-backend, test-frontend]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: ${{ env.PNPM_VERSION }}
+        
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Build API
+      run: |
+        cd 03_API_GATEWAY
+        pnpm build
+        
+    - name: Build POS
+      run: |
+        cd 04_CORE_POS
+        pnpm build
+        
+    - name: Build KDS
+      run: |
+        cd 05_KDS_SYSTEM
+        pnpm build
+        
+    - name: Build Admin
+      run: |
+        cd 06_ADMIN_PANEL
+        pnpm build
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts
+        path: |
+          03_API_GATEWAY/dist
+          04_CORE_POS/dist
+          05_KDS_SYSTEM/dist
+          06_ADMIN_PANEL/dist
