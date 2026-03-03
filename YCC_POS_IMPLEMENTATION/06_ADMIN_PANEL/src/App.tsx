@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
@@ -20,45 +20,80 @@ const SIDEBAR_ITEMS: { id: Page; label: string; icon: any }[] = [
   { id: 'settings', label: 'Configuracion', icon: Settings },
 ];
 
-const STATS = [
-  { label: 'Ventas Hoy', value: 28450, change: 12.5, positive: true, icon: DollarSign, color: 'emerald' },
-  { label: 'Ordenes Hoy', value: 47, change: 8.2, positive: true, icon: ShoppingCart, color: 'blue' },
-  { label: 'Ticket Promedio', value: 605, change: -2.3, positive: false, icon: TrendingUp, color: 'purple' },
-  { label: 'Clientes Activos', value: 312, change: 5.1, positive: true, icon: Users, color: 'amber' },
-];
-
-const RECENT_SALES = [
-  { folio: 'V-0047', customer: 'Juan Perez', total: 485, method: 'Efectivo', time: '14:32', status: 'completed' },
-  { folio: 'V-0046', customer: 'Maria Garcia', total: 1250, method: 'Tarjeta', time: '14:15', status: 'completed' },
-  { folio: 'V-0045', customer: 'Carlos Lopez', total: 320, method: 'Cuenta Socio', time: '13:58', status: 'completed' },
-  { folio: 'V-0044', customer: 'Ana Martinez', total: 675, method: 'Efectivo', time: '13:42', status: 'completed' },
-  { folio: 'V-0043', customer: 'Roberto Diaz', total: 890, method: 'Tarjeta', time: '13:25', status: 'refunded' },
-  { folio: 'V-0042', customer: 'Laura Sanchez', total: 410, method: 'Efectivo', time: '13:10', status: 'completed' },
-];
-
-const TOP_PRODUCTS = [
-  { name: 'Hamburguesa Clasica', sold: 45, revenue: 6525 },
-  { name: 'Coca Cola 600ml', sold: 68, revenue: 2380 },
-  { name: 'Club Sandwich', sold: 32, revenue: 4000 },
-  { name: 'Cerveza Artesanal', sold: 28, revenue: 2380 },
-  { name: 'Ensalada Cesar', sold: 24, revenue: 2640 },
-];
-
-const WEEKLY_SALES = [
-  { day: 'Lun', amount: 18500 },
-  { day: 'Mar', amount: 22300 },
-  { day: 'Mie', amount: 19800 },
-  { day: 'Jue', amount: 25100 },
-  { day: 'Vie', amount: 31200 },
-  { day: 'Sab', amount: 28450 },
-  { day: 'Dom', amount: 15600 },
-];
-
 export const App: React.FC = () => {
   const [page, setPage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sales, setSales] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const maxSale = Math.max(...WEEKLY_SALES.map(s => s.amount));
+  // Cargar datos desde el API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [salesRes, productsRes] = await Promise.all([
+          fetch(`${import.meta.env.VITE_API_URL}/sales`),
+          fetch(`${import.meta.env.VITE_API_URL}/products`)
+        ]);
+        
+        const salesData = await salesRes.json();
+        const productsData = await productsRes.json();
+        
+        setSales(salesData);
+        setProducts(productsData);
+        console.log('✅ Datos cargados en Admin:', { sales: salesData.length, products: productsData.length });
+      } catch (error) {
+        console.error('❌ Error cargando datos:', error);
+        setSales([]);
+        setProducts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Calcular estadísticas desde datos reales
+  const stats = {
+    totalSales: sales.reduce((sum, s) => sum + parseFloat(s.total || 0), 0),
+    salesCount: sales.length,
+    avgTicket: sales.length > 0 ? sales.reduce((sum, s) => sum + parseFloat(s.total || 0), 0) / sales.length : 0,
+    productsCount: products.length
+  };
+
+  // Top 5 productos más vendidos
+  const topProducts = sales
+    .flatMap(sale => sale.items || [])
+    .reduce((acc: any, item: any) => {
+      const existing = acc.find((p: any) => p.name === item.productName);
+      if (existing) {
+        existing.sold += item.quantity;
+        existing.revenue += parseFloat(item.price) * item.quantity;
+      } else {
+        acc.push({
+          name: item.productName,
+          sold: item.quantity,
+          revenue: parseFloat(item.price) * item.quantity
+        });
+      }
+      return acc;
+    }, [])
+    .sort((a: any, b: any) => b.revenue - a.revenue)
+    .slice(0, 5);
+
+  // Ventas recientes (últimas 6)
+  const recentSales = sales
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 6)
+    .map(sale => ({
+      folio: sale.folio,
+      customer: sale.customerName || 'Cliente',
+      total: parseFloat(sale.total),
+      method: sale.paymentMethod === 'CASH' ? 'Efectivo' : sale.paymentMethod === 'CARD' ? 'Tarjeta' : 'Cuenta Socio',
+      time: new Date(sale.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+      status: sale.status
+    }));
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -130,38 +165,70 @@ export const App: React.FC = () => {
             <div className="space-y-6">
               {/* Stats */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {STATS.map((stat, i) => {
-                  const Icon = stat.icon;
-                  return (
-                    <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="bg-white rounded-xl border border-gray-200 p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${stat.color}-100`}>
-                          <Icon className={`w-5 h-5 text-${stat.color}-600`} />
-                        </div>
-                        <div className={`flex items-center gap-1 text-xs font-semibold ${stat.positive ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {stat.positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                          {Math.abs(stat.change)}%
-                        </div>
-                      </div>
-                      <p className="text-2xl font-bold text-gray-900">{stat.label.includes('Ventas') || stat.label.includes('Ticket') ? fmt(stat.value) : stat.value.toLocaleString()}</p>
-                      <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
-                    </motion.div>
-                  );
-                })}
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl border border-gray-200 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-100">
+                      <DollarSign className="w-5 h-5 text-emerald-600" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{fmt(stats.totalSales)}</p>
+                  <p className="text-sm text-gray-500 mt-1">Ventas Totales</p>
+                </motion.div>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-xl border border-gray-200 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-100">
+                      <ShoppingCart className="w-5 h-5 text-blue-600" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{stats.salesCount}</p>
+                  <p className="text-sm text-gray-500 mt-1">Órdenes</p>
+                </motion.div>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white rounded-xl border border-gray-200 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-purple-100">
+                      <TrendingUp className="w-5 h-5 text-purple-600" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{fmt(stats.avgTicket)}</p>
+                  <p className="text-sm text-gray-500 mt-1">Ticket Promedio</p>
+                </motion.div>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white rounded-xl border border-gray-200 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-100">
+                      <Package className="w-5 h-5 text-amber-600" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{stats.productsCount}</p>
+                  <p className="text-sm text-gray-500 mt-1">Productos</p>
+                </motion.div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Weekly chart */}
+                {/* Sales info */}
                 <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-6">Ventas de la Semana</h3>
-                  <div className="flex items-end gap-3 h-48">
-                    {WEEKLY_SALES.map((d, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                        <span className="text-xs text-gray-500 font-medium">{fmt(d.amount)}</span>
-                        <div className="w-full rounded-t-lg bg-indigo-500 transition-all hover:bg-indigo-600" style={{ height: `${(d.amount / maxSale) * 100}%` }} />
-                        <span className="text-xs text-gray-400 font-medium">{d.day}</span>
+                  <h3 className="font-semibold text-gray-900 mb-6">Resumen de Ventas</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="text-sm text-gray-600">Total de Ventas</p>
+                        <p className="text-2xl font-bold text-gray-900">{fmt(stats.totalSales)}</p>
                       </div>
-                    ))}
+                      <DollarSign className="w-10 h-10 text-emerald-500" />
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="text-sm text-gray-600">Número de Órdenes</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.salesCount}</p>
+                      </div>
+                      <ShoppingCart className="w-10 h-10 text-blue-500" />
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="text-sm text-gray-600">Ticket Promedio</p>
+                        <p className="text-2xl font-bold text-gray-900">{fmt(stats.avgTicket)}</p>
+                      </div>
+                      <TrendingUp className="w-10 h-10 text-purple-500" />
+                    </div>
                   </div>
                 </div>
 
@@ -169,7 +236,7 @@ export const App: React.FC = () => {
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="font-semibold text-gray-900 mb-4">Top Productos</h3>
                   <div className="space-y-4">
-                    {TOP_PRODUCTS.map((p, i) => (
+                    {topProducts.length > 0 ? topProducts.map((p: any, i: number) => (
                       <div key={i} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center">{i + 1}</span>
@@ -180,7 +247,9 @@ export const App: React.FC = () => {
                         </div>
                         <span className="text-sm font-semibold text-gray-900">{fmt(p.revenue)}</span>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="text-sm text-gray-400 text-center py-8">No hay datos de ventas</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -204,7 +273,7 @@ export const App: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {RECENT_SALES.map((sale, i) => (
+                      {recentSales.length > 0 ? recentSales.map((sale: any, i: number) => (
                         <tr key={i} className="hover:bg-gray-50">
                           <td className="px-6 py-4 text-sm font-medium text-gray-900">{sale.folio}</td>
                           <td className="px-6 py-4 text-sm text-gray-600">{sale.customer}</td>
@@ -212,12 +281,18 @@ export const App: React.FC = () => {
                           <td className="px-6 py-4 text-sm text-gray-500">{sale.method}</td>
                           <td className="px-6 py-4 text-sm text-gray-400">{sale.time}</td>
                           <td className="px-6 py-4">
-                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${sale.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                              {sale.status === 'completed' ? 'Completada' : 'Reembolso'}
+                            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                              {sale.status === 'COMPLETED' ? 'Completada' : sale.status}
                             </span>
                           </td>
                         </tr>
-                      ))}
+                      )) : (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">
+                            No hay ventas registradas
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

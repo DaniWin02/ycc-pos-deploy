@@ -3,43 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChefHat, Clock, Check, ArrowRight, RotateCcw, Plus, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
 import { useKdsStore, KdsTicket, KdsTicketStatus } from './stores/useKdsStore'
 
-// Mock tickets for demo
-const MOCK_TICKETS: KdsTicket[] = [
-  { id: '1', folio: 'V-0001', table: 'Mesa 5', waiter: 'Carlos', priority: 'normal', status: 'NEW', createdAt: new Date(Date.now() - 3 * 60000), items: [
-    { id: '1a', name: 'Hamburguesa Clasica', quantity: 2, status: 'PENDING' },
-    { id: '1b', name: 'Papas Fritas', quantity: 2, status: 'PENDING' },
-    { id: '1c', name: 'Coca Cola 600ml', quantity: 2, notes: 'Sin hielo', status: 'PENDING' },
-  ]},
-  { id: '2', folio: 'V-0002', table: 'Mesa 12', waiter: 'Ana', priority: 'rush', status: 'NEW', createdAt: new Date(Date.now() - 8 * 60000), items: [
-    { id: '2a', name: 'Filete de Salmon', quantity: 1, notes: 'Termino medio', status: 'PENDING' },
-    { id: '2b', name: 'Ensalada Cesar', quantity: 1, status: 'PENDING' },
-  ]},
-  { id: '3', folio: 'V-0003', table: 'Barra 3', waiter: 'Luis', priority: 'normal', status: 'PREPARING', createdAt: new Date(Date.now() - 12 * 60000), items: [
-    { id: '3a', name: 'Tacos de Arrachera (3)', quantity: 1, status: 'PREPARING' },
-    { id: '3b', name: 'Nachos con Queso', quantity: 1, status: 'READY' },
-    { id: '3c', name: 'Guacamole con Totopos', quantity: 1, status: 'PREPARING' },
-  ]},
-  { id: '4', folio: 'V-0004', table: 'Mesa 8', waiter: 'Carlos', priority: 'normal', status: 'PREPARING', createdAt: new Date(Date.now() - 5 * 60000), items: [
-    { id: '4a', name: 'Pizza Margarita', quantity: 1, status: 'PREPARING' },
-    { id: '4b', name: 'Alitas BBQ (12pz)', quantity: 1, status: 'PENDING' },
-  ]},
-  { id: '5', folio: 'V-0005', table: 'Mesa 2', waiter: 'Ana', priority: 'normal', status: 'READY', createdAt: new Date(Date.now() - 15 * 60000), items: [
-    { id: '5a', name: 'Club Sandwich', quantity: 2, status: 'READY' },
-    { id: '5b', name: 'Limonada Natural', quantity: 2, status: 'READY' },
-  ]},
-]
-
-function Timer({ createdAt }: { createdAt: Date }) {
+function Timer({ createdAt, completedAt }: { createdAt: Date; completedAt?: Date }) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
+    if (completedAt) {
+      // Timer detenido - mostrar tiempo total
+      setElapsed(Math.floor((new Date(completedAt).getTime() - new Date(createdAt).getTime()) / 1000))
+      return
+    }
     const update = () => setElapsed(Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000))
     update()
     const id = setInterval(update, 1000)
     return () => clearInterval(id)
-  }, [createdAt])
+  }, [createdAt, completedAt])
   const mins = Math.floor(elapsed / 60)
   const secs = elapsed % 60
-  const color = mins >= 15 ? 'text-red-500' : mins >= 10 ? 'text-amber-500' : 'text-gray-500'
+  const color = completedAt ? 'text-gray-400' : mins >= 15 ? 'text-red-500' : mins >= 10 ? 'text-amber-500' : 'text-gray-500'
   return <span className={`font-mono text-sm font-bold ${color}`}>{mins}:{String(secs).padStart(2, '0')}</span>
 }
 
@@ -58,18 +37,64 @@ const statusBadge: Record<KdsTicketStatus, string> = {
 }
 
 function App() {
-  const { tickets, stationId, connectionStatus, setStationId, addTicket, bumpTicket, recallTicket } = useKdsStore()
-  const [filter, setFilter] = useState<'all' | KdsTicketStatus>('all')
+  const { tickets, stationId, connectionStatus, setStationId, addTicket, bumpTicket, recallTicket, deleteTicket, restoreTicket, permanentDeleteTicket, loadTickets, saveToStorage } = useKdsStore()
+  const [filter, setFilter] = useState<'active' | 'completed' | 'trash' | KdsTicketStatus>('active')
+  const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'all'>('today')
 
-  // Load mock data on station select
+  // Load tickets from API on station select
   useEffect(() => {
-    if (stationId && tickets.length === 0) {
-      MOCK_TICKETS.forEach(t => addTicket(t))
+    if (stationId) {
+      loadTickets()
+      // Reload tickets every 10 seconds
+      const interval = setInterval(loadTickets, 10000)
+      return () => clearInterval(interval)
     }
-  }, [stationId])
+  }, [stationId, loadTickets])
 
-  const filtered = filter === 'all' ? tickets.filter(t => t.status !== 'SERVED' && t.status !== 'CANCELLED') : tickets.filter(t => t.status === filter)
-  const counts = { NEW: tickets.filter(t => t.status === 'NEW').length, PREPARING: tickets.filter(t => t.status === 'PREPARING').length, READY: tickets.filter(t => t.status === 'READY').length }
+  // Auto-save to localStorage when tickets change
+  useEffect(() => {
+    if (tickets.length > 0) {
+      saveToStorage()
+    }
+  }, [tickets, saveToStorage])
+
+  // Filtrado por fecha
+  const filterByDate = (ticket: KdsTicket) => {
+    const ticketDate = new Date(ticket.createdAt)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    if (dateFilter === 'today') {
+      return ticketDate >= today
+    } else if (dateFilter === 'yesterday') {
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
+      return ticketDate >= yesterday && ticketDate < today
+    } else if (dateFilter === 'week') {
+      const weekAgo = new Date(today)
+      weekAgo.setDate(weekAgo.getDate() - 7)
+      return ticketDate >= weekAgo
+    }
+    return true // 'all'
+  }
+
+  const dateFiltered = tickets.filter(filterByDate)
+  
+  const filtered = filter === 'active' 
+    ? dateFiltered.filter(t => !t.deletedAt && t.status !== 'SERVED' && t.status !== 'CANCELLED')
+    : filter === 'completed'
+    ? dateFiltered.filter(t => !t.deletedAt && t.status === 'SERVED')
+    : filter === 'trash'
+    ? dateFiltered.filter(t => t.deletedAt)
+    : dateFiltered.filter(t => !t.deletedAt && t.status === filter)
+  
+  const counts = { 
+    NEW: dateFiltered.filter(t => !t.deletedAt && t.status === 'NEW').length, 
+    PREPARING: dateFiltered.filter(t => !t.deletedAt && t.status === 'PREPARING').length, 
+    READY: dateFiltered.filter(t => !t.deletedAt && t.status === 'READY').length,
+    SERVED: dateFiltered.filter(t => !t.deletedAt && t.status === 'SERVED').length,
+    TRASH: dateFiltered.filter(t => t.deletedAt).length
+  }
 
   // Station selector
   if (!stationId) {
@@ -113,6 +138,8 @@ function App() {
             <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full font-bold">{counts.NEW} Nuevos</span>
             <span className="bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full font-bold">{counts.PREPARING} Prep</span>
             <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full font-bold">{counts.READY} Listos</span>
+            <span className="bg-gray-500/20 text-gray-400 px-2 py-1 rounded-full font-bold">{counts.SERVED} Servidos</span>
+            <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded-full font-bold">{counts.TRASH} Papelera</span>
           </div>
           <div className="flex items-center gap-1 text-emerald-400"><Wifi className="w-4 h-4" /><span className="text-xs">Online</span></div>
           <button onClick={() => { useKdsStore.setState({ stationId: null, tickets: [] }) }} className="text-xs text-gray-400 hover:text-white">Salir</button>
@@ -120,12 +147,31 @@ function App() {
       </header>
 
       {/* Filter bar */}
-      <div className="bg-gray-800/50 px-4 py-2 flex gap-2 border-b border-gray-700">
-        {(['all', 'NEW', 'PREPARING', 'READY'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === f ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
-            {f === 'all' ? 'Activos' : statusLabels[f]}
+      <div className="bg-gray-800/50 px-4 py-2 flex items-center justify-between border-b border-gray-700">
+        <div className="flex gap-2">
+          <button onClick={() => setFilter('active')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'active' ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
+            Activos
           </button>
-        ))}
+          {(['NEW', 'PREPARING', 'READY'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === f ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
+              {statusLabels[f]}
+            </button>
+          ))}
+          <button onClick={() => setFilter('completed')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'completed' ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
+            Completados ({counts.SERVED})
+          </button>
+          <button onClick={() => setFilter('trash')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'trash' ? 'bg-red-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
+            🗑️ Papelera ({counts.TRASH})
+          </button>
+        </div>
+        <div className="flex gap-2 items-center">
+          <span className="text-xs text-gray-400">Fecha:</span>
+          {(['today', 'yesterday', 'week', 'all'] as const).map(d => (
+            <button key={d} onClick={() => setDateFilter(d)} className={`px-2 py-1 rounded text-xs font-medium transition-all ${dateFilter === d ? 'bg-indigo-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
+              {d === 'today' ? 'Hoy' : d === 'yesterday' ? 'Ayer' : d === 'week' ? 'Semana' : 'Todo'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tickets grid */}
@@ -147,7 +193,7 @@ function App() {
                       {ticket.priority === 'rush' && <AlertTriangle className="w-4 h-4" />}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Timer createdAt={ticket.createdAt} />
+                      <Timer createdAt={ticket.createdAt} completedAt={ticket.completedAt} />
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full text-white ${statusBadge[ticket.status]}`}>{statusLabels[ticket.status]}</span>
                     </div>
                   </div>
@@ -156,6 +202,13 @@ function App() {
                     <span className="font-medium">{ticket.table}</span>
                     <span className="text-gray-500">{ticket.waiter}</span>
                   </div>
+                  {/* Completion time */}
+                  {ticket.completedAt && (
+                    <div className="px-4 py-1 bg-gray-100 text-xs text-gray-600 border-b border-gray-200/50">
+                      <Clock className="w-3 h-3 inline mr-1" />
+                      Entregado: {new Date(ticket.completedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
                   {/* Items */}
                   <div className="px-4 py-3 space-y-2">
                     {ticket.items.map(item => (
@@ -173,16 +226,35 @@ function App() {
                       </div>
                     ))}
                   </div>
-                  {/* Bump button */}
+                  {/* Action buttons */}
                   <div className="px-4 py-3 border-t border-gray-200/50">
-                    {ticket.status !== 'SERVED' ? (
-                      <button onClick={() => bumpTicket(ticket.id)} className={`w-full py-2.5 rounded-lg font-bold text-sm text-white transition-all active:scale-95 ${ticket.status === 'NEW' ? 'bg-amber-500 hover:bg-amber-600' : ticket.status === 'PREPARING' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
-                        {ticket.status === 'NEW' ? 'Iniciar' : ticket.status === 'PREPARING' ? 'Listo' : 'Despachar'}
-                      </button>
+                    {filter === 'trash' ? (
+                      <div className="flex gap-2">
+                        <button onClick={() => restoreTicket(ticket.id)} className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-2">
+                          <RotateCcw className="w-4 h-4" /> Restaurar
+                        </button>
+                        <button onClick={() => permanentDeleteTicket(ticket.id)} className="px-3 py-2.5 rounded-lg font-bold text-sm bg-red-600 text-white hover:bg-red-700" title="Eliminar permanentemente">
+                          ⚠️
+                        </button>
+                      </div>
+                    ) : ticket.status !== 'SERVED' ? (
+                      <div className="flex gap-2">
+                        <button onClick={() => bumpTicket(ticket.id)} className={`flex-1 py-2.5 rounded-lg font-bold text-sm text-white transition-all active:scale-95 ${ticket.status === 'NEW' ? 'bg-amber-500 hover:bg-amber-600' : ticket.status === 'PREPARING' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
+                          {ticket.status === 'NEW' ? 'Iniciar' : ticket.status === 'PREPARING' ? 'Listo' : 'Despachar'}
+                        </button>
+                        <button onClick={() => deleteTicket(ticket.id)} className="px-3 py-2.5 rounded-lg font-bold text-sm bg-red-500 text-white hover:bg-red-600">
+                          🗑️
+                        </button>
+                      </div>
                     ) : (
-                      <button onClick={() => recallTicket(ticket.id)} className="w-full py-2.5 rounded-lg font-bold text-sm bg-gray-200 text-gray-600 hover:bg-gray-300 flex items-center justify-center gap-2">
-                        <RotateCcw className="w-4 h-4" /> Recall
-                      </button>
+                      <div className="flex gap-2">
+                        <button onClick={() => recallTicket(ticket.id)} className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-gray-200 text-gray-600 hover:bg-gray-300 flex items-center justify-center gap-2">
+                          <RotateCcw className="w-4 h-4" /> Recall
+                        </button>
+                        <button onClick={() => deleteTicket(ticket.id)} className="px-3 py-2.5 rounded-lg font-bold text-sm bg-red-500 text-white hover:bg-red-600">
+                          🗑️
+                        </button>
+                      </div>
                     )}
                   </div>
                 </motion.div>

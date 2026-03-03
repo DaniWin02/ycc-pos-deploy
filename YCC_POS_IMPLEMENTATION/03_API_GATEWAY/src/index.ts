@@ -1,619 +1,239 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
-import compression from 'compression'
-import rateLimit from 'express-rate-limit'
 import { PrismaClient } from '@prisma/client'
-import { AuthService } from './services/auth.service'
-import { SalesService } from './services/sales.service'
-import { InventoryService } from './services/inventory.service'
-import { RecipeCostService } from './services/recipe-cost.service'
-import { BomResolverService } from './services/bom-resolver.service'
-import logger, { httpLogger, requestLogger, errorLogger } from './utils/logger'
-import { requestTracker } from './services/monitoring.service'
-import monitoringRoutes from './routes/monitoring.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
 
-// Initialize services
-const authService = new AuthService(prisma)
-const salesService = new SalesService(prisma)
-const inventoryService = new InventoryService(prisma)
-const recipeCostService = new RecipeCostService(prisma)
-const bomResolverService = new BomResolverService(prisma)
-
 // Create Express app
 const app = express()
 
-// Global error handler
-const globalErrorHandler = (error: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  logger.error(`Unhandled error: ${error.message}`, {
-    stack: error.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent')
-  })
+// Middleware
+app.use(helmet())
+app.use(cors({
+  origin: process.env.CORS_ORIGIN?.split(',') || '*',
+  credentials: true
+}))
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
-  res.status(500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
-  })
-}
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
 
-// Performance monitoring middleware
-const performanceMonitor = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const start = process.hrtime.bigint()
+// Initialize test data (GET for easy browser access)
+app.get('/api/init-data', async (req, res) => {
+  try {
+    // Store
+    await prisma.store.upsert({
+      where: { id: 'store-1' },
+      update: {},
+      create: { id: 'store-1', name: 'YCC Main Store', address: 'Av. Principal 123', phone: '555-1234' }
+    })
 
-  res.on('finish', () => {
-    const end = process.hrtime.bigint()
-    const duration = Number(end - start) / 1000000 // Convert to milliseconds
+    // Terminal
+    await prisma.terminal.upsert({
+      where: { id: 'terminal-1' },
+      update: {},
+      create: { id: 'terminal-1', storeId: 'store-1', name: 'Terminal 1', location: 'Main Counter' }
+    })
 
-    // Log slow requests (>500ms)
-    if (duration > 500) {
-      logger.warn(`Slow request: ${req.method} ${req.originalUrl} - ${duration.toFixed(2)}ms`, {
-        duration,
-        statusCode: res.statusCode,
-        ip: req.ip,
-        userAgent: req.get('User-Agent')
+    // User
+    await prisma.user.upsert({
+      where: { id: 'user-1' },
+      update: {},
+      create: {
+        id: 'user-1', username: 'admin', email: 'admin@ycc.com',
+        passwordHash: '$2a$10$abcdefghijklmnopqrstuv',
+        firstName: 'Admin', lastName: 'User', role: 'ADMIN'
+      }
+    })
+
+    // Categories
+    await prisma.category.upsert({
+      where: { id: 'cat-bebidas' },
+      update: {},
+      create: { id: 'cat-bebidas', name: 'Bebidas', description: 'Bebidas y refrescos' }
+    })
+    await prisma.category.upsert({
+      where: { id: 'cat-comida' },
+      update: {},
+      create: { id: 'cat-comida', name: 'Comida', description: 'Platillos principales' }
+    })
+    await prisma.category.upsert({
+      where: { id: 'cat-postres' },
+      update: {},
+      create: { id: 'cat-postres', name: 'Postres', description: 'Postres y dulces' }
+    })
+
+    // Crear categoría Snacks si no existe
+    await prisma.category.upsert({
+      where: { id: 'cat-snacks' },
+      update: {},
+      create: { id: 'cat-snacks', name: 'Snacks', description: 'Snacks y botanas' }
+    })
+
+    // Products - Catálogo completo de 18 productos
+    const products = [
+      // Bebidas (5 productos)
+      { sku: 'BEB-001', name: 'Coca Cola 600ml', categoryId: 'cat-bebidas', price: 35, cost: 18 },
+      { sku: 'BEB-002', name: 'Agua Natural 600ml', categoryId: 'cat-bebidas', price: 20, cost: 10 },
+      { sku: 'BEB-003', name: 'Jugo de Naranja', categoryId: 'cat-bebidas', price: 45, cost: 23 },
+      { sku: 'BEB-004', name: 'Limonada Natural', categoryId: 'cat-bebidas', price: 40, cost: 20 },
+      { sku: 'BEB-005', name: 'Cerveza Artesanal', categoryId: 'cat-bebidas', price: 85, cost: 43 },
+      // Comidas (7 productos)
+      { sku: 'COM-001', name: 'Hamburguesa Clasica', categoryId: 'cat-comida', price: 145, cost: 73 },
+      { sku: 'COM-002', name: 'Club Sandwich', categoryId: 'cat-comida', price: 125, cost: 63 },
+      { sku: 'COM-003', name: 'Ensalada Cesar', categoryId: 'cat-comida', price: 110, cost: 55 },
+      { sku: 'COM-004', name: 'Tacos de Arrachera (3)', categoryId: 'cat-comida', price: 165, cost: 83 },
+      { sku: 'COM-005', name: 'Pizza Margarita', categoryId: 'cat-comida', price: 195, cost: 98 },
+      { sku: 'COM-006', name: 'Alitas BBQ (12pz)', categoryId: 'cat-comida', price: 175, cost: 88 },
+      { sku: 'COM-007', name: 'Filete de Salmon', categoryId: 'cat-comida', price: 285, cost: 143 },
+      // Postres (3 productos)
+      { sku: 'POS-001', name: 'Pastel de Chocolate', categoryId: 'cat-postres', price: 75, cost: 38 },
+      { sku: 'POS-002', name: 'Flan Napolitano', categoryId: 'cat-postres', price: 55, cost: 28 },
+      { sku: 'POS-003', name: 'Helado (3 bolas)', categoryId: 'cat-postres', price: 65, cost: 33 },
+      // Snacks (3 productos)
+      { sku: 'SNK-001', name: 'Papas Fritas', categoryId: 'cat-snacks', price: 55, cost: 28 },
+      { sku: 'SNK-002', name: 'Nachos con Queso', categoryId: 'cat-snacks', price: 85, cost: 43 },
+      { sku: 'SNK-003', name: 'Guacamole con Totopos', categoryId: 'cat-snacks', price: 95, cost: 48 }
+    ]
+
+    for (const p of products) {
+      await prisma.product.upsert({
+        where: { sku: p.sku },
+        update: { 
+          name: p.name, 
+          categoryId: p.categoryId, 
+          price: p.price, 
+          cost: p.cost 
+        },
+        create: { 
+          sku: p.sku,
+          name: p.name,
+          categoryId: p.categoryId,
+          price: p.price,
+          cost: p.cost,
+          currentStock: 100, 
+          minStockLevel: 10 
+        }
       })
     }
-  })
 
-  next()
-}
-
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}))
-
-// CORS configuration
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-}
-
-app.use(cors(corsOptions))
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // Limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests from this IP, please try again later.',
-    retryAfter: Math.ceil(parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000') / 1000)
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.path === '/health' || req.path === '/ready'
+    const count = await prisma.product.count()
+    res.json({ success: true, message: 'Datos inicializados', productCount: count })
+  } catch (error: any) {
+    console.error('Error initializing data:', error)
+    res.status(500).json({ error: error.message })
   }
 })
 
-app.use(limiter)
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true, limit: '10mb' }))
-
-// Compression middleware
-app.use(compression())
-
-// Logging middleware
-app.use(httpLogger)
-app.use(requestLogger)
-
-// Performance monitoring
-app.use(performanceMonitor)
-
-// Request tracking for metrics
-app.use(requestTracker)
-
-// Health check endpoint (public)
-app.get('/health', async (req, res) => {
+// API Routes
+app.get('/api/products', async (req, res) => {
   try {
-    // Quick database check
-    await prisma.$queryRaw`SELECT 1`
-
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      version: process.env.npm_package_version || '1.0.0'
-    })
-  } catch (error) {
-    logger.error('Health check failed:', error)
-    res.status(503).json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Database connection failed'
-    })
-  }
-})
-
-// Monitoring routes
-app.use('/api/monitoring', monitoringRoutes)
-
-// Auth routes
-app.post('/api/auth/login', async (req, res, next) => {
-  try {
-    const { email, password } = req.body
-    const result = await authService.login(email, password)
-    res.json(result)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/auth/register', async (req, res, next) => {
-  try {
-    const userData = req.body
-    const result = await authService.register(userData)
-    res.status(201).json(result)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/auth/refresh', async (req, res, next) => {
-  try {
-    const { refreshToken } = req.body
-    const result = await authService.refreshToken(refreshToken)
-    res.json(result)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/auth/me', async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-    
-    const result = await authService.verifyToken(token)
-    const user = await authService.getUserById(result.userId)
-    res.json(user)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/auth/logout', async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-    
-    const result = await authService.verifyToken(token)
-    await authService.logout(result.userId)
-    res.json({ message: 'Logged out successfully' })
-  } catch (error) {
-    next(error)
-  }
-})
-
-// Middleware for authentication
-const authenticateToken = async (req: any, res: any, next: any) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-    
-    const result = await authService.verifyToken(token)
-    req.user = result
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
-
-// Middleware for role-based access
-const requireRole = (requiredRole: string) => {
-  return async (req: any, res: any, next: any) => {
-    try {
-      const hasPermission = await authService.hasRole(req.user.userId, requiredRole)
-      if (!hasPermission) {
-        return res.status(403).json({ error: 'Insufficient permissions' })
-      }
-      next()
-    } catch (error) {
-      return res.status(403).json({ error: 'Insufficient permissions' })
-    }
-  }
-}
-
-// Menu/Product routes
-app.get('/api/menu/products', authenticateToken, async (req, res, next) => {
-  try {
-    const { category } = req.query
     const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        ...(category && { category: category as string })
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        category: true,
-        sku: true,
-        stock: true,
-        imageUrl: true
-      },
-      orderBy: { name: 'asc' }
+      where: { isActive: true },
+      include: { category: true }
     })
     res.json(products)
   } catch (error) {
-    next(error)
+    console.error('Error fetching products:', error)
+    res.status(500).json({ error: 'Failed to fetch products' })
   }
 })
 
-app.get('/api/menu/products/:id', authenticateToken, async (req, res, next) => {
+app.post('/api/sales', async (req, res) => {
   try {
-    const { id } = req.params
-    const product = await prisma.product.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        cost: true,
-        category: true,
-        sku: true,
-        stock: true,
-        minStock: true,
-        imageUrl: true,
-        isActive: true
-      }
-    })
+    const { items, customerId, totalAmount, paymentMethod } = req.body
     
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' })
-    }
-    
-    res.json(product)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/menu/products', authenticateToken, requireRole('ADMIN'), async (req, res, next) => {
-  try {
-    const productData = req.body
-    const product = await prisma.product.create({
+    // Create order
+    const order = await prisma.order.create({
       data: {
-        ...productData,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    })
-    res.status(201).json(product)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.put('/api/menu/products/:id', authenticateToken, requireRole('ADMIN'), async (req, res, next) => {
-  try {
-    const { id } = req.params
-    const updateData = req.body
-    
-    const product = await prisma.product.update({
-      where: { id },
-      data: {
-        ...updateData,
-        updatedAt: new Date()
-      }
-    })
-    
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' })
-    }
-    
-    res.json(product)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.delete('/api/menu/products/:id', authenticateToken, requireRole('ADMIN'), async (req, res, next) => {
-  try {
-    const { id } = req.params
-    const product = await prisma.product.update({
-      where: { id },
-      data: {
-        isActive: false,
-        updatedAt: new Date()
+        folio: `ORD-${Date.now()}`,
+        customerId,
+        customerName: 'Guest',
+        terminalId: 'terminal-1',
+        storeId: 'store-1',
+        createdByUserId: 'user-1',
+        status: 'COMPLETED',
+        subtotal: totalAmount,
+        taxAmount: 0,
+        totalAmount,
+        paymentStatus: 'CAPTURED',
+        items: {
+          create: items.map((item: any) => ({
+            productId: item.productId,
+            productName: item.name,
+            sku: item.sku || 'SKU-' + item.productId,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.price * item.quantity,
+            taxAmount: 0,
+            modifiers: {}
+          }))
+        },
+        payments: {
+          create: {
+            method: paymentMethod || 'CASH',
+            amount: totalAmount,
+            status: 'CAPTURED',
+            capturedAt: new Date()
+          }
+        }
+      },
+      include: {
+        items: true,
+        payments: true
       }
     })
     
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' })
-    }
-    
-    res.json({ message: 'Product deactivated successfully' })
+    res.json(order)
   } catch (error) {
-    next(error)
+    console.error('Error creating sale:', error)
+    res.status(500).json({ error: 'Failed to create sale' })
   }
 })
 
-// Sales routes
-app.post('/api/sales', authenticateToken, async (req, res, next) => {
+app.get('/api/sales', async (req, res) => {
   try {
-    const saleData = req.body
-    const sale = await salesService.createSale({
-      ...saleData,
-      userId: req.user.userId
+    const sales = await prisma.order.findMany({
+      include: {
+        items: true,
+        payments: true,
+        customer: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
     })
-    res.status(201).json(sale)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/sales', authenticateToken, async (req, res, next) => {
-  try {
-    const { startDate, endDate } = req.query
-    const sales = await salesService.getSalesByPeriod(
-      req.user.userId,
-      startDate ? new Date(startDate as string) : undefined,
-      endDate ? new Date(endDate as string) : undefined
-    )
     res.json(sales)
   } catch (error) {
-    next(error)
+    console.error('Error fetching sales:', error)
+    res.status(500).json({ error: 'Failed to fetch sales' })
   }
 })
 
-app.post('/api/sales/:id/cancel', authenticateToken, async (req, res, next) => {
-  try {
-    const { id } = req.params
-    const { reason } = req.body
-    const sale = await salesService.cancelSale(id, reason)
-    res.json(sale)
-  } catch (error) {
-    next(error)
-  }
+// Error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err)
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  })
 })
 
-app.get('/api/sales/stats', authenticateToken, async (req, res, next) => {
-  try {
-    const { startDate, endDate } = req.query
-    const stats = await salesService.getSalesStats(
-      startDate ? new Date(startDate as string) : new Date(),
-      endDate ? new Date(endDate as string) : new Date()
-    )
-    res.json(stats)
-  } catch (error) {
-    next(error)
-  }
-})
-
-// Inventory routes
-app.get('/api/inventory/value', authenticateToken, async (req, res, next) => {
-  try {
-    const value = await inventoryService.getInventoryValue()
-    res.json(value)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/inventory/low-stock', authenticateToken, async (req, res, next) => {
-  try {
-    const { threshold } = req.query
-    const lowStock = await inventoryService.getLowStockProducts(
-      threshold ? parseInt(threshold as string) : undefined
-    )
-    res.json(lowStock)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/inventory/update-cost', authenticateToken, async (req, res, next) => {
-  try {
-    const { productId, newQuantity, newCost } = req.body
-    const result = await inventoryService.updateAverageCost(productId, newQuantity, newCost)
-    res.json(result)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/inventory/movements', authenticateToken, async (req, res, next) => {
-  try {
-    const { startDate, endDate } = req.query
-    const movements = await inventoryService.getInventoryMovements(
-      new Date(startDate as string),
-      new Date(endDate as string)
-    )
-    res.json(movements)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/inventory/fast-moving', authenticateToken, async (req, res, next) => {
-  try {
-    const { startDate, endDate, limit } = req.query
-    const products = await inventoryService.getFastMovingProducts(
-      new Date(startDate as string),
-      new Date(endDate as string),
-      limit ? parseInt(limit as string) : 10
-    )
-    res.json(products)
-  } catch (error) {
-    next(error)
-  }
-})
-
-// Recipe Cost routes
-app.get('/api/recipes/:id/cost', authenticateToken, async (req, res, next) => {
-  try {
-    const { id } = req.params
-    const cost = await recipeCostService.calculateRecipeCost(id)
-    res.json(cost)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/recipes/cost', authenticateToken, async (req, res, next) => {
-  try {
-    const { recipeIds } = req.query
-    const ids = (recipeIds as string)?.split(',').filter(Boolean)
-    const costs = await recipeCostService.calculateMultipleRecipesCost(ids || [])
-    res.json(costs)
-  } catch (error) {
-    next(error)
-  }
-})
-
-// BOM Resolver routes
-app.get('/api/bom/:recipeId/resolve', authenticateToken, async (req, res, next) => {
-  try {
-    const { recipeId } = req.params
-    const { quantity } = req.query
-    const bom = await bomResolverService.resolveBom(
-      recipeId,
-      quantity ? parseFloat(quantity as string) : 1
-    )
-    res.json(bom)
-  } catch (error) {
-    next(error)
-  }
-})
-
-// Reports routes
-app.get('/api/reports/sales', authenticateToken, async (req, res, next) => {
-  try {
-    const { startDate, endDate } = req.query
-    const report = await salesService.getSalesByPeriod(
-      req.user.userId,
-      startDate ? new Date(startDate as string) : new Date(),
-      endDate ? new Date(endDate as string) : new Date()
-    )
-    res.json(report)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/reports/inventory', authenticateToken, async (req, res, next) => {
-  try {
-    const value = await inventoryService.getInventoryValue()
-    const lowStock = await inventoryService.getLowStockProducts()
-    
-    res.json({
-      ...value,
-      lowStockProducts: lowStock,
-      fastMovingProducts: [], // Would need sales data
-      movements: [] // Would need sales data
-    })
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/reports/dashboard', authenticateToken, async (req, res, next) => {
-  try {
-    const today = new Date()
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0))
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999))
-    
-    const todaySales = await salesService.getSalesByPeriod(req.user.userId, startOfDay, endOfDay)
-    const inventoryValue = await inventoryService.getInventoryValue()
-    const lowStockCount = (await inventoryService.getLowStockProducts()).length
-    
-    res.json({
-      todaySales: todaySales.length,
-      todayRevenue: todaySales.reduce((sum, sale) => sum + sale.totalAmount, 0),
-      totalProducts: inventoryValue.totalProducts,
-      lowStockCount,
-      recentSales: todaySales.slice(-5),
-      topProducts: [] // Would need sales aggregation
-    })
-  } catch (error) {
-    next(error)
-  }
-})
-
-// Error logging middleware
-app.use(errorLogger)
-
-// Global error handler (must be last)
-app.use(globalErrorHandler)
-
-// 404 handler
-app.use('*', (req, res) => {
-  logger.warn(`404 Not Found: ${req.method} ${req.originalUrl}`)
-  res.status(404).json({ error: 'Route not found' })
+// Start server
+const PORT = process.env.PORT || 3001
+app.listen(PORT, () => {
+  console.log(`🚀 API Gateway running on http://localhost:${PORT}`)
+  console.log(`📊 Health check: http://localhost:${PORT}/health`)
+  console.log(`🔌 Database connected: ${prisma ? 'Yes' : 'No'}`)
 })
 
 // Graceful shutdown
-const gracefulShutdown = async (signal: string) => {
-  logger.info(`Received ${signal}, starting graceful shutdown...`)
-
-  try {
-    // Close database connections
-    await prisma.$disconnect()
-    logger.info('Database connections closed')
-
-    // Close Redis connections if any
-    if (global.redisClient) {
-      await global.redisClient.disconnect()
-      logger.info('Redis connections closed')
-    }
-
-    process.exit(0)
-  } catch (error) {
-    logger.error('Error during graceful shutdown:', error)
-    process.exit(1)
-  }
-}
-
-// Handle shutdown signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
-process.on('SIGINT', () => gracefulShutdown('SIGINT'))
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error)
-  process.exit(1)
+process.on('SIGINT', async () => {
+  console.log('Shutting down gracefully...')
+  await prisma.$disconnect()
+  process.exit(0)
 })
-
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason)
-  process.exit(1)
-})
-
-const PORT = process.env.PORT || 3001
-
-app.listen(PORT, () => {
-  logger.info(`🚀 YCC POS API Gateway running on port ${PORT}`)
-  logger.info(`📊 Health check: http://localhost:${PORT}/health`)
-  logger.info(`📈 Metrics: http://localhost:${PORT}/api/monitoring/metrics`)
-  logger.info(`🔍 Status: http://localhost:${PORT}/api/monitoring/status`)
-})
-
-export default app

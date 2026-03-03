@@ -21,6 +21,7 @@ interface CartState {
   toggleCart: () => void
   getTotals: () => CartTotals
   getItemCount: () => number
+  completeSale: () => Promise<any>
 }
 
 export const useCartStore = create<CartState>()(
@@ -92,6 +93,47 @@ export const useCartStore = create<CartState>()(
         },
 
         getItemCount: () => get().items.reduce((s, i) => s + i.quantity, 0),
+
+        completeSale: async () => {
+          const { items, paymentMethod, customerName, notes } = get()
+          const totals = get().getTotals()
+          
+          try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/sales`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                items: items.map(item => ({
+                  productId: item.productId,
+                  name: item.name,
+                  sku: item.sku,
+                  price: item.unitPrice,
+                  quantity: item.quantity
+                })),
+                customerId: null,
+                customerName: customerName || 'Guest',
+                totalAmount: totals.total,
+                paymentMethod: paymentMethod,
+                notes: notes
+              })
+            })
+
+            if (!response.ok) {
+              throw new Error('Failed to create sale')
+            }
+
+            const sale = await response.json()
+            console.log('✅ Venta creada en el backend:', sale)
+            
+            // Limpiar carrito después de venta exitosa
+            get().clearCart()
+            
+            return sale
+          } catch (error) {
+            console.error('❌ Error al crear venta:', error)
+            throw error
+          }
+        },
       }),
       { name: 'ycc-cart-storage' }
     )

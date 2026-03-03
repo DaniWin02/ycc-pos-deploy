@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart, Package, CreditCard, DollarSign, Users, LogOut,
@@ -8,37 +8,13 @@ import {
 import { useCartStore } from './stores/cart.store';
 import { Product, PaymentMethod, SaleRecord } from './types';
 
+// ===================== HELPERS =====================
+const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+
 // ===================== MOCK DATA =====================
 const CATEGORIES = [
   { id: 'all', name: 'Todos' },
-  { id: 'bebidas', name: 'Bebidas' },
-  { id: 'comidas', name: 'Comidas' },
-  { id: 'postres', name: 'Postres' },
-  { id: 'snacks', name: 'Snacks' },
 ];
-
-const MOCK_PRODUCTS: Product[] = [
-  { id: '1', sku: 'BEB-001', name: 'Coca Cola 600ml', categoryId: 'bebidas', categoryName: 'Bebidas', price: 35, taxRate: 0.16, currentStock: 100, isActive: true },
-  { id: '2', sku: 'BEB-002', name: 'Agua Natural 600ml', categoryId: 'bebidas', categoryName: 'Bebidas', price: 20, taxRate: 0.16, currentStock: 150, isActive: true },
-  { id: '3', sku: 'BEB-003', name: 'Jugo de Naranja', categoryId: 'bebidas', categoryName: 'Bebidas', price: 45, taxRate: 0.16, currentStock: 60, isActive: true },
-  { id: '4', sku: 'BEB-004', name: 'Limonada Natural', categoryId: 'bebidas', categoryName: 'Bebidas', price: 40, taxRate: 0.16, currentStock: 40, isActive: true },
-  { id: '5', sku: 'BEB-005', name: 'Cerveza Artesanal', categoryId: 'bebidas', categoryName: 'Bebidas', price: 85, taxRate: 0.16, currentStock: 30, isActive: true },
-  { id: '6', sku: 'COM-001', name: 'Hamburguesa Clasica', categoryId: 'comidas', categoryName: 'Comidas', price: 145, taxRate: 0.16, currentStock: 50, isActive: true },
-  { id: '7', sku: 'COM-002', name: 'Club Sandwich', categoryId: 'comidas', categoryName: 'Comidas', price: 125, taxRate: 0.16, currentStock: 40, isActive: true },
-  { id: '8', sku: 'COM-003', name: 'Ensalada Cesar', categoryId: 'comidas', categoryName: 'Comidas', price: 110, taxRate: 0.16, currentStock: 35, isActive: true },
-  { id: '9', sku: 'COM-004', name: 'Tacos de Arrachera (3)', categoryId: 'comidas', categoryName: 'Comidas', price: 165, taxRate: 0.16, currentStock: 25, isActive: true },
-  { id: '10', sku: 'COM-005', name: 'Pizza Margarita', categoryId: 'comidas', categoryName: 'Comidas', price: 195, taxRate: 0.16, currentStock: 20, isActive: true },
-  { id: '11', sku: 'COM-006', name: 'Alitas BBQ (12pz)', categoryId: 'comidas', categoryName: 'Comidas', price: 175, taxRate: 0.16, currentStock: 30, isActive: true },
-  { id: '12', sku: 'POS-001', name: 'Pastel de Chocolate', categoryId: 'postres', categoryName: 'Postres', price: 75, taxRate: 0.16, currentStock: 15, isActive: true },
-  { id: '13', sku: 'POS-002', name: 'Flan Napolitano', categoryId: 'postres', categoryName: 'Postres', price: 55, taxRate: 0.16, currentStock: 20, isActive: true },
-  { id: '14', sku: 'POS-003', name: 'Helado (3 bolas)', categoryId: 'postres', categoryName: 'Postres', price: 65, taxRate: 0.16, currentStock: 25, isActive: true },
-  { id: '15', sku: 'SNK-001', name: 'Papas Fritas', categoryId: 'snacks', categoryName: 'Snacks', price: 55, taxRate: 0.16, currentStock: 45, isActive: true },
-  { id: '16', sku: 'SNK-002', name: 'Nachos con Queso', categoryId: 'snacks', categoryName: 'Snacks', price: 85, taxRate: 0.16, currentStock: 35, isActive: true },
-  { id: '17', sku: 'SNK-003', name: 'Guacamole con Totopos', categoryId: 'snacks', categoryName: 'Snacks', price: 95, taxRate: 0.16, currentStock: 20, isActive: true },
-  { id: '18', sku: 'COM-007', name: 'Filete de Salmon', categoryId: 'comidas', categoryName: 'Comidas', price: 285, taxRate: 0.16, currentStock: 10, isActive: true },
-];
-
-const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
 // ===================== SCREENS =====================
 type Screen = 'login' | 'pos' | 'payment' | 'complete' | 'cash-open' | 'cash-close' | 'history';
@@ -55,9 +31,44 @@ export const App: React.FC = () => {
   // POS
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+
+  // Cargar productos desde el API
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/products`);
+        const data = await response.json();
+        
+        // Transformar datos del API al formato del frontend
+        const transformedProducts: Product[] = data.map((p: any) => ({
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          categoryId: p.category.id,
+          categoryName: p.category.name,
+          price: parseFloat(p.price),
+          taxRate: parseFloat(p.taxRate),
+          currentStock: parseFloat(p.currentStock),
+          isActive: p.isActive
+        }));
+        
+        setProducts(transformedProducts);
+        console.log('✅ Productos cargados desde API:', transformedProducts.length);
+      } catch (error) {
+        console.error('❌ Error cargando productos:', error);
+        setProducts([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
 
   // Cart store
-  const { items, addItem, removeItem, updateQuantity, clearCart, getTotals, getItemCount } = useCartStore();
+  const { items, addItem, removeItem, updateQuantity, clearCart, getTotals, getItemCount, completeSale } = useCartStore();
 
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
@@ -72,7 +83,7 @@ export const App: React.FC = () => {
   const itemCount = getItemCount();
 
   // Filter products
-  const filteredProducts = MOCK_PRODUCTS.filter(p => {
+  const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || p.categoryId === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -98,28 +109,40 @@ export const App: React.FC = () => {
   // =============== PAYMENT ===============
   const handlePay = async () => {
     setIsProcessing(true);
-    await new Promise(r => setTimeout(r, 1500));
-    const received = paymentMethod === 'CASH' ? parseFloat(cashReceived) || totals.total : totals.total;
-    const sale: SaleRecord = {
-      id: `sale_${Date.now()}`,
-      folio: `V-${String(salesHistory.length + 1).padStart(4, '0')}`,
-      items: [...items],
-      subtotal: totals.subtotal,
-      taxAmount: totals.taxAmount,
-      discountAmount: totals.discountAmount,
-      total: totals.total,
-      paymentMethod,
-      amountPaid: received,
-      changeAmount: Math.max(0, received - totals.total),
-      createdAt: new Date(),
-      status: 'COMPLETED',
-    };
-    setSalesHistory(prev => [sale, ...prev]);
-    setLastSale(sale);
-    clearCart();
-    setCashReceived('');
-    setIsProcessing(false);
-    setScreen('complete');
+    
+    try {
+      // Enviar venta al backend
+      const saleFromBackend = await completeSale();
+      
+      // Crear registro local para mostrar
+      const received = paymentMethod === 'CASH' ? parseFloat(cashReceived) || totals.total : totals.total;
+      const sale: SaleRecord = {
+        id: saleFromBackend.id,
+        folio: saleFromBackend.folio,
+        items: [...items],
+        subtotal: totals.subtotal,
+        taxAmount: totals.taxAmount,
+        discountAmount: totals.discountAmount,
+        total: totals.total,
+        paymentMethod,
+        amountPaid: received,
+        changeAmount: Math.max(0, received - totals.total),
+        createdAt: new Date(saleFromBackend.createdAt),
+        status: 'COMPLETED',
+      };
+      
+      setSalesHistory(prev => [sale, ...prev]);
+      setLastSale(sale);
+      setCashReceived('');
+      setScreen('complete');
+      
+      console.log('✅ Venta completada y guardada en backend:', saleFromBackend);
+    } catch (error) {
+      console.error('❌ Error al procesar venta:', error);
+      alert('Error al procesar la venta. Por favor intenta de nuevo.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // =============== CASH CLOSE ===============

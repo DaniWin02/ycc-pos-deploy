@@ -1,0 +1,26 @@
+{
+  "name": "@ycc/database",
+  "version": "1.0.0",
+  "description": "Base de datos para YCC POS",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "push": "prisma db push",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "tsx seed.ts",
+    "studio": "prisma studio",
+    "reset": "prisma migrate reset"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "@prisma/adapter-postgresql": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "tsx": "^4.7.0",
+    "bcryptjs": "^5.1.0"
+  }
+}
