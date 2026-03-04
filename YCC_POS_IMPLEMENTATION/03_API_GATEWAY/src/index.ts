@@ -2,6 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import { PrismaClient } from '@prisma/client'
+import productsRouter from './routes/products.routes'
+import categoriesRouter from './routes/categories.routes'
+import usersRouter from './routes/users.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -17,6 +20,11 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// API Routes
+app.use('/products', productsRouter)
+app.use('/categories', categoriesRouter)
+app.use('/users', usersRouter)
 
 // Health check
 app.get('/health', (req, res) => {

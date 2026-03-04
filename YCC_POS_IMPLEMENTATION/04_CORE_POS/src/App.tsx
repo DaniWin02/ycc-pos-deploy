@@ -191,7 +191,6 @@ export const App: React.FC = () => {
           <button onClick={handleLogin} disabled={pin.length !== 4} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
             Ingresar
           </button>
-          <p className="text-center text-xs text-gray-400 mt-4">PIN de prueba: 1234</p>
         </motion.div>
       </div>
     );
@@ -200,20 +199,20 @@ export const App: React.FC = () => {
   // --- CASH OPEN ---
   if (screen === 'cash-open') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-600 flex items-center justify-center p-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Banknote className="w-8 h-8 text-amber-600" />
+      <div className="h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-600 flex items-center justify-center p-3 sm:p-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-sm">
+          <div className="text-center mb-4 sm:mb-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <Banknote className="w-6 h-6 sm:w-8 sm:h-8 text-amber-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900">Apertura de Caja</h2>
-            <p className="text-gray-500 text-sm">Hola, {user}</p>
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Apertura de Caja</h2>
+            <p className="text-gray-500 text-xs sm:text-sm">Hola, {user}</p>
           </div>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fondo de caja inicial ($MXN)</label>
-            <input type="number" value={openingFloat} onChange={e => setOpeningFloat(e.target.value)} placeholder="0.00" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-2xl text-center font-bold focus:border-emerald-500 focus:outline-none" autoFocus />
+          <div className="mb-4 sm:mb-6">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Fondo de caja inicial ($MXN)</label>
+            <input type="number" value={openingFloat} onChange={e => setOpeningFloat(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl text-xl sm:text-2xl text-center font-bold focus:border-emerald-500 focus:outline-none" autoFocus />
           </div>
-          <button onClick={handleOpenCash} disabled={!openingFloat || parseFloat(openingFloat) <= 0} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-all">
+          <button onClick={handleOpenCash} disabled={!openingFloat || parseFloat(openingFloat) <= 0} className="w-full py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-emerald-700 disabled:opacity-40 transition-all">
             Abrir Caja
           </button>
         </motion.div>
@@ -224,26 +223,26 @@ export const App: React.FC = () => {
   // --- SALE COMPLETE ---
   if (screen === 'complete' && lastSale) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md text-center">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check className="w-10 h-10 text-emerald-600" />
+      <div className="h-screen bg-gray-50 flex items-center justify-center p-3 sm:p-4">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 w-full max-w-sm text-center">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="w-12 h-12 sm:w-16 sm:h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <Check className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />
           </motion.div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Venta Completada</h2>
-          <p className="text-gray-500 mb-6">Folio: {lastSale.folio}</p>
-          <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left space-y-2">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">Venta Completada</h2>
+          <p className="text-gray-500 mb-3 sm:mb-4 text-xs sm:text-sm">Folio: {lastSale.folio}</p>
+          <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 text-left space-y-1 sm:space-y-2 text-xs sm:text-sm">
             <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span className="font-medium">{fmt(lastSale.subtotal)}</span></div>
             <div className="flex justify-between"><span className="text-gray-600">IVA (16%)</span><span className="font-medium">{fmt(lastSale.taxAmount)}</span></div>
-            <div className="flex justify-between text-lg font-bold border-t pt-2"><span>Total</span><span className="text-emerald-600">{fmt(lastSale.total)}</span></div>
+            <div className="flex justify-between font-bold border-t pt-1"><span>Total</span><span className="text-emerald-600">{fmt(lastSale.total)}</span></div>
             {lastSale.paymentMethod === 'CASH' && (
               <>
                 <div className="flex justify-between"><span className="text-gray-600">Recibido</span><span>{fmt(lastSale.amountPaid)}</span></div>
                 <div className="flex justify-between text-amber-600 font-semibold"><span>Cambio</span><span>{fmt(lastSale.changeAmount)}</span></div>
               </>
             )}
-            <div className="flex justify-between text-sm"><span className="text-gray-500">Metodo</span><span className="capitalize">{lastSale.paymentMethod === 'CASH' ? 'Efectivo' : lastSale.paymentMethod === 'CREDIT_CARD' ? 'Tarjeta Credito' : lastSale.paymentMethod === 'DEBIT_CARD' ? 'Tarjeta Debito' : 'Cuenta Socio'}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Metodo</span><span className="capitalize">{lastSale.paymentMethod === 'CASH' ? 'Efectivo' : lastSale.paymentMethod === 'CREDIT_CARD' ? 'Tarjeta' : lastSale.paymentMethod === 'DEBIT_CARD' ? 'Debito' : 'Socio'}</span></div>
           </div>
-          <button onClick={() => setScreen('pos')} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-all">
+          <button onClick={() => setScreen('pos')} className="w-full py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-emerald-700 transition-all">
             Nueva Venta
           </button>
         </motion.div>
@@ -257,57 +256,57 @@ export const App: React.FC = () => {
     const change = Math.max(0, cashAmount - totals.total);
     const canPay = paymentMethod === 'CASH' ? cashAmount >= totals.total : true;
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-          <button onClick={() => setScreen('pos')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-5 h-5" /> Volver</button>
-          <h1 className="text-xl font-bold text-gray-900">Cobrar</h1>
-          <div className="text-2xl font-bold text-emerald-600">{fmt(totals.total)}</div>
+      <div className="h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline text-xs sm:text-sm">Volver</span></button>
+          <h1 className="text-base sm:text-lg font-bold text-gray-900">Cobrar</h1>
+          <div className="text-base sm:text-lg font-bold text-emerald-600">{fmt(totals.total)}</div>
         </header>
-        <div className="max-w-2xl mx-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
           {/* Payment methods */}
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Metodo de Pago</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {([['CASH', 'Efectivo', Banknote], ['CREDIT_CARD', 'Tarjeta Credito', CreditCard], ['DEBIT_CARD', 'Tarjeta Debito', CreditCard], ['MEMBER_ACCOUNT', 'Cuenta Socio', Users]] as [PaymentMethod, string, any][]).map(([method, label, Icon]) => (
-                <button key={method} onClick={() => setPaymentMethod(method)} className={`p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${paymentMethod === method ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <Icon className={`w-6 h-6 ${paymentMethod === method ? 'text-emerald-600' : 'text-gray-400'}`} />
-                  <span className={`font-medium ${paymentMethod === method ? 'text-emerald-700' : 'text-gray-600'}`}>{label}</span>
+          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4">
+            <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">Metodo de Pago</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
+              {([['CASH', 'Efectivo', Banknote], ['CREDIT_CARD', 'Tarjeta', CreditCard], ['DEBIT_CARD', 'Debito', CreditCard], ['MEMBER_ACCOUNT', 'Socio', Users]] as [PaymentMethod, string, any][]).map(([method, label, Icon]) => (
+                <button key={method} onClick={() => setPaymentMethod(method)} className={`p-2 sm:p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === method ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${paymentMethod === method ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  <span className={`font-medium text-xs sm:text-sm ${paymentMethod === method ? 'text-emerald-700' : 'text-gray-600'}`}>{label}</span>
                 </button>
               ))}
             </div>
           </div>
           {/* Cash input */}
           {paymentMethod === 'CASH' && (
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Efectivo Recibido</h3>
-              <input type="number" value={cashReceived} onChange={e => setCashReceived(e.target.value)} placeholder="0.00" className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl text-3xl text-center font-bold focus:border-emerald-500 focus:outline-none" autoFocus />
-              <div className="grid grid-cols-4 gap-2 mt-4">
+            <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Efectivo Recibido</h3>
+              <input type="number" value={cashReceived} onChange={e => setCashReceived(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 sm:py-3 border-2 border-gray-200 rounded-lg text-xl sm:text-2xl text-center font-bold focus:border-emerald-500 focus:outline-none" autoFocus />
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 sm:gap-2 mt-2">
                 {[50, 100, 200, 500, 1000].map(n => (
-                  <button key={n} onClick={() => setCashReceived(String(n))} className="py-2 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-all">{fmt(n)}</button>
+                  <button key={n} onClick={() => setCashReceived(String(n))} className="py-1 sm:py-2 px-1 bg-gray-100 rounded font-medium text-xs sm:text-sm hover:bg-gray-200 transition-all">{fmt(n)}</button>
                 ))}
-                <button onClick={() => setCashReceived(String(Math.ceil(totals.total / 10) * 10))} className="py-2 bg-emerald-100 text-emerald-700 rounded-lg font-medium hover:bg-emerald-200">Exacto</button>
+                <button onClick={() => setCashReceived(String(Math.ceil(totals.total / 10) * 10))} className="py-1 sm:py-2 px-1 bg-emerald-100 text-emerald-700 rounded font-medium text-xs sm:text-sm hover:bg-emerald-200">Exacto</button>
               </div>
               {cashAmount > 0 && (
-                <div className={`mt-4 p-4 rounded-xl text-center text-xl font-bold ${change >= 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
+                <div className={`mt-2 p-2 sm:p-3 rounded-lg text-center text-base sm:text-lg font-bold ${change >= 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
                   Cambio: {fmt(change)}
                 </div>
               )}
             </div>
           )}
           {/* Order summary */}
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Resumen</h3>
-            <div className="space-y-2 text-sm">
+          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4">
+            <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Resumen</h3>
+            <div className="space-y-1 text-xs sm:text-sm max-h-32 overflow-y-auto">
               {items.map(item => (
-                <div key={item.productId} className="flex justify-between"><span className="text-gray-600">{item.quantity}x {item.name}</span><span>{fmt(item.totalPrice)}</span></div>
+                <div key={item.productId} className="flex justify-between"><span className="text-gray-600 truncate flex-1 mr-2">{item.quantity}x {item.name}</span><span className="flex-shrink-0">{fmt(item.totalPrice)}</span></div>
               ))}
-              <div className="border-t pt-2 flex justify-between"><span>Subtotal</span><span>{fmt(totals.subtotal)}</span></div>
+              <div className="border-t pt-1 flex justify-between"><span>Subtotal</span><span>{fmt(totals.subtotal)}</span></div>
               <div className="flex justify-between"><span>IVA (16%)</span><span>{fmt(totals.taxAmount)}</span></div>
-              <div className="flex justify-between text-lg font-bold border-t pt-2"><span>Total</span><span className="text-emerald-600">{fmt(totals.total)}</span></div>
+              <div className="flex justify-between font-bold border-t pt-1"><span>Total</span><span className="text-emerald-600">{fmt(totals.total)}</span></div>
             </div>
           </div>
-          <button onClick={handlePay} disabled={!canPay || isProcessing} className="w-full py-4 bg-emerald-600 text-white rounded-xl text-lg font-bold hover:bg-emerald-700 disabled:opacity-40 transition-all flex items-center justify-center gap-2">
-            {isProcessing ? <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> Procesando...</> : <><Check className="w-5 h-5" /> Confirmar Pago</>}
+          <button onClick={handlePay} disabled={!canPay || isProcessing} className="w-full py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base hover:bg-emerald-700 disabled:opacity-40 transition-all flex items-center justify-center gap-2">
+            {isProcessing ? <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full" /> Procesando...</> : <><Check className="w-4 h-4 sm:w-5 sm:h-5" /> Confirmar Pago</>}
           </button>
         </div>
       </div>
@@ -321,26 +320,26 @@ export const App: React.FC = () => {
     const totalSales = salesHistory.reduce((a, s) => a + s.total, 0);
     const expectedCash = (parseFloat(openingFloat) || 0) + totalCash;
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-          <button onClick={() => setScreen('pos')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-5 h-5" /> Volver</button>
-          <h1 className="text-xl font-bold text-gray-900">Cierre de Caja</h1>
+      <div className="h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline text-xs sm:text-sm">Volver</span></button>
+          <h1 className="text-base sm:text-lg font-bold text-gray-900">Cierre de Caja</h1>
           <div />
         </header>
-        <div className="max-w-lg mx-auto p-6 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-lg">Resumen del Turno</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between p-3 bg-gray-50 rounded-lg"><span className="text-gray-600">Cajero</span><span className="font-medium">{user}</span></div>
-              <div className="flex justify-between p-3 bg-gray-50 rounded-lg"><span className="text-gray-600">Fondo Inicial</span><span className="font-medium">{fmt(parseFloat(openingFloat) || 0)}</span></div>
-              <div className="flex justify-between p-3 bg-gray-50 rounded-lg"><span className="text-gray-600">Ventas Totales</span><span className="font-bold text-emerald-600">{fmt(totalSales)}</span></div>
-              <div className="flex justify-between p-3 bg-gray-50 rounded-lg"><span className="text-gray-600">Total Efectivo</span><span className="font-medium">{fmt(totalCash)}</span></div>
-              <div className="flex justify-between p-3 bg-gray-50 rounded-lg"><span className="text-gray-600">Total Tarjetas</span><span className="font-medium">{fmt(totalCard)}</span></div>
-              <div className="flex justify-between p-3 bg-gray-50 rounded-lg"><span className="text-gray-600">Transacciones</span><span className="font-medium">{salesHistory.length}</span></div>
-              <div className="flex justify-between p-3 bg-amber-50 rounded-lg border border-amber-200"><span className="text-amber-700 font-medium">Efectivo Esperado en Caja</span><span className="font-bold text-amber-700">{fmt(expectedCash)}</span></div>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 space-y-3">
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Resumen del Turno</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Cajero</span><span className="font-medium">{user}</span></div>
+              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Fondo Inicial</span><span className="font-medium">{fmt(parseFloat(openingFloat) || 0)}</span></div>
+              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Ventas Totales</span><span className="font-bold text-emerald-600">{fmt(totalSales)}</span></div>
+              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Total Efectivo</span><span className="font-medium">{fmt(totalCash)}</span></div>
+              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Total Tarjetas</span><span className="font-medium">{fmt(totalCard)}</span></div>
+              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Transacciones</span><span className="font-medium">{salesHistory.length}</span></div>
+              <div className="flex justify-between p-2 bg-amber-50 rounded-lg border border-amber-200 text-xs sm:text-sm"><span className="text-amber-700 font-medium">Efectivo Esperado</span><span className="font-bold text-amber-700">{fmt(expectedCash)}</span></div>
             </div>
           </div>
-          <button onClick={handleCloseCash} className="w-full py-4 bg-red-600 text-white rounded-xl text-lg font-bold hover:bg-red-700 transition-all">
+          <button onClick={handleCloseCash} className="w-full py-2 sm:py-3 bg-red-600 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base hover:bg-red-700 transition-all">
             Cerrar Caja y Salir
           </button>
         </div>
@@ -351,28 +350,28 @@ export const App: React.FC = () => {
   // --- SALES HISTORY ---
   if (screen === 'history') {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-          <button onClick={() => setScreen('pos')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-5 h-5" /> Volver</button>
-          <h1 className="text-xl font-bold text-gray-900">Historial de Ventas</h1>
-          <div className="text-sm text-gray-500">{salesHistory.length} ventas</div>
+      <div className="h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline text-xs sm:text-sm">Volver</span></button>
+          <h1 className="text-base sm:text-lg font-bold text-gray-900">Historial de Ventas</h1>
+          <div className="text-xs sm:text-sm text-gray-500">{salesHistory.length} ventas</div>
         </header>
-        <div className="max-w-3xl mx-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4">
           {salesHistory.length === 0 ? (
             <div className="text-center py-16 text-gray-400">
               <Receipt className="w-16 h-16 mx-auto mb-4 opacity-30" />
               <p className="text-lg">No hay ventas registradas</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {salesHistory.map(sale => (
-                <div key={sale.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-gray-900">{sale.folio}</div>
-                    <div className="text-sm text-gray-500">{sale.items.length} articulos - {sale.createdAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</div>
+                <div key={sale.id} className="bg-white rounded-lg shadow-sm p-2 sm:p-3 flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{sale.folio}</div>
+                    <div className="text-xs text-gray-500">{sale.items.length} articulos - {sale.createdAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-emerald-600">{fmt(sale.total)}</div>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <div className="font-bold text-emerald-600 text-xs sm:text-sm">{fmt(sale.total)}</div>
                     <div className="text-xs text-gray-400 capitalize">{sale.paymentMethod === 'CASH' ? 'Efectivo' : 'Tarjeta'}</div>
                   </div>
                 </div>
@@ -386,21 +385,24 @@ export const App: React.FC = () => {
 
   // ===================== MAIN POS SCREEN =====================
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="h-screen bg-gray-100 flex flex-col">
       {/* HEADER */}
-      <header className="bg-white shadow-sm border-b border-gray-200 px-4 h-16 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-            <Package className="w-5 h-5 text-white" />
+      <header className="bg-white shadow-sm border-b border-gray-200 px-2 sm:px-4 h-12 sm:h-14 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-1 sm:gap-3">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-600 rounded-lg sm:rounded-xl flex items-center justify-center">
+            <Package className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 leading-tight">YCC POS</h1>
+          <div className="hidden sm:block">
+            <h1 className="text-sm sm:text-lg font-bold text-gray-900 leading-tight">YCC POS</h1>
             <p className="text-xs text-gray-500">Country Club - {user}</p>
           </div>
+          <div className="sm:hidden">
+            <h1 className="text-sm font-bold text-gray-900">POS</h1>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setScreen('history')} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Historial"><Receipt className="w-5 h-5" /></button>
-          <button onClick={() => setScreen('cash-close')} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Cerrar Caja"><LogOut className="w-5 h-5" /></button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setScreen('history')} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Historial"><Receipt className="w-3 h-3 sm:w-4 sm:h-4" /></button>
+          <button onClick={() => setScreen('cash-close')} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Cerrar Caja"><LogOut className="w-3 h-3 sm:w-4 sm:h-4" /></button>
         </div>
       </header>
 
@@ -408,85 +410,85 @@ export const App: React.FC = () => {
         {/* LEFT: PRODUCT CATALOG */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Search + Categories */}
-          <div className="p-4 space-y-3 bg-white border-b">
+          <div className="p-2 sm:p-3 space-y-2 bg-white border-b">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar producto o SKU..." className="w-full pl-10 pr-10 py-2.5 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" />
-              {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-gray-400" /></button>}
+              <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar..." className="w-full pl-7 sm:pl-9 pr-7 sm:pr-9 py-1.5 sm:py-2 bg-gray-100 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" />
+              {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2"><X className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" /></button>}
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1">
               {CATEGORIES.map(cat => (
-                <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${selectedCategory === cat.id ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{cat.name}</button>
+                <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${selectedCategory === cat.id ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{cat.name}</button>
               ))}
             </div>
           </div>
           {/* Products Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="flex-1 overflow-y-auto p-2 sm:p-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-2">
               {filteredProducts.map(product => {
                 const inCart = items.find(i => i.productId === product.id);
                 return (
-                  <motion.button key={product.id} whileTap={{ scale: 0.95 }} onClick={() => addItem(product)} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-left hover:shadow-md hover:border-emerald-200 transition-all relative group">
-                    <div className="flex items-start justify-between mb-2">
-                      <span className="text-xs font-mono text-gray-400">{product.sku}</span>
-                      {inCart && <span className="bg-emerald-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">{inCart.quantity}</span>}
+                  <motion.button key={product.id} whileTap={{ scale: 0.95 }} onClick={() => addItem(product)} className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-2 sm:p-3 text-left hover:shadow-md hover:border-emerald-200 transition-all relative group">
+                    <div className="flex items-start justify-between mb-1">
+                      <span className="text-xs font-mono text-gray-400 hidden sm:block">{product.sku}</span>
+                      {inCart && <span className="bg-emerald-600 text-white text-xs font-bold rounded-full w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center text-xs">{inCart.quantity}</span>}
                     </div>
-                    <h3 className="font-semibold text-gray-900 text-sm leading-tight mb-2">{product.name}</h3>
+                    <h3 className="font-semibold text-gray-900 text-xs sm:text-sm leading-tight mb-1 truncate">{product.name}</h3>
                     <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-emerald-600">{fmt(product.price)}</span>
-                      <span className="text-xs text-gray-400">{product.categoryName}</span>
+                      <span className="text-sm sm:text-lg font-bold text-emerald-600">{fmt(product.price)}</span>
+                      <span className="text-xs text-gray-400 hidden sm:block">{product.categoryName}</span>
                     </div>
-                    <div className="absolute inset-0 rounded-xl bg-emerald-600 opacity-0 group-active:opacity-10 transition-opacity" />
+                    <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-emerald-600 opacity-0 group-active:opacity-10 transition-opacity" />
                   </motion.button>
                 );
               })}
             </div>
             {filteredProducts.length === 0 && (
-              <div className="text-center py-16 text-gray-400">
-                <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>No se encontraron productos</p>
+              <div className="text-center py-8 text-gray-400">
+                <Search className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-30" />
+                <p className="text-xs sm:text-sm">No se encontraron productos</p>
               </div>
             )}
           </div>
         </div>
 
         {/* RIGHT: CART SIDEBAR */}
-        <div className="w-96 bg-white border-l border-gray-200 flex flex-col flex-shrink-0">
+        <div className="w-full sm:w-72 md:w-80 lg:w-96 bg-white border-l border-gray-200 flex flex-col flex-shrink-0">
           {/* Cart header */}
-          <div className="p-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-emerald-600" />
-              <h2 className="font-bold text-gray-900">Carrito</h2>
-              {itemCount > 0 && <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">{itemCount}</span>}
+          <div className="p-2 sm:p-3 border-b flex items-center justify-between">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-600" />
+              <h2 className="font-bold text-gray-900 text-xs sm:text-sm">Carrito</h2>
+              {itemCount > 0 && <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-1 sm:px-2 py-0.5 rounded-full">{itemCount}</span>}
             </div>
-            {items.length > 0 && <button onClick={clearCart} className="text-xs text-red-500 hover:text-red-700 font-medium">Limpiar</button>}
+            {items.length > 0 && <button onClick={clearCart} className="text-xs text-red-500 hover:text-red-700 font-medium hidden sm:inline">Limpiar</button>}
           </div>
 
           {/* Cart items */}
           <div className="flex-1 overflow-y-auto">
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
-                <ShoppingCart className="w-16 h-16 mb-4 opacity-20" />
-                <p className="text-sm">Agrega productos al carrito</p>
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 p-2 sm:p-4">
+                <ShoppingCart className="w-8 h-8 sm:w-12 sm:h-12 mb-2 sm:mb-4 opacity-20" />
+                <p className="text-xs">Agrega productos</p>
               </div>
             ) : (
               <AnimatePresence>
                 {items.map(item => (
-                  <motion.div key={item.productId} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="p-3 border-b border-gray-100 hover:bg-gray-50">
-                    <div className="flex items-start justify-between mb-2">
+                  <motion.div key={item.productId} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="p-1.5 sm:p-2 border-b border-gray-100 hover:bg-gray-50">
+                    <div className="flex items-start justify-between mb-1">
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900 text-sm truncate">{item.name}</h4>
-                        <p className="text-xs text-gray-400">{fmt(item.unitPrice)} c/u</p>
+                        <h4 className="font-medium text-gray-900 text-xs truncate">{item.name}</h4>
+                        <p className="text-xs text-gray-400">{fmt(item.unitPrice)}</p>
                       </div>
-                      <button onClick={() => removeItem(item.productId)} className="p-1 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => removeItem(item.productId)} className="p-1 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"><Minus className="w-3 h-3" /></button>
-                        <span className="w-8 text-center text-sm font-bold">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="w-7 h-7 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 flex items-center justify-center transition-colors"><Plus className="w-3 h-3" /></button>
+                        <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"><Minus className="w-2 h-2 sm:w-3 sm:h-3" /></button>
+                        <span className="w-5 sm:w-6 text-center text-xs font-bold">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-700 flex items-center justify-center transition-colors"><Plus className="w-2 h-2 sm:w-3 sm:h-3" /></button>
                       </div>
-                      <span className="font-bold text-gray-900 text-sm">{fmt(item.totalPrice)}</span>
+                      <span className="font-bold text-gray-900 text-xs">{fmt(item.totalPrice)}</span>
                     </div>
                   </motion.div>
                 ))}
@@ -496,17 +498,17 @@ export const App: React.FC = () => {
 
           {/* Cart totals + pay */}
           {items.length > 0 && (
-            <div className="border-t bg-gray-50 p-4 space-y-3">
-              <div className="space-y-1 text-sm">
+            <div className="border-t bg-gray-50 p-2 sm:p-3 space-y-2">
+              <div className="space-y-1 text-xs">
                 <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>{fmt(totals.subtotal)}</span></div>
                 <div className="flex justify-between text-gray-600"><span>IVA (16%)</span><span>{fmt(totals.taxAmount)}</span></div>
               </div>
-              <div className="flex justify-between text-xl font-bold">
+              <div className="flex justify-between font-bold text-sm sm:text-base">
                 <span>Total</span>
                 <span className="text-emerald-600">{fmt(totals.total)}</span>
               </div>
-              <button onClick={() => setScreen('payment')} className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                <CreditCard className="w-5 h-5" /> Cobrar
+              <button onClick={() => setScreen('payment')} className="w-full py-2 sm:py-2.5 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm hover:bg-emerald-700 transition-all active:scale-[0.98] flex items-center justify-center gap-1">
+                <CreditCard className="w-3 h-3 sm:w-4 sm:h-4" /> <span>Cobrar</span>
               </button>
             </div>
           )}

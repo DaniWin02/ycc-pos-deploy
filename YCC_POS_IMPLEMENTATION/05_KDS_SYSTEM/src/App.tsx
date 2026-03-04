@@ -3,22 +3,28 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChefHat, Clock, Check, ArrowRight, RotateCcw, Plus, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
 import { useKdsStore, KdsTicket, KdsTicketStatus } from './stores/useKdsStore'
 
-function Timer({ createdAt, completedAt }: { createdAt: Date; completedAt?: Date }) {
+function Timer({ createdAt, completedAt, deletedAt }: { createdAt: Date; completedAt?: Date; deletedAt?: Date }) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
+    // Timer detenido si está completado o eliminado
     if (completedAt) {
-      // Timer detenido - mostrar tiempo total
       setElapsed(Math.floor((new Date(completedAt).getTime() - new Date(createdAt).getTime()) / 1000))
       return
     }
+    if (deletedAt) {
+      setElapsed(Math.floor((new Date(deletedAt).getTime() - new Date(createdAt).getTime()) / 1000))
+      return
+    }
+    // Timer activo
     const update = () => setElapsed(Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000))
     update()
     const id = setInterval(update, 1000)
     return () => clearInterval(id)
-  }, [createdAt, completedAt])
+  }, [createdAt, completedAt, deletedAt])
   const mins = Math.floor(elapsed / 60)
   const secs = elapsed % 60
-  const color = completedAt ? 'text-gray-400' : mins >= 15 ? 'text-red-500' : mins >= 10 ? 'text-amber-500' : 'text-gray-500'
+  const isStopped = completedAt || deletedAt
+  const color = isStopped ? 'text-gray-400' : mins >= 15 ? 'text-red-500' : mins >= 10 ? 'text-amber-500' : 'text-gray-500'
   return <span className={`font-mono text-sm font-bold ${color}`}>{mins}:{String(secs).padStart(2, '0')}</span>
 }
 
@@ -37,8 +43,8 @@ const statusBadge: Record<KdsTicketStatus, string> = {
 }
 
 function App() {
-  const { tickets, stationId, connectionStatus, setStationId, addTicket, bumpTicket, recallTicket, deleteTicket, restoreTicket, permanentDeleteTicket, loadTickets, saveToStorage } = useKdsStore()
-  const [filter, setFilter] = useState<'active' | 'completed' | 'trash' | KdsTicketStatus>('active')
+  const { tickets, stationId, setStationId, bumpTicket, recallTicket, deleteTicket, permanentDeleteTicket, loadTickets } = useKdsStore()
+  const [filter, setFilter] = useState<'active' | 'history' | KdsTicketStatus>('active')
   const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'all'>('today')
 
   // Load tickets from API on station select
@@ -50,13 +56,6 @@ function App() {
       return () => clearInterval(interval)
     }
   }, [stationId, loadTickets])
-
-  // Auto-save to localStorage when tickets change
-  useEffect(() => {
-    if (tickets.length > 0) {
-      saveToStorage()
-    }
-  }, [tickets, saveToStorage])
 
   // Filtrado por fecha
   const filterByDate = (ticket: KdsTicket) => {
@@ -80,20 +79,19 @@ function App() {
 
   const dateFiltered = tickets.filter(filterByDate)
   
+  // Filtrado mejorado: Activos vs Historial
   const filtered = filter === 'active' 
     ? dateFiltered.filter(t => !t.deletedAt && t.status !== 'SERVED' && t.status !== 'CANCELLED')
-    : filter === 'completed'
-    ? dateFiltered.filter(t => !t.deletedAt && t.status === 'SERVED')
-    : filter === 'trash'
-    ? dateFiltered.filter(t => t.deletedAt)
+    : filter === 'history'
+    ? dateFiltered.filter(t => t.deletedAt || t.status === 'SERVED' || t.status === 'CANCELLED')
     : dateFiltered.filter(t => !t.deletedAt && t.status === filter)
   
   const counts = { 
     NEW: dateFiltered.filter(t => !t.deletedAt && t.status === 'NEW').length, 
     PREPARING: dateFiltered.filter(t => !t.deletedAt && t.status === 'PREPARING').length, 
     READY: dateFiltered.filter(t => !t.deletedAt && t.status === 'READY').length,
-    SERVED: dateFiltered.filter(t => !t.deletedAt && t.status === 'SERVED').length,
-    TRASH: dateFiltered.filter(t => t.deletedAt).length
+    ACTIVE: dateFiltered.filter(t => !t.deletedAt && t.status !== 'SERVED' && t.status !== 'CANCELLED').length,
+    HISTORY: dateFiltered.filter(t => t.deletedAt || t.status === 'SERVED' || t.status === 'CANCELLED').length
   }
 
   // Station selector
@@ -138,8 +136,8 @@ function App() {
             <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full font-bold">{counts.NEW} Nuevos</span>
             <span className="bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full font-bold">{counts.PREPARING} Prep</span>
             <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full font-bold">{counts.READY} Listos</span>
-            <span className="bg-gray-500/20 text-gray-400 px-2 py-1 rounded-full font-bold">{counts.SERVED} Servidos</span>
-            <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded-full font-bold">{counts.TRASH} Papelera</span>
+            <span className="bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full font-bold">{counts.ACTIVE} Activos</span>
+            <span className="bg-gray-500/20 text-gray-400 px-2 py-1 rounded-full font-bold">{counts.HISTORY} Historial</span>
           </div>
           <div className="flex items-center gap-1 text-emerald-400"><Wifi className="w-4 h-4" /><span className="text-xs">Online</span></div>
           <button onClick={() => { useKdsStore.setState({ stationId: null, tickets: [] }) }} className="text-xs text-gray-400 hover:text-white">Salir</button>
@@ -150,18 +148,15 @@ function App() {
       <div className="bg-gray-800/50 px-4 py-2 flex items-center justify-between border-b border-gray-700">
         <div className="flex gap-2">
           <button onClick={() => setFilter('active')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'active' ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
-            Activos
+            🔥 Activos ({counts.ACTIVE})
           </button>
           {(['NEW', 'PREPARING', 'READY'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === f ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
               {statusLabels[f]}
             </button>
           ))}
-          <button onClick={() => setFilter('completed')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'completed' ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
-            Completados ({counts.SERVED})
-          </button>
-          <button onClick={() => setFilter('trash')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'trash' ? 'bg-red-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
-            🗑️ Papelera ({counts.TRASH})
+          <button onClick={() => setFilter('history')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'history' ? 'bg-indigo-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
+            📋 Historial ({counts.HISTORY})
           </button>
         </div>
         <div className="flex gap-2 items-center">
@@ -193,7 +188,7 @@ function App() {
                       {ticket.priority === 'rush' && <AlertTriangle className="w-4 h-4" />}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Timer createdAt={ticket.createdAt} completedAt={ticket.completedAt} />
+                      <Timer createdAt={ticket.createdAt} completedAt={ticket.completedAt} deletedAt={ticket.deletedAt} />
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full text-white ${statusBadge[ticket.status]}`}>{statusLabels[ticket.status]}</span>
                     </div>
                   </div>
@@ -228,31 +223,31 @@ function App() {
                   </div>
                   {/* Action buttons */}
                   <div className="px-4 py-3 border-t border-gray-200/50">
-                    {filter === 'trash' ? (
+                    {filter === 'history' ? (
                       <div className="flex gap-2">
-                        <button onClick={() => restoreTicket(ticket.id)} className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-2">
-                          <RotateCcw className="w-4 h-4" /> Restaurar
-                        </button>
-                        <button onClick={() => permanentDeleteTicket(ticket.id)} className="px-3 py-2.5 rounded-lg font-bold text-sm bg-red-600 text-white hover:bg-red-700" title="Eliminar permanentemente">
-                          ⚠️
-                        </button>
+                        {ticket.deletedAt ? (
+                          <button onClick={() => permanentDeleteTicket(ticket.id)} className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-red-600 text-white hover:bg-red-700" title="Eliminar permanentemente">
+                            🗑️ Eliminar Definitivo
+                          </button>
+                        ) : (
+                          <div className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-gray-200 text-gray-600 text-center">
+                            ✓ Completado
+                          </div>
+                        )}
                       </div>
                     ) : ticket.status !== 'SERVED' ? (
                       <div className="flex gap-2">
                         <button onClick={() => bumpTicket(ticket.id)} className={`flex-1 py-2.5 rounded-lg font-bold text-sm text-white transition-all active:scale-95 ${ticket.status === 'NEW' ? 'bg-amber-500 hover:bg-amber-600' : ticket.status === 'PREPARING' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
-                          {ticket.status === 'NEW' ? 'Iniciar' : ticket.status === 'PREPARING' ? 'Listo' : 'Despachar'}
+                          {ticket.status === 'NEW' ? '▶ Iniciar' : ticket.status === 'PREPARING' ? '✓ Listo' : '🚀 Despachar'}
                         </button>
-                        <button onClick={() => deleteTicket(ticket.id)} className="px-3 py-2.5 rounded-lg font-bold text-sm bg-red-500 text-white hover:bg-red-600">
-                          🗑️
+                        <button onClick={() => deleteTicket(ticket.id)} className="px-3 py-2.5 rounded-lg font-bold text-sm bg-red-500 text-white hover:bg-red-600" title="Cancelar orden">
+                          ✕
                         </button>
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        <button onClick={() => recallTicket(ticket.id)} className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-gray-200 text-gray-600 hover:bg-gray-300 flex items-center justify-center gap-2">
-                          <RotateCcw className="w-4 h-4" /> Recall
-                        </button>
-                        <button onClick={() => deleteTicket(ticket.id)} className="px-3 py-2.5 rounded-lg font-bold text-sm bg-red-500 text-white hover:bg-red-600">
-                          🗑️
+                        <button onClick={() => recallTicket(ticket.id)} className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-amber-500 text-white hover:bg-amber-600 flex items-center justify-center gap-2">
+                          <RotateCcw className="w-4 h-4" /> Reabrir
                         </button>
                       </div>
                     )}

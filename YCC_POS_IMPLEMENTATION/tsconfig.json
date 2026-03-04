@@ -13,25 +13,26 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmitOnError": true,
-    "paths": {
-      "@ycc/*": ["./packages/*/src"],
-      "@/*": ["./apps/*/src"]
-    }
+    "noEmitOnError": true
   },
   "include": [
-    "packages/*/src/**/*",
-    "apps/*/src/**/*"
+    "01_SETUP_INICIAL/**/*",
+    "03_API_GATEWAY/src/**/*",
+    "04_CORE_POS/src/**/*",
+    "05_KDS_SYSTEM/src/**/*",
+    "06_ADMIN_PANEL/src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "build"
+    "build",
+    "**/node_modules",
+    "**/dist",
+    "**/build"
   ]
 }

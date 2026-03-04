@@ -4,17 +4,24 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
   DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ChevronRight, Bell, Search, Menu, X, LogOut, Clock, AlertTriangle,
-  Store, Utensils, ChefHat
+  Store, Utensils, ChefHat, FolderOpen
 } from 'lucide-react';
+import { ProductsPage } from './pages/ProductsPage';
+import { CategoriesPage } from './pages/CategoriesPage';
+import { SalesPage } from './pages/SalesPage';
+import { UsersPage } from './pages/UsersPage';
+import { ReportsPage } from './pages/ReportsPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
-type Page = 'dashboard' | 'sales' | 'products' | 'users' | 'reports' | 'settings';
+type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'users' | 'reports' | 'settings';
 
 const SIDEBAR_ITEMS: { id: Page; label: string; icon: any }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'sales', label: 'Ventas', icon: ShoppingCart },
   { id: 'products', label: 'Productos', icon: Package },
+  { id: 'categories', label: 'Categorías', icon: FolderOpen },
   { id: 'users', label: 'Usuarios', icon: Users },
   { id: 'reports', label: 'Reportes', icon: BarChart3 },
   { id: 'settings', label: 'Configuracion', icon: Settings },
@@ -31,56 +38,72 @@ export const App: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        const timestamp = Date.now();
         const [salesRes, productsRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL}/sales`),
-          fetch(`${import.meta.env.VITE_API_URL}/products`)
+          fetch(`http://localhost:3004/api/sales?t=${timestamp}`),
+          fetch(`http://localhost:3004/products?t=${timestamp}`)
         ]);
         
         const salesData = await salesRes.json();
         const productsData = await productsRes.json();
         
-        setSales(salesData);
+        // Mapear datos de ventas
+        const mappedSales = salesData.map((sale: any) => ({
+          ...sale,
+          total: Number(sale.totalAmount || sale.total || 0) || 0,
+          subtotal: Number(sale.subtotal || 0) || 0,
+          tax: Number(sale.taxAmount || sale.tax || 0) || 0
+        }));
+        
+        setSales(mappedSales);
         setProducts(productsData);
-        console.log('✅ Datos cargados en Admin:', { sales: salesData.length, products: productsData.length });
+        console.log('✅ Datos cargados en Admin:', { sales: mappedSales.length, products: productsData.length });
       } catch (error) {
-        console.error('❌ Error cargando datos:', error);
-        setSales([]);
-        setProducts([]);
+        console.error('Error cargando datos:', error);
       } finally {
         setIsLoading(false);
       }
     };
-
     loadData();
   }, []);
 
   // Calcular estadísticas desde datos reales
   const stats = {
-    totalSales: sales.reduce((sum, s) => sum + parseFloat(s.total || 0), 0),
+    totalSales: sales.reduce((sum, s) => sum + (parseFloat(s.total || 0) || 0), 0),
     salesCount: sales.length,
-    avgTicket: sales.length > 0 ? sales.reduce((sum, s) => sum + parseFloat(s.total || 0), 0) / sales.length : 0,
+    avgTicket: sales.length > 0 ? (sales.reduce((sum, s) => sum + (parseFloat(s.total || 0) || 0), 0) / sales.length) : 0,
     productsCount: products.length
   };
 
   // Top 5 productos más vendidos
   const topProducts = sales
-    .flatMap(sale => sale.items || [])
+    .flatMap(sale => {
+      // Manejar diferentes estructuras de datos de items
+      const items = sale.items || sale.saleItems || [];
+      console.log('🔍 Debug - Sale items:', items);
+      return items.map((item: any) => ({
+        name: item.productName || item.name || 'Producto desconocido',
+        quantity: parseInt(item.quantity) || 0,
+        price: parseFloat(item.price) || parseFloat(item.unitPrice) || 0
+      }));
+    })
+    .filter(item => item.quantity > 0 && item.price > 0) // Filtrar items inválidos
     .reduce((acc: any, item: any) => {
-      const existing = acc.find((p: any) => p.name === item.productName);
+      const existing = acc.find((p: any) => p.name === item.name);
       if (existing) {
         existing.sold += item.quantity;
-        existing.revenue += parseFloat(item.price) * item.quantity;
+        existing.revenue += item.price * item.quantity;
       } else {
         acc.push({
-          name: item.productName,
+          name: item.name,
           sold: item.quantity,
-          revenue: parseFloat(item.price) * item.quantity
+          revenue: item.price * item.quantity
         });
       }
       return acc;
-    }, [])
-    .sort((a: any, b: any) => b.revenue - a.revenue)
-    .slice(0, 5);
+    }, []);
+
+  console.log('🔍 Debug - Top products calculados:', topProducts);
 
   // Ventas recientes (últimas 6)
   const recentSales = sales
@@ -235,19 +258,33 @@ export const App: React.FC = () => {
                 {/* Top products */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="font-semibold text-gray-900 mb-4">Top Productos</h3>
-                  <div className="space-y-4">
-                    {topProducts.length > 0 ? topProducts.map((p: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center">{i + 1}</span>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{p.name}</p>
-                            <p className="text-xs text-gray-400">{p.sold} vendidos</p>
+                  <div className="space-y-3">
+                    {topProducts.length > 0 ? topProducts.map((p: any, i: number) => {
+                      // Validación adicional para evitar NaN
+                      const sold = p.sold || 0;
+                      const revenue = p.revenue || 0;
+                      const pricePerUnit = sold > 0 ? revenue / sold : 0;
+                      
+                      return (
+                        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center">{i + 1}</span>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span>{sold} vendidos</span>
+                                <span>•</span>
+                                <span>{fmt(pricePerUnit)} c/u</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-gray-900">{fmt(revenue)}</p>
+                            <p className="text-xs text-gray-500">ingresos</p>
                           </div>
                         </div>
-                        <span className="text-sm font-semibold text-gray-900">{fmt(p.revenue)}</span>
-                      </div>
-                    )) : (
+                      );
+                    }) : (
                       <p className="text-sm text-gray-400 text-center py-8">No hay datos de ventas</p>
                     )}
                   </div>
@@ -329,13 +366,13 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {page !== 'dashboard' && (
-            <div className="flex flex-col items-center justify-center h-96 text-gray-400">
-              <Utensils className="w-16 h-16 mb-4 opacity-20" />
-              <p className="text-xl font-medium text-gray-500">Seccion: {SIDEBAR_ITEMS.find(i => i.id === page)?.label}</p>
-              <p className="text-sm text-gray-400 mt-2">Modulo en desarrollo - Proximamente</p>
-            </div>
-          )}
+          {page === 'sales' && <SalesPage />}
+          {page === 'products' && <ProductsPage />}
+          {page === 'categories' && <CategoriesPage />}
+          {page === 'users' && <UsersPage />}
+          {page === 'reports' && <ReportsPage />}
+          
+          {page === 'settings' && <SettingsPage />}
         </main>
       </div>
     </div>

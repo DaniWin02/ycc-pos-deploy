@@ -44,10 +44,30 @@ interface KdsState {
   loadFromStorage: () => void
 }
 
+// Cargar tickets desde localStorage al iniciar
+const loadInitialTickets = (): KdsTicket[] => {
+  try {
+    const stored = localStorage.getItem('kds-tickets')
+    if (stored) {
+      const tickets = JSON.parse(stored).map((t: any) => ({
+        ...t,
+        createdAt: new Date(t.createdAt),
+        completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
+        deletedAt: t.deletedAt ? new Date(t.deletedAt) : undefined
+      }))
+      console.log('✅ Tickets cargados desde localStorage al iniciar:', tickets.length)
+      return tickets
+    }
+  } catch (error) {
+    console.error('❌ Error cargando desde localStorage:', error)
+  }
+  return []
+}
+
 export const useKdsStore = create<KdsState>()(
   devtools(
     (set, get) => ({
-      tickets: [],
+      tickets: loadInitialTickets(),
       stationId: null,
       connectionStatus: 'connected',
 
@@ -74,23 +94,29 @@ export const useKdsStore = create<KdsState>()(
         })
       })),
 
-      bumpTicket: (ticketId) => set((s) => ({
-        tickets: s.tickets.map(t => {
-          if (t.id !== ticketId) return t
-          if (t.status === 'NEW') return { ...t, status: 'PREPARING' as KdsTicketStatus, items: t.items.map(i => ({ ...i, status: 'PREPARING' as KdsItemStatus })) }
-          if (t.status === 'PREPARING') return { ...t, status: 'READY' as KdsTicketStatus, items: t.items.map(i => ({ ...i, status: 'READY' as KdsItemStatus })) }
-          if (t.status === 'READY') return { ...t, status: 'SERVED' as KdsTicketStatus, completedAt: new Date() }
-          return t
-        })
-      })),
+      bumpTicket: (ticketId) => {
+        set((s) => ({
+          tickets: s.tickets.map(t => {
+            if (t.id !== ticketId) return t
+            if (t.status === 'NEW') return { ...t, status: 'PREPARING' as KdsTicketStatus, items: t.items.map(i => ({ ...i, status: 'PREPARING' as KdsItemStatus })) }
+            if (t.status === 'PREPARING') return { ...t, status: 'READY' as KdsTicketStatus, items: t.items.map(i => ({ ...i, status: 'READY' as KdsItemStatus })) }
+            if (t.status === 'READY') return { ...t, status: 'SERVED' as KdsTicketStatus, completedAt: new Date() }
+            return t
+          })
+        }))
+        get().saveToStorage()
+      },
 
-      recallTicket: (ticketId) => set((s) => ({
-        tickets: s.tickets.map(t =>
-          t.id === ticketId && t.status === 'SERVED'
-            ? { ...t, status: 'READY' as KdsTicketStatus }
-            : t
-        )
-      })),
+      recallTicket: (ticketId) => {
+        set((s) => ({
+          tickets: s.tickets.map(t =>
+            t.id === ticketId && t.status === 'SERVED'
+              ? { ...t, status: 'READY' as KdsTicketStatus, completedAt: undefined }
+              : t
+          )
+        }))
+        get().saveToStorage()
+      },
 
       loadTickets: async () => {
         try {
@@ -148,23 +174,30 @@ export const useKdsStore = create<KdsState>()(
         }
       },
 
-      deleteTicket: (ticketId) => set((s) => {
-        const newTickets = s.tickets.map(t =>
-          t.id === ticketId ? { ...t, deletedAt: new Date() } : t
-        )
-        return { tickets: newTickets }
-      }),
+      deleteTicket: (ticketId) => {
+        set((s) => ({
+          tickets: s.tickets.map(t =>
+            t.id === ticketId ? { ...t, deletedAt: new Date() } : t
+          )
+        }))
+        get().saveToStorage()
+      },
 
-      restoreTicket: (ticketId) => set((s) => {
-        const newTickets = s.tickets.map(t =>
-          t.id === ticketId ? { ...t, deletedAt: undefined } : t
-        )
-        return { tickets: newTickets }
-      }),
+      restoreTicket: (ticketId) => {
+        set((s) => ({
+          tickets: s.tickets.map(t =>
+            t.id === ticketId ? { ...t, deletedAt: undefined } : t
+          )
+        }))
+        get().saveToStorage()
+      },
 
-      permanentDeleteTicket: (ticketId) => set((s) => ({
-        tickets: s.tickets.filter(t => t.id !== ticketId)
-      })),
+      permanentDeleteTicket: (ticketId) => {
+        set((s) => ({
+          tickets: s.tickets.filter(t => t.id !== ticketId)
+        }))
+        get().saveToStorage()
+      },
 
       saveToStorage: () => {
         const { tickets } = get()
