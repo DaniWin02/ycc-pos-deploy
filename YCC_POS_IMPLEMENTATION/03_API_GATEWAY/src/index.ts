@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client'
 import productsRouter from './routes/products.routes'
 import categoriesRouter from './routes/categories.routes'
 import usersRouter from './routes/users.routes'
+import comandasRouter from './routes/comandas.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -25,6 +26,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use('/products', productsRouter)
 app.use('/categories', categoriesRouter)
 app.use('/users', usersRouter)
+app.use('/comandas', comandasRouter)
 
 // Health check
 app.get('/health', (req, res) => {
@@ -154,38 +156,58 @@ app.get('/api/products', async (req, res) => {
 
 app.post('/api/sales', async (req, res) => {
   try {
-    const { items, customerId, totalAmount, paymentMethod } = req.body
+    const { items, customerId, customerName, totalAmount, paymentMethod, notes } = req.body
+    
+    // Get real IDs from database
+    const terminal = await prisma.terminal.findFirst({ where: { isActive: true } })
+    const store = await prisma.store.findFirst({ where: { isActive: true } })
+    const user = await prisma.user.findFirst({ where: { isActive: true } })
+    
+    if (!terminal || !store || !user) {
+      return res.status(500).json({ error: 'Missing required configuration' })
+    }
+    
+    // Calculate tax (16%)
+    const taxAmount = Number(totalAmount) * 0.16
+    const subtotal = Number(totalAmount) - taxAmount
     
     // Create order
     const order = await prisma.order.create({
       data: {
-        folio: `ORD-${Date.now()}`,
+        folio: `ORD-${Date.now().toString(36).toUpperCase()}`,
         customerId,
-        customerName: 'Guest',
-        terminalId: 'terminal-1',
-        storeId: 'store-1',
-        createdByUserId: 'user-1',
+        customerName: customerName || 'Guest',
+        terminalId: terminal.id,
+        storeId: store.id,
+        createdByUserId: user.id,
         status: 'COMPLETED',
-        subtotal: totalAmount,
-        taxAmount: 0,
-        totalAmount,
+        subtotal,
+        taxAmount,
+        totalAmount: Number(totalAmount),
         paymentStatus: 'CAPTURED',
+        notes,
+        completedAt: new Date(),
         items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            productName: item.name,
-            sku: item.sku || 'SKU-' + item.productId,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity,
-            taxAmount: 0,
-            modifiers: {}
-          }))
+          create: items.map((item: any) => {
+            const itemTotal = item.price * item.quantity
+            const itemTax = itemTotal * 0.16
+            return {
+              productId: item.productId,
+              productName: item.name,
+              sku: item.sku || 'SKU-' + item.productId,
+              quantity: item.quantity,
+              unitPrice: item.price,
+              totalPrice: itemTotal,
+              taxRate: 0.16,
+              taxAmount: itemTax,
+              modifiers: JSON.stringify([])
+            }
+          })
         },
         payments: {
           create: {
             method: paymentMethod || 'CASH',
-            amount: totalAmount,
+            amount: Number(totalAmount),
             status: 'CAPTURED',
             capturedAt: new Date()
           }
@@ -193,14 +215,15 @@ app.post('/api/sales', async (req, res) => {
       },
       include: {
         items: true,
-        payments: true
+        payments: true,
+        customer: true
       }
     })
     
     res.json(order)
   } catch (error) {
     console.error('Error creating sale:', error)
-    res.status(500).json({ error: 'Failed to create sale' })
+    res.status(500).json({ error: 'Failed to create sale', details: error.message })
   }
 })
 

@@ -12,16 +12,18 @@ import { SalesPage } from './pages/SalesPage';
 import { UsersPage } from './pages/UsersPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ComandasPage } from './pages/ComandasPage';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
-type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'users' | 'reports' | 'settings';
+type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'comandas' | 'users' | 'reports' | 'settings';
 
 const SIDEBAR_ITEMS: { id: Page; label: string; icon: any }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'sales', label: 'Ventas', icon: ShoppingCart },
   { id: 'products', label: 'Productos', icon: Package },
   { id: 'categories', label: 'Categorías', icon: FolderOpen },
+  { id: 'comandas', label: 'Comandas', icon: Utensils },
   { id: 'users', label: 'Usuarios', icon: Users },
   { id: 'reports', label: 'Reportes', icon: BarChart3 },
   { id: 'settings', label: 'Configuracion', icon: Settings },
@@ -369,6 +371,7 @@ export const App: React.FC = () => {
           {page === 'sales' && <SalesPage />}
           {page === 'products' && <ProductsPage />}
           {page === 'categories' && <CategoriesPage />}
+          {page === 'comandas' && <ComandasPage />}
           {page === 'users' && <UsersPage />}
           {page === 'reports' && <ReportsPage />}
           

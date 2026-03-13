@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Plus, Edit2, Trash2, Search, X } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, Search, X, Camera, Image as ImageIcon, Upload, Eye } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -26,8 +26,10 @@ export const ProductsPage: React.FC = () => {
     price: 0,
     category: '',
     stock: 0,
-    isActive: true
+    isActive: true,
+    image: ''
   });
+  const [imagePreview, setImagePreview] = useState<string>('');
 
   // Cargar productos desde el API
   useEffect(() => {
@@ -96,8 +98,10 @@ export const ProductsPage: React.FC = () => {
         price: product.price,
         category: product.category,
         stock: product.stock,
-        isActive: product.isActive
+        isActive: product.isActive,
+        image: product.image || ''
       });
+      setImagePreview(product.image || '');
     } else {
       setEditingProduct(null);
       setFormData({
@@ -106,8 +110,10 @@ export const ProductsPage: React.FC = () => {
         price: 0,
         category: '',
         stock: 0,
-        isActive: true
+        isActive: true,
+        image: ''
       });
+      setImagePreview('');
     }
     setIsModalOpen(true);
   };
@@ -115,14 +121,38 @@ export const ProductsPage: React.FC = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
+    setImagePreview('');
     setFormData({
       name: '',
       description: '',
       price: 0,
       category: '',
       stock: 0,
-      isActive: true
+      isActive: true,
+      image: ''
     });
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          setImagePreview(result);
+          setFormData(prev => ({ ...prev, image: result }));
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert('Por favor, selecciona un archivo de imagen válido');
+      }
+    }
+  };
+
+  const handleImageRemove = () => {
+    setImagePreview('');
+    setFormData(prev => ({ ...prev, image: '' }));
   };
 
   const filteredProducts = products.filter(product =>
@@ -176,18 +206,28 @@ export const ProductsPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
             >
-              <div className="h-48 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <Package className="w-16 h-16 text-white" />
-              </div>
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-lg text-gray-900">{product.name}</h3>
+              <div className="h-48 bg-gray-100 relative overflow-hidden">
+                {product.image ? (
+                  <img 
+                    src={product.image} 
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <Package className="w-16 h-16 text-white" />
+                  </div>
+                )}
+                <div className="absolute top-2 right-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     product.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                   }`}>
                     {product.isActive ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
+              </div>
+              <div className="p-4">
+                <h3 className="font-bold text-lg text-gray-900 mb-2">{product.name}</h3>
                 <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-2xl font-bold text-indigo-600">${Number(product.price).toFixed(2)}</span>
@@ -253,6 +293,52 @@ export const ProductsPage: React.FC = () => {
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Imagen del Producto</label>
+                  <div className="space-y-3">
+                    {imagePreview ? (
+                      <div className="relative">
+                        <img 
+                          src={imagePreview} 
+                          alt="Vista previa"
+                          className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleImageRemove}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                        <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                        <p className="text-sm text-gray-600 mb-2">No hay imagen seleccionada</p>
+                        <label className="cursor-pointer">
+                          <span className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                            <Upload className="w-4 h-4" />
+                            Seleccionar Imagen
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    )}
+                    
+                    {!imagePreview && (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Camera className="w-4 h-4" />
+                        <span>Formatos: JPG, PNG, GIF. Máximo 5MB</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

@@ -2,8 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -22,7 +21,7 @@ model User {
   passwordHash    String
   firstName       String
   lastName        String
-  role            UserRole @default(CASHIER)
+  role            String   @default("CASHIER")
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -79,8 +78,8 @@ model CashSession {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   terminal        Terminal @relation(fields: [terminalId], references: [id])
-  openedByUser   User @relation(fields: [openedByUserId], references: [id])
-  closedByUser   User? @relation(fields: [closedByUserId], references: [id])
+  openedByUser   User @relation("CashSessionOpenedBy", fields: [openedByUserId], references: [id])
+  closedByUser   User? @relation("CashSessionClosedBy", fields: [closedByUserId], references: [id])
 }
 
 // ========================================
@@ -129,11 +128,13 @@ model Product {
   trackInventory Boolean  @default(true)
   currentStock    Decimal   @default(0)
   minStockLevel   Decimal?
+  image           String?
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   category        Category @relation(fields: [categoryId], references: [id])
   inventoryMovements InventoryMovement[]
+  comandaItems    ComandaItem[]
 }
 
 // ========================================
@@ -202,6 +203,7 @@ model Order {
   createdByUser   User @relation(fields: [createdByUserId], references: [id])
   items           OrderItem[]
   payments        Payment[]
+  comandas        Comanda[]
 }
 
 model OrderItem {
@@ -266,6 +268,50 @@ model Modifier {
 }
 
 // ========================================
+// COMANDAS Y GESTIÓN DE COCINA
+// ========================================
+
+model Comanda {
+  id          String        @id @default(cuid())
+  folio       String        @unique
+  cliente     String
+  mesa        String?       // Para tipo MESA
+  domicilio   String?       // Para tipo DOMICILIO
+  telefono    String?
+  tipo        ComandaTipo   @default(MESA)
+  estado      ComandaEstado @default(PENDIENTE)
+  prioridad   Prioridad     @default(MEDIA)
+  items       ComandaItem[]
+  total       Decimal       @db.Decimal(10, 2)
+  notas       String?
+  mesero      String?
+  delivery    String?       // Repartidor para domicilios
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  completedAt DateTime?
+  
+  // Relaciones
+  orderId     String?       // Opcional: relacionar con orden si existe
+  order       Order?        @relation(fields: [orderId], references: [id])
+}
+
+model ComandaItem {
+  id        String      @id @default(cuid())
+  nombre    String
+  cantidad  Int
+  precio    Decimal     @db.Decimal(10, 2)
+  notas     String?
+  estado    ItemEstado  @default(PENDIENTE)
+  image     String?     // URL de la imagen del producto
+  productId String?     // Relación con producto
+  product   Product?    @relation(fields: [productId], references: [id])
+  comandaId String
+  comanda   Comanda     @relation(fields: [comandaId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+// ========================================
 // ENUMS DEL SISTEMA
 // ========================================
 
@@ -297,14 +343,33 @@ enum PaymentMethod {
   CASH
   CARD
   MEMBER_ACCOUNT
-  MIXED
 }
 
-enum UserRole {
-  ADMIN
-  CASHIER
-  MANAGER
-  KITCHEN
+enum ComandaTipo {
+  MESA
+  DOMICILIO
+  LLEVAR
+}
+
+enum ComandaEstado {
+  PENDIENTE
+  PREPARANDO
+  LISTO
+  ENTREGADO
+  CANCELADO
+}
+
+enum ItemEstado {
+  PENDIENTE
+  PREPARANDO
+  LISTO
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
 }
 
 enum CashSessionStatus {

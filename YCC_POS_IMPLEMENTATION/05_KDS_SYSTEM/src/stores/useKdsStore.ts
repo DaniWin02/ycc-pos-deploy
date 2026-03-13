@@ -10,6 +10,7 @@ export interface KdsTicketItem {
   quantity: number
   notes?: string
   status: KdsItemStatus
+  image?: string
 }
 
 export interface KdsTicket {

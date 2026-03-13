@@ -1,0 +1,19 @@
+{
+  "cliente": "Cliente de Prueba",
+  "mesa": "Mesa 1",
+  "tipo": "MESA",
+  "prioridad": "MEDIA",
+  "items": [
+    {
+      "nombre": "Hamburguesa Clásica",
+      "cantidad": 1,
+      "precio": 120
+    },
+    {
+      "nombre": "Refresco",
+      "cantidad": 1,
+      "precio": 25
+    }
+  ],
+  "mesero": "Mesero Test"
+}

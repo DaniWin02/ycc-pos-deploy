@@ -205,17 +205,26 @@ function App() {
                     </div>
                   )}
                   {/* Items */}
-                  <div className="px-4 py-3 space-y-2">
+                  <div className="px-4 py-3 space-y-3">
                     {ticket.items.map(item => (
-                      <div key={item.id} className={`flex items-start justify-between py-1.5 ${item.status === 'READY' ? 'opacity-50 line-through' : ''}`}>
-                        <div className="flex-1">
+                      <div key={item.id} className={`flex items-start gap-3 py-1.5 ${item.status === 'READY' ? 'opacity-50 line-through' : ''}`}>
+                        {item.image && (
+                          <div className="flex-shrink-0">
+                            <img 
+                              src={item.image} 
+                              alt={item.name}
+                              className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-sm text-gray-900">{item.quantity}x</span>
-                            <span className="text-sm text-gray-800">{item.name}</span>
+                            <span className="text-sm text-gray-800 truncate">{item.name}</span>
                           </div>
                           {item.notes && <p className="text-xs text-orange-600 font-medium mt-0.5">{item.notes}</p>}
                         </div>
-                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${item.status === 'PENDING' ? 'bg-gray-200 text-gray-600' : item.status === 'PREPARING' ? 'bg-amber-200 text-amber-800' : 'bg-emerald-200 text-emerald-800'}`}>
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${item.status === 'PENDING' ? 'bg-gray-200 text-gray-600' : item.status === 'PREPARING' ? 'bg-amber-200 text-amber-800' : 'bg-emerald-200 text-emerald-800'}`}>
                           {item.status === 'PENDING' ? 'Pend' : item.status === 'PREPARING' ? 'Prep' : 'OK'}
                         </span>
                       </div>

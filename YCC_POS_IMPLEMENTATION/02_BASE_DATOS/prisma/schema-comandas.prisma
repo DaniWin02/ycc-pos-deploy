@@ -1,0 +1,78 @@
+// Schema simplificado solo para Comandas
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// COMANDAS Y GESTIÓN DE COCINA
+// ========================================
+
+model Comanda {
+  id          String        @id @default(cuid())
+  folio       String        @unique
+  cliente     String
+  mesa        String?
+  domicilio   String?
+  telefono    String?
+  tipo        ComandaTipo   @default(MESA)
+  estado      ComandaEstado @default(PENDIENTE)
+  prioridad   Prioridad     @default(MEDIA)
+  items       ComandaItem[]
+  total       Decimal       @db.Decimal(10, 2)
+  notas       String?
+  mesero      String?
+  delivery    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  completedAt DateTime?
+}
+
+model ComandaItem {
+  id        String      @id @default(cuid())
+  nombre    String
+  cantidad  Int
+  precio    Decimal     @db.Decimal(10, 2)
+  notas     String?
+  estado    ItemEstado  @default(PENDIENTE)
+  image     String?
+  comandaId String
+  comanda   Comanda     @relation(fields: [comandaId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum ComandaTipo {
+  MESA
+  DOMICILIO
+  LLEVAR
+}
+
+enum ComandaEstado {
+  PENDIENTE
+  PREPARANDO
+  LISTO
+  ENTREGADO
+  CANCELADO
+}
+
+enum ItemEstado {
+  PENDIENTE
+  PREPARANDO
+  LISTO
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
+}
