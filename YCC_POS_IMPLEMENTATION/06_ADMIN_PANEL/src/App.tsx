@@ -4,15 +4,15 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
   DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ChevronRight, Bell, Search, Menu, X, LogOut, Clock, AlertTriangle,
-  Store, Utensils, ChefHat, FolderOpen
+  Store, FolderOpen, Utensils
 } from 'lucide-react';
 import { ProductsPage } from './pages/ProductsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { SalesPage } from './pages/SalesPage';
+import { ComandasPage } from './pages/ComandasPage';
 import { UsersPage } from './pages/UsersPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { ComandasPage } from './pages/ComandasPage';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 

@@ -3,10 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart, Package, CreditCard, DollarSign, Users, LogOut,
   Plus, Minus, Trash2, Search, X, Check, Banknote, ArrowLeft,
-  Lock, ChevronRight, Receipt, Clock, TrendingUp, AlertCircle
+  Lock, ChevronRight, Receipt, Clock, TrendingUp, AlertCircle,
+  Store, Utensils, Truck, Settings
 } from 'lucide-react';
 import { useCartStore } from './stores/cart.store';
-import { Product, PaymentMethod, SaleRecord } from './types';
+import { Product, PaymentMethod, SaleRecord, POSMode } from './types';
+import { ModeSelector } from './components/ModeSelector';
+import { TableMode } from './components/TableMode';
+import { DeliveryMode } from './components/DeliveryMode';
 
 // ===================== HELPERS =====================
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
@@ -17,10 +21,16 @@ const CATEGORIES = [
 ];
 
 // ===================== SCREENS =====================
-type Screen = 'login' | 'pos' | 'payment' | 'complete' | 'cash-open' | 'cash-close' | 'history';
+type Screen = 'mode-select' | 'login' | 'pos' | 'payment' | 'complete' | 'cash-open' | 'cash-close' | 'history';
 
 // ===================== APP =====================
 export const App: React.FC = () => {
+  // Mode
+  const [posMode, setPosMode] = useState<POSMode>('COUNTER');
+  const [showModeSelector, setShowModeSelector] = useState(false);
+  const [showTableMode, setShowTableMode] = useState(false);
+  const [showDeliveryMode, setShowDeliveryMode] = useState(false);
+  
   // Auth
   const [screen, setScreen] = useState<Screen>('login');
   const [user, setUser] = useState('');
@@ -38,7 +48,10 @@ export const App: React.FC = () => {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/products`);
+        // Usar URL directa para evitar duplicación de /api
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004';
+        const baseUrl = apiUrl.replace('/api', ''); // Remover /api si existe
+        const response = await fetch(`${baseUrl}/api/products`);
         const data = await response.json();
         
         // Transformar datos del API al formato del frontend
@@ -399,6 +412,40 @@ export const App: React.FC = () => {
           <div className="sm:hidden">
             <h1 className="text-sm font-bold text-gray-900">POS</h1>
           </div>
+          {/* Mode indicator - Más prominente */}
+          <button 
+            onClick={() => setShowModeSelector(true)}
+            className={`
+              ml-3 px-3 py-2 rounded-xl flex items-center gap-2 font-bold text-sm transition-all transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl
+              ${posMode === 'COUNTER' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : ''}
+              ${posMode === 'TABLE' ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
+              ${posMode === 'DELIVERY' ? 'bg-purple-500 hover:bg-purple-600 text-white' : ''}
+            `}
+            title="Cambiar modo de operación"
+          >
+            {posMode === 'COUNTER' && (
+              <>
+                <Store className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Mostrador</span>
+                <span className="sm:hidden">Mostrador</span>
+              </>
+            )}
+            {posMode === 'TABLE' && (
+              <>
+                <Utensils className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Mesa</span>
+                <span className="sm:hidden">Mesa</span>
+              </>
+            )}
+            {posMode === 'DELIVERY' && (
+              <>
+                <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Domicilio</span>
+                <span className="sm:hidden">Domicilio</span>
+              </>
+            )}
+            <Settings className="w-3 h-3 opacity-70" />
+          </button>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setScreen('history')} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Historial"><Receipt className="w-3 h-3 sm:w-4 sm:h-4" /></button>
@@ -507,13 +554,131 @@ export const App: React.FC = () => {
                 <span>Total</span>
                 <span className="text-emerald-600">{fmt(totals.total)}</span>
               </div>
-              <button onClick={() => setScreen('payment')} className="w-full py-2 sm:py-2.5 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm hover:bg-emerald-700 transition-all active:scale-[0.98] flex items-center justify-center gap-1">
-                <CreditCard className="w-3 h-3 sm:w-4 sm:h-4" /> <span>Cobrar</span>
+              <button 
+                onClick={() => {
+                  if (posMode === 'COUNTER') {
+                    setScreen('payment');
+                  } else if (posMode === 'TABLE') {
+                    setShowTableMode(true);
+                  } else if (posMode === 'DELIVERY') {
+                    setShowDeliveryMode(true);
+                  }
+                }}
+                className={`
+                  w-full py-2 sm:py-2.5 text-white rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1
+                  ${posMode === 'COUNTER' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                  ${posMode === 'TABLE' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  ${posMode === 'DELIVERY' ? 'bg-purple-600 hover:bg-purple-700' : ''}
+                `}
+              >
+                {posMode === 'COUNTER' && <><CreditCard className="w-3 h-3 sm:w-4 sm:h-4" /> <span>Cobrar</span></>}
+                {posMode === 'TABLE' && <><Utensils className="w-3 h-3 sm:w-4 sm:h-4" /> <span>Enviar a Cocina</span></>}
+                {posMode === 'DELIVERY' && <><Truck className="w-3 h-3 sm:w-4 sm:h-4" /> <span>Crear Pedido</span></>}
               </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Mode Selector Overlay */}
+      {showModeSelector && (
+        <ModeSelector
+          currentMode={posMode}
+          onModeChange={(mode) => {
+            setPosMode(mode);
+            setShowModeSelector(false);
+          }}
+        />
+      )}
+
+      {/* Table Mode Overlay */}
+      {showTableMode && (
+        <TableMode
+          items={items}
+          total={totals.total}
+          onSendToKitchen={async (tableNumber, customerName) => {
+            try {
+              const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004';
+              const baseUrl = apiUrl.replace('/api', '');
+              
+              const response = await fetch(`${baseUrl}/comandas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  tipo: 'MESA',
+                  mesa: tableNumber,
+                  cliente: customerName,
+                  items: items.map(item => ({
+                    nombre: item.name,
+                    cantidad: item.quantity,
+                    precio: item.unitPrice,
+                    notas: ''
+                  })),
+                  total: totals.total,
+                  notas: ''
+                })
+              });
+
+              if (response.ok) {
+                clearCart();
+                setShowTableMode(false);
+                alert(`Pedido enviado a cocina\nMesa: ${tableNumber}\nCliente: ${customerName}`);
+              } else {
+                throw new Error('Error al crear comanda');
+              }
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al enviar pedido a cocina');
+            }
+          }}
+          onCancel={() => setShowTableMode(false)}
+        />
+      )}
+
+      {/* Delivery Mode Overlay */}
+      {showDeliveryMode && (
+        <DeliveryMode
+          items={items}
+          total={totals.total}
+          onCreateDelivery={async (customerName, phone, address) => {
+            try {
+              const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004';
+              const baseUrl = apiUrl.replace('/api', '');
+              
+              const response = await fetch(`${baseUrl}/comandas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  tipo: 'DOMICILIO',
+                  cliente: customerName,
+                  telefono: phone,
+                  domicilio: address,
+                  items: items.map(item => ({
+                    nombre: item.name,
+                    cantidad: item.quantity,
+                    precio: item.unitPrice,
+                    notas: ''
+                  })),
+                  total: totals.total,
+                  notas: ''
+                })
+              });
+
+              if (response.ok) {
+                clearCart();
+                setShowDeliveryMode(false);
+                alert(`Pedido a domicilio creado\nCliente: ${customerName}\nTeléfono: ${phone}\nDirección: ${address}`);
+              } else {
+                throw new Error('Error al crear pedido');
+              }
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al crear pedido a domicilio');
+            }
+          }}
+          onCancel={() => setShowDeliveryMode(false)}
+        />
+      )}
     </div>
   );
 };

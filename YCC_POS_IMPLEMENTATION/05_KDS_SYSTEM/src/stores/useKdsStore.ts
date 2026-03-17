@@ -24,6 +24,10 @@ export interface KdsTicket {
   table?: string
   waiter?: string
   priority: 'normal' | 'rush'
+  tipo?: 'MESA' | 'DOMICILIO' | 'LLEVAR'
+  cliente?: string
+  telefono?: string
+  domicilio?: string
 }
 
 interface KdsState {
@@ -121,31 +125,35 @@ export const useKdsStore = create<KdsState>()(
 
       loadTickets: async () => {
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/sales`)
-          const sales = await response.json()
+          // Cargar comandas desde el API
+          const comandasResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3004'}/comandas`)
+          const comandas = await comandasResponse.json()
           
           // Obtener tickets actuales del store
           const currentTickets = get().tickets
           
-          // Transformar ventas del API a tickets KDS
-          const newTicketsFromAPI: KdsTicket[] = sales
-            .filter((sale: any) => sale.status === 'COMPLETED')
-            .map((sale: any) => ({
-              id: sale.id,
-              folio: sale.folio,
-              items: sale.items.map((item: any) => ({
-                id: item.id,
-                name: item.productName,
-                quantity: item.quantity,
-                notes: item.notes || '',
-                status: 'PENDING' as KdsItemStatus
-              })),
-              status: 'NEW' as KdsTicketStatus,
-              createdAt: new Date(sale.createdAt),
-              table: sale.tableId || undefined,
-              waiter: sale.customerName || 'Guest',
-              priority: 'normal' as const
-            }))
+          // Transformar comandas del API a tickets KDS
+          const newTicketsFromAPI: KdsTicket[] = comandas.map((comanda: any) => ({
+            id: comanda.id,
+            folio: comanda.folio,
+            items: comanda.items.map((item: any) => ({
+              id: item.id,
+              name: item.nombre,
+              quantity: item.cantidad,
+              notes: item.notas || '',
+              status: item.estado === 'LISTO' ? 'READY' : item.estado === 'PREPARANDO' ? 'PREPARING' : 'PENDING' as KdsItemStatus
+            })),
+            status: comanda.estado === 'ENTREGADO' ? 'SERVED' : comanda.estado === 'CANCELADO' ? 'CANCELLED' : comanda.estado === 'LISTO' ? 'READY' : comanda.estado === 'PREPARANDO' ? 'PREPARING' : 'NEW' as KdsTicketStatus,
+            createdAt: new Date(comanda.createdAt),
+            completedAt: comanda.completedAt ? new Date(comanda.completedAt) : undefined,
+            table: comanda.mesa || undefined,
+            waiter: comanda.mesero || undefined,
+            priority: comanda.prioridad === 'ALTA' || comanda.prioridad === 'URGENTE' ? 'rush' : 'normal' as const,
+            tipo: comanda.tipo,
+            cliente: comanda.cliente,
+            telefono: comanda.telefono,
+            domicilio: comanda.domicilio
+          }))
           
           // Merge: mantener estado de tickets existentes, agregar solo nuevos
           const mergedTickets = newTicketsFromAPI.map(newTicket => {
@@ -168,7 +176,7 @@ export const useKdsStore = create<KdsState>()(
           
           set({ tickets: allTickets, connectionStatus: 'connected' })
           get().saveToStorage() // Guardar en localStorage
-          console.log('✅ Tickets cargados:', allTickets.length, '| Servidos:', allTickets.filter(t => t.status === 'SERVED').length, '| Papelera:', allTickets.filter(t => t.deletedAt).length)
+          console.log('✅ Comandas cargadas:', allTickets.length, '| Servidos:', allTickets.filter(t => t.status === 'SERVED').length, '| Papelera:', allTickets.filter(t => t.deletedAt).length)
         } catch (error) {
           console.error('❌ Error cargando tickets:', error)
           set({ connectionStatus: 'disconnected' })

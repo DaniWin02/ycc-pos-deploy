@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Utensils, Clock, CheckCircle, XCircle, AlertCircle, Plus, Search,
-  Filter, Calendar, User, DollarSign, TrendingUp, TrendingDown,
-  ChefHat, Truck, Home, Store, Phone, Mail, MapPin, Edit,
-  Eye, Download, RefreshCw, BarChart3
+  Utensils, Clock, CheckCircle, XCircle, AlertCircle, Search,
+  User, DollarSign, ChefHat, Truck, Home, Store, Phone, MapPin, Edit,
+  Eye, Download, RefreshCw, BarChart3, Save, Trash2, TrendingUp
 } from 'lucide-react';
 
 interface Comanda {
@@ -25,6 +24,7 @@ interface Comanda {
   notas?: string;
   mesero?: string;
   delivery?: string;
+  createdAt?: string;
 }
 
 interface ComandaItem {
@@ -36,6 +36,16 @@ interface ComandaItem {
   estado: 'PENDIENTE' | 'PREPARANDO' | 'LISTO';
 }
 
+// Sistema automático de prioridades basado en tiempo de espera
+const calcularPrioridad = (tiempoEspera: number, estado: string): 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE' => {
+  if (estado === 'ENTREGADO' || estado === 'CANCELADO') return 'BAJA';
+  
+  if (tiempoEspera >= 45) return 'URGENTE';  // Más de 45 minutos
+  if (tiempoEspera >= 30) return 'ALTA';     // 30-45 minutos
+  if (tiempoEspera >= 15) return 'MEDIA';    // 15-30 minutos
+  return 'BAJA';                              // Menos de 15 minutos
+};
+
 const ComandasPage: React.FC = () => {
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +54,8 @@ const ComandasPage: React.FC = () => {
   const [filterTipo, setFilterTipo] = useState<string>('TODOS');
   const [selectedComanda, setSelectedComanda] = useState<Comanda | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingComanda, setEditingComanda] = useState<Comanda | null>(null);
 
   // Cargar datos desde el API
   useEffect(() => {
@@ -58,7 +70,14 @@ const ComandasPage: React.FC = () => {
         }
         
         const data = await response.json();
-        setComandas(data);
+        
+        // Aplicar sistema de prioridades automático
+        const comandasConPrioridad = data.map((comanda: Comanda) => ({
+          ...comanda,
+          prioridad: calcularPrioridad(comanda.tiempoEspera, comanda.estado)
+        }));
+        
+        setComandas(comandasConPrioridad);
       } catch (error) {
         console.error('Error cargando comandas:', error);
         // En caso de error, mostrar mensaje o dejar array vacío
@@ -88,7 +107,14 @@ const ComandasPage: React.FC = () => {
       }
       
       const data = await response.json();
-      setComandas(data);
+      
+      // Aplicar sistema de prioridades automático
+      const comandasConPrioridad = data.map((comanda: Comanda) => ({
+        ...comanda,
+        prioridad: calcularPrioridad(comanda.tiempoEspera, comanda.estado)
+      }));
+      
+      setComandas(comandasConPrioridad);
     } catch (error) {
       console.error('Error recargando comandas:', error);
     } finally {
@@ -96,42 +122,60 @@ const ComandasPage: React.FC = () => {
     }
   };
 
-  // Función para crear comanda de prueba
-  const createTestComanda = async () => {
+  // Función para actualizar estado de comanda
+  const updateEstado = async (comandaId: string, nuevoEstado: string) => {
     try {
-      const testComanda = {
-        cliente: 'Cliente de Prueba',
-        mesa: 'Mesa 1',
-        tipo: 'MESA',
-        prioridad: 'MEDIA',
-        items: [
-          { nombre: 'Hamburguesa Clásica', cantidad: 1, precio: 120 },
-          { nombre: 'Refresco', cantidad: 1, precio: 25 }
-        ],
-        mesero: 'Mesero Test'
-      };
-
-      const response = await fetch('http://localhost:3004/comandas', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(testComanda)
+      const response = await fetch(`http://localhost:3004/comandas/${comandaId}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: nuevoEstado })
       });
 
-      if (!response.ok) {
-        throw new Error('Error creando comanda de prueba');
-      }
-
-      const result = await response.json();
-      console.log('Comanda de prueba creada:', result);
+      if (!response.ok) throw new Error('Error actualizando estado');
       
-      // Recargar datos para mostrar la nueva comanda
-      refreshData();
+      await refreshData();
     } catch (error) {
-      console.error('Error creando comanda de prueba:', error);
-      alert('Error creando comanda de prueba');
+      console.error('Error actualizando estado:', error);
+      alert('Error al actualizar el estado');
     }
+  };
+
+  // Función para guardar cambios de edición
+  const saveComandaChanges = async () => {
+    if (!editingComanda) return;
+
+    try {
+      const response = await fetch(`http://localhost:3004/comandas/${editingComanda.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cliente: editingComanda.cliente,
+          mesa: editingComanda.mesa,
+          telefono: editingComanda.telefono,
+          domicilio: editingComanda.domicilio,
+          tipo: editingComanda.tipo,
+          notas: editingComanda.notas,
+          mesero: editingComanda.mesero
+        })
+      });
+
+      if (!response.ok) throw new Error('Error guardando cambios');
+      
+      setShowEditModal(false);
+      setEditingComanda(null);
+      await refreshData();
+      alert('Comanda actualizada exitosamente');
+    } catch (error) {
+      console.error('Error guardando cambios:', error);
+      alert('Error al guardar los cambios');
+    }
+  };
+
+  // Función para cancelar comanda
+  const cancelarComanda = async (comandaId: string) => {
+    if (!confirm('¿Estás seguro de cancelar esta comanda?')) return;
+    
+    await updateEstado(comandaId, 'CANCELADO');
   };
 
   // Filtrar comandas
@@ -226,15 +270,12 @@ const ComandasPage: React.FC = () => {
             Gestión de Comandas
           </h1>
           <p className="text-gray-600 mt-1">Control y seguimiento de órdenes en tiempo real</p>
+          <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+            <AlertCircle className="w-3 h-3" />
+            <span>Prioridades automáticas: <strong className="text-red-600">URGENTE</strong> (+45min) | <strong className="text-orange-600">ALTA</strong> (30-45min) | <strong className="text-blue-600">MEDIA</strong> (15-30min) | <strong className="text-gray-600">BAJA</strong> (-15min)</span>
+          </div>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={createTestComanda}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva Comanda (Test)
-          </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
             <Download className="w-4 h-4" />
             Exportar
@@ -450,11 +491,25 @@ const ComandasPage: React.FC = () => {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          className="text-gray-600 hover:text-gray-900 transition-colors"
-                          title="Editar"
+                          onClick={() => {
+                            setEditingComanda(comanda);
+                            setShowEditModal(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          title="Editar comanda"
+                          disabled={comanda.estado === 'ENTREGADO' || comanda.estado === 'CANCELADO'}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
+                        {comanda.estado !== 'ENTREGADO' && comanda.estado !== 'CANCELADO' && (
+                          <button
+                            onClick={() => cancelarComanda(comanda.id)}
+                            className="text-red-600 hover:text-red-900 transition-colors"
+                            title="Cancelar comanda"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </motion.tr>
@@ -621,10 +676,225 @@ const ComandasPage: React.FC = () => {
                 >
                   Cerrar
                 </button>
-                <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                  <Edit className="w-4 h-4 inline mr-2" />
-                  Editar Comanda
+                {selectedComanda.estado !== 'ENTREGADO' && selectedComanda.estado !== 'CANCELADO' && (
+                  <button 
+                    onClick={() => {
+                      setEditingComanda(selectedComanda);
+                      setShowDetails(false);
+                      setShowEditModal(true);
+                    }}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Edit className="w-4 h-4 inline mr-2" />
+                    Editar Comanda
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Modal de Edición */}
+      {showEditModal && editingComanda && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowEditModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Editar Comanda</h2>
+                  <p className="text-gray-600 mt-1">Folio: {editingComanda.folio}</p>
+                </div>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XCircle className="w-6 h-6" />
                 </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Información del Cliente */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Información del Cliente</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Cliente *</label>
+                      <input
+                        type="text"
+                        value={editingComanda.cliente}
+                        onChange={(e) => setEditingComanda({ ...editingComanda, cliente: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Nombre completo"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Orden</label>
+                      <select
+                        value={editingComanda.tipo}
+                        onChange={(e) => setEditingComanda({ ...editingComanda, tipo: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      >
+                        <option value="MESA">Mesa</option>
+                        <option value="DOMICILIO">Domicilio</option>
+                        <option value="LLEVAR">Para Llevar</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detalles según tipo */}
+                {editingComanda.tipo === 'MESA' && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Detalles de Mesa</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Número de Mesa *</label>
+                        <input
+                          type="text"
+                          value={editingComanda.mesa || ''}
+                          onChange={(e) => setEditingComanda({ ...editingComanda, mesa: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          placeholder="Ej: Mesa 5"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mesero</label>
+                        <input
+                          type="text"
+                          value={editingComanda.mesero || ''}
+                          onChange={(e) => setEditingComanda({ ...editingComanda, mesero: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          placeholder="Nombre del mesero"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {editingComanda.tipo === 'DOMICILIO' && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Detalles de Domicilio</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
+                        <input
+                          type="tel"
+                          value={editingComanda.telefono || ''}
+                          onChange={(e) => setEditingComanda({ ...editingComanda, telefono: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          placeholder="10 dígitos"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Dirección de Entrega *</label>
+                        <textarea
+                          value={editingComanda.domicilio || ''}
+                          onChange={(e) => setEditingComanda({ ...editingComanda, domicilio: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          placeholder="Calle, número, colonia, referencias"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Estado de la Comanda */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Estado de la Comanda</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {['PENDIENTE', 'PREPARANDO', 'LISTO', 'ENTREGADO'].map((estado) => (
+                      <button
+                        key={estado}
+                        onClick={() => updateEstado(editingComanda.id, estado)}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          editingComanda.estado === estado
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {estado}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notas */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales</label>
+                  <textarea
+                    value={editingComanda.notas || ''}
+                    onChange={(e) => setEditingComanda({ ...editingComanda, notas: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Instrucciones especiales, alergias, etc."
+                    rows={3}
+                  />
+                </div>
+
+                {/* Resumen de Productos */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Productos en la Orden</h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="space-y-2">
+                      {editingComanda.items.map((item) => (
+                        <div key={item.id} className="flex justify-between items-center">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{item.nombre}</p>
+                            {item.notas && <p className="text-xs text-gray-500">{item.notas}</p>}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.cantidad} x ${item.precio} = ${item.cantidad * item.precio}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="border-t border-gray-200 pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <p className="font-bold text-gray-900">Total:</p>
+                          <p className="font-bold text-lg text-gray-900">${editingComanda.total}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex justify-between items-center mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => cancelarComanda(editingComanda.id)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Cancelar Comanda
+                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    onClick={saveComandaChanges}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Save className="w-4 h-4" />
+                    Guardar Cambios
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>

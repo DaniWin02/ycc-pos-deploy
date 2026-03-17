@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChefHat, Clock, Check, ArrowRight, RotateCcw, Plus, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
+import { ChefHat, Clock, Check, ArrowRight, RotateCcw, Plus, Wifi, WifiOff, AlertTriangle, Store, Utensils, Truck, Home } from 'lucide-react'
 import { useKdsStore, KdsTicket, KdsTicketStatus } from './stores/useKdsStore'
 
 function Timer({ createdAt, completedAt, deletedAt }: { createdAt: Date; completedAt?: Date; deletedAt?: Date }) {
@@ -192,10 +192,39 @@ function App() {
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full text-white ${statusBadge[ticket.status]}`}>{statusLabels[ticket.status]}</span>
                     </div>
                   </div>
-                  {/* Table & waiter */}
-                  <div className="px-4 py-2 flex justify-between text-xs border-b border-gray-200/50">
-                    <span className="font-medium">{ticket.table}</span>
-                    <span className="text-gray-500">{ticket.waiter}</span>
+                  {/* Order type & info */}
+                  <div className="px-4 py-2 flex justify-between items-center text-xs border-b border-gray-200/50">
+                    <div className="flex items-center gap-2">
+                      {ticket.tipo === 'MESA' && (
+                        <>
+                          <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                            <Utensils className="w-3 h-3" /> MESA {ticket.table}
+                          </span>
+                        </>
+                      )}
+                      {ticket.tipo === 'DOMICILIO' && (
+                        <>
+                          <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
+                            <Truck className="w-3 h-3" /> DOMICILIO
+                          </span>
+                        </>
+                      )}
+                      {ticket.tipo === 'LLEVAR' && (
+                        <>
+                          <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
+                            <Home className="w-3 h-3" /> LLEVAR
+                          </span>
+                        </>
+                      )}
+                      {!ticket.tipo && ticket.table && (
+                        <span className="font-medium">{ticket.table}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end">
+                      {ticket.cliente && <span className="font-medium text-gray-700">{ticket.cliente}</span>}
+                      {ticket.telefono && <span className="text-gray-500">{ticket.telefono}</span>}
+                      {!ticket.cliente && ticket.waiter && <span className="text-gray-500">{ticket.waiter}</span>}
+                    </div>
                   </div>
                   {/* Completion time */}
                   {ticket.completedAt && (

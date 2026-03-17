@@ -2,6 +2,8 @@
 
 export type PaymentMethod = 'CASH' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'MEMBER_ACCOUNT' | 'TRANSFER';
 export type OrderStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'PREPARING' | 'READY';
+export type POSMode = 'COUNTER' | 'TABLE' | 'DELIVERY';
+export type OrderType = 'COUNTER' | 'TABLE' | 'DELIVERY' | 'TAKEOUT';
 
 export interface Product {
   id: string;
@@ -69,4 +71,26 @@ export interface SaleRecord {
   customerName?: string;
   createdAt: Date;
   status: OrderStatus;
+  orderType?: OrderType;
+  tableNumber?: string;
+  deliveryAddress?: string;
+  deliveryPhone?: string;
+}
+
+export interface TableOrder {
+  tableNumber: string;
+  customerName: string;
+  items: CartItem[];
+  status: 'OPEN' | 'CLOSED';
+  createdAt: Date;
+}
+
+export interface DeliveryOrder {
+  customerName: string;
+  phone: string;
+  address: string;
+  items: CartItem[];
+  estimatedTime?: number;
+  status: 'PENDING' | 'PREPARING' | 'READY' | 'DELIVERED';
+  createdAt: Date;
 }
