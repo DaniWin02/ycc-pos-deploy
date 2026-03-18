@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
+const SALT_ROUNDS = 10;
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -15,7 +18,11 @@ router.get('/', async (req, res) => {
         firstName: true,
         lastName: true,
         role: true,
+        permissions: true,
+        phone: true,
+        avatar: true,
         isActive: true,
+        lastLogin: true,
         createdAt: true
       },
       orderBy: { createdAt: 'desc' }
@@ -61,8 +68,8 @@ router.post('/', async (req, res) => {
   try {
     const { username, email, firstName, lastName, role, password, isActive } = req.body;
     
-    // En producción, deberías hashear la contraseña con bcrypt
-    const passwordHash = password; // Simplificado para desarrollo
+    // Hash de la contraseña con bcrypt
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     
     const user = await prisma.user.create({
       data: {
@@ -110,7 +117,7 @@ router.put('/:id', async (req, res) => {
     
     // Solo actualizar contraseña si se proporciona
     if (password) {
-      updateData.passwordHash = password; // Simplificado para desarrollo
+      updateData.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     }
     
     const user = await prisma.user.update({

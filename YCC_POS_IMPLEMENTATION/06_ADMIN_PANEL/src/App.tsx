@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
   DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ChevronRight, Bell, Search, Menu, X, LogOut, Clock, AlertTriangle,
-  Store, FolderOpen, Utensils
+  Store, FolderOpen, Utensils, Warehouse
 } from 'lucide-react';
 import { ProductsPage } from './pages/ProductsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -13,16 +13,18 @@ import { ComandasPage } from './pages/ComandasPage';
 import { UsersPage } from './pages/UsersPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import InventoryPage from './pages/InventoryPage';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
-type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'comandas' | 'users' | 'reports' | 'settings';
+type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'comandas' | 'users' | 'reports' | 'settings' | 'inventory';
 
 const SIDEBAR_ITEMS: { id: Page; label: string; icon: any }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'sales', label: 'Ventas', icon: ShoppingCart },
   { id: 'products', label: 'Productos', icon: Package },
   { id: 'categories', label: 'Categorías', icon: FolderOpen },
+  { id: 'inventory', label: 'Inventario', icon: Warehouse },
   { id: 'comandas', label: 'Comandas', icon: Utensils },
   { id: 'users', label: 'Usuarios', icon: Users },
   { id: 'reports', label: 'Reportes', icon: BarChart3 },
@@ -371,6 +373,7 @@ export const App: React.FC = () => {
           {page === 'sales' && <SalesPage />}
           {page === 'products' && <ProductsPage />}
           {page === 'categories' && <CategoriesPage />}
+          {page === 'inventory' && <InventoryPage />}
           {page === 'comandas' && <ComandasPage />}
           {page === 'users' && <UsersPage />}
           {page === 'reports' && <ReportsPage />}

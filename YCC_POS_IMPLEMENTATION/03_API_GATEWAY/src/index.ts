@@ -6,6 +6,9 @@ import productsRouter from './routes/products.routes'
 import categoriesRouter from './routes/categories.routes'
 import usersRouter from './routes/users.routes'
 import comandasRouter from './routes/comandas.routes'
+import inventoryRouter from './routes/inventory.routes'
+import recipesRouter from './routes/recipes.routes'
+import authRouter from './routes/auth.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -29,6 +32,9 @@ app.use('/products', productsRouter)
 app.use('/categories', categoriesRouter)
 app.use('/users', usersRouter)
 app.use('/comandas', comandasRouter)
+app.use('/inventory', inventoryRouter)
+app.use('/recipes', recipesRouter)
+app.use('/auth', authRouter)
 
 // Health check
 app.get('/health', (req, res) => {

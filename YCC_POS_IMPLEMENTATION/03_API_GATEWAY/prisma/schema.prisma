@@ -22,13 +22,18 @@ model User {
   firstName             String
   lastName              String
   role                  UserRole            @default(CASHIER)
+  permissions           Json?               // Permisos específicos del usuario
+  phone                 String?
+  avatar                String?
   isActive              Boolean             @default(true)
+  lastLogin             DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   cashSessionsOpened    CashSession[]       @relation("CashSessionOpenedBy")
   cashSessionsClosed    CashSession[]       @relation("CashSessionClosedBy")
   inventoryMovements    InventoryMovement[]
   orders                Order[]
+  comandasAsignadas     Comanda[]           @relation("ComandaAsignada")
 }
 
 // ========================================
@@ -128,11 +133,19 @@ model Product {
   trackInventory     Boolean             @default(true)
   currentStock       Decimal             @default(0)
   minStockLevel      Decimal?
+  maxStockLevel      Decimal?
+  reorderPoint       Decimal?
+  unit               String              @default("unidad")
+  image              String?
+  station            String?             // Estación de cocina asignada
+  preparationTime    Int?                // Tiempo de preparación en minutos
   isActive           Boolean             @default(true)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   category           Category            @relation(fields: [categoryId], references: [id])
   inventoryMovements InventoryMovement[]
+  recipe             Recipe?
+  stockAlerts        StockAlert[]
 }
 
 // ========================================
@@ -144,12 +157,16 @@ model Ingredient {
   name               String              @unique
   description        String?
   unit               String
+  currentStock       Decimal             @default(0)
+  minStockLevel      Decimal?
   currentCost        Decimal
   supplierId         String?
+  expirationDate     DateTime?
   isActive           Boolean             @default(true)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   inventoryMovements InventoryMovement[]
+  recipeIngredients  RecipeIngredient[]
 }
 
 model InventoryMovement {
@@ -304,6 +321,10 @@ enum UserRole {
   CASHIER
   MANAGER
   KITCHEN
+  WAITER
+  DELIVERY
+  CHEF
+  SUPERVISOR
 }
 
 enum CashSessionStatus {
@@ -323,23 +344,26 @@ enum MovementType {
 // ========================================
 
 model Comanda {
-  id          String        @id @default(cuid())
-  folio       String        @unique
-  cliente     String
-  mesa        String?
-  domicilio   String?
-  telefono    String?
-  tipo        ComandaTipo   @default(MESA)
-  estado      ComandaEstado @default(PENDIENTE)
-  prioridad   Prioridad     @default(MEDIA)
-  items       ComandaItem[]
-  total       Decimal       @db.Decimal(10, 2)
-  notas       String?
-  mesero      String?
-  delivery    String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  completedAt DateTime?
+  id              String        @id @default(cuid())
+  folio           String        @unique
+  cliente         String
+  mesa            String?
+  domicilio       String?
+  telefono        String?
+  tipo            ComandaTipo   @default(MESA)
+  estado          ComandaEstado @default(PENDIENTE)
+  prioridad       Prioridad     @default(MEDIA)
+  items           ComandaItem[]
+  total           Decimal       @db.Decimal(10, 2)
+  notas           String?
+  mesero          String?
+  delivery        String?
+  asignadoAUserId String?       // Usuario asignado para entrega
+  asignadoA       User?         @relation("ComandaAsignada", fields: [asignadoAUserId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  completedAt     DateTime?
+  estimatedTime   Int?          // Tiempo estimado en minutos
 }
 
 model ComandaItem {
@@ -370,6 +394,7 @@ enum ComandaEstado {
   PENDIENTE
   PREPARANDO
   LISTO
+  ENTREGANDO
   ENTREGADO
   CANCELADO
 }
@@ -385,4 +410,74 @@ enum Prioridad {
   MEDIA
   ALTA
   URGENTE
+}
+
+// ========================================
+// SISTEMA DE RECETAS
+// ========================================
+
+model Recipe {
+  id                String             @id @default(cuid())
+  productId         String             @unique
+  name              String
+  description       String?
+  instructions      String?
+  preparationTime   Int?               // Minutos
+  servings          Int                @default(1)
+  costPerServing    Decimal?
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  product           Product            @relation(fields: [productId], references: [id])
+  ingredients       RecipeIngredient[]
+}
+
+model RecipeIngredient {
+  id           String     @id @default(cuid())
+  recipeId     String
+  ingredientId String
+  quantity     Decimal
+  unit         String
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+}
+
+// ========================================
+// SISTEMA DE ALERTAS DE INVENTARIO
+// ========================================
+
+model StockAlert {
+  id          String           @id @default(cuid())
+  productId   String
+  type        StockAlertType
+  level       Decimal
+  message     String
+  isResolved  Boolean          @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  product     Product          @relation(fields: [productId], references: [id])
+}
+
+enum StockAlertType {
+  LOW_STOCK
+  OUT_OF_STOCK
+  REORDER_POINT
+  EXPIRING_SOON
+}
+
+// ========================================
+// ESTACIONES DE COCINA
+// ========================================
+
+model KitchenStation {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
