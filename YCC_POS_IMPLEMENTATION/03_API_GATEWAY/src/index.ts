@@ -16,8 +16,10 @@ const app = express()
 // Middleware
 app.use(helmet())
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || '*',
-  credentials: true
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://localhost:3004', 'http://localhost:3005'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -255,7 +257,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 })
 
 // Start server
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT || 3004
 app.listen(PORT, () => {
   console.log(`🚀 API Gateway running on http://localhost:${PORT}`)
   console.log(`📊 Health check: http://localhost:${PORT}/health`)
