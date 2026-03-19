@@ -228,35 +228,6 @@ app.post('/api/sales', async (req, res) => {
       }
     })
     
-    // Create comanda for KDS
-    const comanda = await prisma.comanda.create({
-      data: {
-        folio: order.folio,
-        orderId: order.id,
-        storeId: store.id,
-        terminalId: terminal.id,
-        status: 'NUEVO',
-        type: 'COUNTER',
-        customerName: customerName || 'Guest',
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            productName: item.name,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity,
-            notes: '',
-            status: 'PENDING'
-          }))
-        }
-      },
-      include: {
-        items: true
-      }
-    })
-    
-    console.log('✅ Comanda creada para KDS:', comanda.folio)
-    
     res.json(order)
   } catch (error) {
     console.error('Error creating sale:', error)

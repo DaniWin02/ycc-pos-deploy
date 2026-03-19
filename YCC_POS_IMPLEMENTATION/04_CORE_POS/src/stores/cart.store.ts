@@ -99,8 +99,7 @@ export const useCartStore = create<CartState>()(
           const totals = get().getTotals()
           
           try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004';
-            const response = await fetch(`${apiUrl}/api/sales`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/sales`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
