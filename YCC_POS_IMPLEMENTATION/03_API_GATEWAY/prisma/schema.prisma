@@ -49,6 +49,7 @@ model Store {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   terminals   Terminal[]
+  orders      Order[]
 }
 
 model Terminal {
@@ -215,6 +216,7 @@ model Order {
   completedAt     DateTime?
   customer        Customer?     @relation(fields: [customerId], references: [id])
   terminal        Terminal      @relation(fields: [terminalId], references: [id])
+  store           Store         @relation(fields: [storeId], references: [id])
   createdBy       User          @relation(fields: [createdByUserId], references: [id])
   items           OrderItem[]
   payments        Payment[]
@@ -368,16 +370,22 @@ model Comanda {
 
 model ComandaItem {
   id        String      @id @default(cuid())
+  productId String?     // ID del producto para tracking
   nombre    String
   cantidad  Int
   precio    Decimal     @db.Decimal(10, 2)
   notas     String?
   estado    ItemEstado  @default(PENDIENTE)
   image     String?
+  station   String?     // Estación de cocina asignada
   comandaId String
   comanda   Comanda     @relation(fields: [comandaId], references: [id], onDelete: Cascade)
+  preparadoPor String?   // Usuario que marcó como listo
+  recogidoPor  String?   // Usuario que recogió el pedido
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  readyAt   DateTime?   // Cuando se marcó como listo
+  pickedAt  DateTime?   // Cuando se recogió
 }
 
 // ========================================
@@ -403,6 +411,8 @@ enum ItemEstado {
   PENDIENTE
   PREPARANDO
   LISTO
+  RECOGIDO
+  ENTREGADO
 }
 
 enum Prioridad {

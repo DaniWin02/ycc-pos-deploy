@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client'
 import productsRouter from './routes/products.routes'
 import categoriesRouter from './routes/categories.routes'
 import usersRouter from './routes/users.routes'
-import comandasRouter from './routes/comandas.routes'
+import comandasRouter from './routes/comandas.routes.enhanced'
 import inventoryRouter from './routes/inventory.routes'
 import recipesRouter from './routes/recipes.routes'
 import authRouter from './routes/auth.routes'
@@ -26,6 +26,12 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path}`)
+  next()
+})
 
 // API Routes
 app.use('/products', productsRouter)
@@ -162,24 +168,81 @@ app.get('/api/products', async (req, res) => {
   }
 })
 
+// Handle preflight for /api/sales
+app.options('/api/sales', cors())
+
 app.post('/api/sales', async (req, res) => {
   try {
     const { items, customerId, customerName, totalAmount, paymentMethod, notes } = req.body
     
-    // Get real IDs from database
-    const terminal = await prisma.terminal.findFirst({ where: { isActive: true } })
-    const store = await prisma.store.findFirst({ where: { isActive: true } })
-    const user = await prisma.user.findFirst({ where: { isActive: true } })
+    console.log('📦 Creating sale:', { items: items?.length, totalAmount, paymentMethod })
+    console.log('📦 Request body:', JSON.stringify(req.body, null, 2))
     
-    if (!terminal || !store || !user) {
-      return res.status(500).json({ error: 'Missing required configuration' })
+    // Validate items
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      console.error('❌ Invalid items:', items)
+      return res.status(400).json({ error: 'Items array is required and must not be empty' })
     }
     
+    // Get or create required entities
+    console.log('🔍 Looking for terminal...')
+    let terminal = await prisma.terminal.findFirst({ where: { isActive: true } })
+    if (!terminal) {
+      console.log('⚠️ No terminal found, creating default...')
+      const store = await prisma.store.findFirst()
+      terminal = await prisma.terminal.create({
+        data: {
+          name: 'Terminal Principal',
+          location: 'Mostrador Principal',
+          storeId: store?.id || (await prisma.store.create({ data: { name: 'Tienda Principal', address: 'N/A', phone: '0000000000', isActive: true } })).id,
+          isActive: true
+        }
+      })
+    }
+    
+    console.log('✅ Terminal found/created:', terminal.id)
+    
+    console.log('🔍 Looking for store...')
+    let store = await prisma.store.findFirst({ where: { isActive: true } })
+    if (!store) {
+      console.log('⚠️ No store found, creating default...')
+      store = await prisma.store.create({
+        data: {
+          name: 'Tienda Principal',
+          address: 'N/A',
+          phone: '0000000000',
+          isActive: true
+        }
+      })
+    }
+    console.log('✅ Store found/created:', store.id)
+    
+    console.log('🔍 Looking for user...')
+    let user = await prisma.user.findFirst({ where: { isActive: true } })
+    if (!user) {
+      console.log('⚠️ No user found, creating default...')
+      user = await prisma.user.create({
+        data: {
+          email: 'cajero@ycc.com',
+          username: 'cajero',
+          passwordHash: '$2b$10$abcdefghijklmnopqrstuv',
+          firstName: 'Cajero',
+          lastName: 'Principal',
+          role: 'CASHIER',
+          isActive: true
+        }
+      })
+    }
+    console.log('✅ User found/created:', user.id)
+    
     // Calculate tax (16%)
+    console.log('💰 Calculating totals...')
     const taxAmount = Number(totalAmount) * 0.16
     const subtotal = Number(totalAmount) - taxAmount
+    console.log('💰 Subtotal:', subtotal, 'Tax:', taxAmount, 'Total:', totalAmount)
     
     // Create order
+    console.log('📝 Creating order...')
     const order = await prisma.order.create({
       data: {
         folio: `ORD-${Date.now().toString(36).toUpperCase()}`,
@@ -228,10 +291,17 @@ app.post('/api/sales', async (req, res) => {
       }
     })
     
+    console.log('✅ Sale created successfully:', order.folio)
     res.json(order)
   } catch (error) {
-    console.error('Error creating sale:', error)
-    res.status(500).json({ error: 'Failed to create sale', details: error.message })
+    console.error('❌ Error creating sale:', error)
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack')
+    res.status(500).json({ 
+      error: 'Failed to create sale', 
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
   }
 })
 

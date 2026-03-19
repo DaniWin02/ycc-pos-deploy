@@ -99,31 +99,87 @@ export const useCartStore = create<CartState>()(
           const totals = get().getTotals()
           
           try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/sales`, {
+            // Asegurar que la URL base no incluya /api
+            let apiUrl = import.meta.env?.VITE_API_URL || 'http://localhost:3004'
+            // Remover /api del final si existe
+            apiUrl = apiUrl.replace(/\/api\/?$/, '')
+            console.log('🔗 API URL:', apiUrl)
+            
+            const requestBody = {
+              items: items.map(item => ({
+                productId: item.productId,
+                name: item.name,
+                sku: item.sku,
+                price: item.unitPrice,
+                quantity: item.quantity
+              })),
+              customerId: null,
+              customerName: customerName || 'Guest',
+              totalAmount: totals.total,
+              paymentMethod: paymentMethod,
+              notes: notes
+            }
+            
+            console.log('📤 Sending request to:', `${apiUrl}/api/sales`)
+            console.log('📤 Request body:', requestBody)
+            
+            const response = await fetch(`${apiUrl}/api/sales`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                items: items.map(item => ({
-                  productId: item.productId,
-                  name: item.name,
-                  sku: item.sku,
-                  price: item.unitPrice,
-                  quantity: item.quantity
-                })),
-                customerId: null,
-                customerName: customerName || 'Guest',
-                totalAmount: totals.total,
-                paymentMethod: paymentMethod,
-                notes: notes
-              })
+              body: JSON.stringify(requestBody)
             })
+            
+            console.log('📥 Response status:', response.status, response.statusText)
+            console.log('📥 Response ok:', response.ok)
 
             if (!response.ok) {
-              throw new Error('Failed to create sale')
+              const errorText = await response.text()
+              console.error('❌ Response text:', errorText)
+              
+              let errorData
+              try {
+                errorData = JSON.parse(errorText)
+              } catch {
+                errorData = { error: errorText || 'Unknown error' }
+              }
+              
+              console.error('❌ Error del servidor:', errorData)
+              throw new Error(errorData.details || errorData.error || 'Failed to create sale')
             }
 
             const sale = await response.json()
             console.log('✅ Venta creada en el backend:', sale)
+            
+            // Crear comanda automáticamente para KDS
+            try {
+              const comandaResponse = await fetch(`${apiUrl}/comandas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  cliente: customerName || 'Mostrador',
+                  mesa: 'MOSTRADOR',
+                  tipo: 'LLEVAR',
+                  prioridad: 'MEDIA',
+                  items: items.map(item => ({
+                    productId: item.productId,
+                    nombre: item.name,
+                    cantidad: item.quantity,
+                    precio: item.unitPrice,
+                    notas: '',
+                    image: item.image
+                  })),
+                  notas: notes || '',
+                  mesero: 'Cajero'
+                })
+              })
+              
+              if (comandaResponse.ok) {
+                const comanda = await comandaResponse.json()
+                console.log('✅ Comanda creada para KDS:', comanda.comanda?.folio)
+              }
+            } catch (comandaError) {
+              console.warn('⚠️ No se pudo crear comanda para KDS:', comandaError)
+            }
             
             // Limpiar carrito después de venta exitosa
             get().clearCart()

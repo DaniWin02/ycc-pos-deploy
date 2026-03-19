@@ -106,9 +106,16 @@ function App() {
             <h1 className="text-2xl font-bold text-gray-900">Kitchen Display System</h1>
             <p className="text-gray-500 mt-1">YCC Country Club</p>
           </div>
-          <h3 className="font-semibold text-gray-700 mb-4">Selecciona Estacion</h3>
+          <h3 className="font-semibold text-gray-700 mb-4">Selecciona Estación</h3>
           <div className="space-y-3">
-            {[{ id: 'cocina-1', name: 'Cocina Principal', desc: 'Linea caliente - Comidas' }, { id: 'cocina-2', name: 'Cocina Fria', desc: 'Ensaladas y postres' }, { id: 'barra', name: 'Barra', desc: 'Bebidas y cocktails' }, { id: 'expediter', name: 'Expediter', desc: 'Vista general - Despacho' }].map(s => (
+            {[
+              { id: 'COCINA_PRINCIPAL', name: 'Cocina Principal', desc: 'Línea caliente - Comidas' }, 
+              { id: 'COCINA_FRIA', name: 'Cocina Fría', desc: 'Ensaladas y postres' }, 
+              { id: 'BAR', name: 'Bar', desc: 'Bebidas y cócteles' }, 
+              { id: 'PARRILLA', name: 'Parrilla', desc: 'Carnes y asados' },
+              { id: 'POSTRES', name: 'Postres', desc: 'Repostería y dulces' },
+              { id: 'ENSALADAS', name: 'Ensaladas', desc: 'Ensaladas y vegetales' }
+            ].map(s => (
               <button key={s.id} onClick={() => setStationId(s.id)} className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 text-left transition-all flex items-center justify-between group">
                 <div><div className="font-semibold text-gray-900">{s.name}</div><div className="text-sm text-gray-500">{s.desc}</div></div>
                 <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 transition-colors" />

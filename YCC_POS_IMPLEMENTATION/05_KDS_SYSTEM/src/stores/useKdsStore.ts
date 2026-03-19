@@ -124,13 +124,20 @@ export const useKdsStore = create<KdsState>()(
       },
 
       loadTickets: async () => {
+        const { stationId } = get()
+        if (!stationId) return
+        
         try {
-          // Cargar comandas desde el API
-          const comandasResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3004'}/comandas`)
-          const comandas = await comandasResponse.json()
-          
-          // Obtener tickets actuales del store
+          set({ connectionStatus: 'reconnecting' })
           const currentTickets = get().tickets
+          
+          // Cargar comandas desde el API filtradas por estación
+          const url = `http://localhost:3004/comandas?station=${encodeURIComponent(stationId)}`
+          const response = await fetch(url)
+          if (!response.ok) throw new Error('Error cargando comandas')
+          
+          const comandas = await response.json()
+          console.log(`📡 Comandas recibidas del API para estación ${stationId}:`, comandas.length)
           
           // Transformar comandas del API a tickets KDS
           const newTicketsFromAPI: KdsTicket[] = comandas.map((comanda: any) => ({
