@@ -4,13 +4,16 @@ import {
   ShoppingCart, Package, CreditCard, DollarSign, Users, LogOut,
   Plus, Minus, Trash2, Search, X, Check, Banknote, ArrowLeft,
   Lock, ChevronRight, Receipt, Clock, TrendingUp, AlertCircle,
-  Store, Utensils, Truck, Settings
+  Store, Utensils, Truck, Settings, Scissors, UserCircle
 } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 import { useCartStore } from './stores/cart.store';
 import { Product, PaymentMethod, SaleRecord, POSMode } from './types';
 import { ModeSelector } from './components/ModeSelector';
 import { TableMode } from './components/TableMode';
 import { DeliveryMode } from './components/DeliveryMode';
+import { CashCutModal } from './components/CashCutModal';
+import { api, endpoints } from './lib/apiClient';
 
 // ===================== HELPERS =====================
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
@@ -34,49 +37,63 @@ export const App: React.FC = () => {
   // Auth
   const [screen, setScreen] = useState<Screen>('login');
   const [user, setUser] = useState('');
+  const [userId, setUserId] = useState('');
   const [pin, setPin] = useState('');
   const [cashOpen, setCashOpen] = useState(false);
   const [openingFloat, setOpeningFloat] = useState('');
+  
+  // Cash Session & Shift Management
+  const [currentCashSession, setCurrentCashSession] = useState<any>(null);
+  const [currentShift, setCurrentShift] = useState<any>(null);
+  const [showCashCutModal, setShowCashCutModal] = useState(false);
+  const [terminalId] = useState('terminal-main');
 
   // POS
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [categories, setCategories] = useState([{ id: 'all', name: 'Todos' }]);
 
-  // Cargar productos desde el API
+  // Load products on mount
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        // Usar URL directa para evitar duplicación de /api
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004';
-        const baseUrl = apiUrl.replace('/api', ''); // Remover /api si existe
-        const response = await fetch(`${baseUrl}/api/products`);
-        const data = await response.json();
+        const data = await api.get(endpoints.products.list());
         
         // Transformar datos del API al formato del frontend
-        const transformedProducts: Product[] = data.map((p: any) => ({
+        const transformedProducts = data.map((p: any) => ({
           id: p.id,
           sku: p.sku,
           name: p.name,
-          categoryId: p.category.id,
-          categoryName: p.category.name,
-          price: parseFloat(p.price),
-          taxRate: parseFloat(p.taxRate),
-          currentStock: parseFloat(p.currentStock),
-          isActive: p.isActive
+          price: Number(p.price),
+          categoryId: p.categoryId,
+          categoryName: p.category?.name || 'Sin categoría',
+          imageUrl: p.imageUrl || undefined
         }));
         
         setProducts(transformedProducts);
-        console.log('✅ Productos cargados desde API:', transformedProducts.length);
+        setIsLoadingProducts(false);
+        
+        // Extraer categorías únicas
+        const uniqueCategories = Array.from(
+          new Set(transformedProducts.map((p: Product) => p.categoryId))
+        ).map(id => {
+          const product = transformedProducts.find((p: Product) => p.categoryId === id);
+          return {
+            id: id || 'unknown',
+            name: product?.categoryName || 'Sin categoría'
+          };
+        });
+        
+        setCategories([{ id: 'all', name: 'Todos' }, ...uniqueCategories]);
       } catch (error) {
-        console.error('❌ Error cargando productos:', error);
-        setProducts([]);
-      } finally {
+        console.error('Error loading products:', error);
+        toast.error('Error al cargar productos');
         setIsLoadingProducts(false);
       }
     };
-
+    
     loadProducts();
   }, []);
 
@@ -102,19 +119,170 @@ export const App: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  // =============== LOGIN ===============
-  const handleLogin = () => {
-    if (pin.length === 4) {
-      setUser(pin === '1234' ? 'Cajero 1' : pin === '0000' ? 'Supervisor' : 'Cajero');
-      setScreen('cash-open');
+  // =============== CASH SESSION & SHIFT MANAGEMENT ===============
+  
+  // Verificar sesión de caja activa al cargar
+  useEffect(() => {
+    if (userId && terminalId) {
+      checkActiveCashSession();
+      checkActiveShift();
+    }
+  }, [userId, terminalId]);
+
+  const checkActiveCashSession = async () => {
+    try {
+      const session = await api.get(endpoints.cashSessions.active(terminalId));
+      if (session) {
+        setCurrentCashSession(session);
+        setCashOpen(true);
+        console.log('✅ Sesión de caja activa encontrada:', session.id);
+      } else {
+        setCashOpen(false);
+      }
+    } catch (error) {
+      console.error('Error verificando sesión de caja:', error);
+      setCashOpen(false);
     }
   };
 
-  // =============== CASH OPEN ===============
-  const handleOpenCash = () => {
-    const amount = parseFloat(openingFloat) || 0;
-    if (amount > 0) {
+  const checkActiveShift = async () => {
+    if (!userId) return;
+    
+    try {
+      const shift = await api.get(endpoints.shifts.current(userId));
+      if (shift) {
+        setCurrentShift(shift);
+        console.log('✅ Turno activo encontrado:', shift.id);
+      }
+    } catch (error) {
+      console.error('Error verificando turno:', error);
+    }
+  };
+
+  const startShift = async (userIdParam: string) => {
+    try {
+      const shift = await api.post(endpoints.shifts.start(), {
+        userId: userIdParam,
+        terminalId
+      });
+      
+      setCurrentShift(shift);
+      toast.success('Turno iniciado correctamente');
+      console.log('✅ Turno iniciado:', shift.id);
+      return shift;
+    } catch (error) {
+      console.error('Error iniciando turno:', error);
+      toast.error('Error al iniciar turno');
+      return null;
+    }
+  };
+
+  const openCashSession = async (openingFloatAmount: number) => {
+    try {
+      const session = await api.post(endpoints.cashSessions.open(), {
+        terminalId,
+        userId,
+        openingFloat: openingFloatAmount
+      });
+      
+      setCurrentCashSession(session);
       setCashOpen(true);
+      toast.success('Caja abierta correctamente');
+      console.log('✅ Sesión de caja abierta:', session.id);
+      return session;
+    } catch (error) {
+      console.error('Error abriendo caja:', error);
+      toast.error('Error al abrir caja');
+      return null;
+    }
+  };
+
+  const handleCashCutComplete = (report: any) => {
+    console.log('✅ Corte de caja completado:', report);
+    setCurrentCashSession(null);
+    setCashOpen(false);
+    // NO cerrar el modal aquí - dejar que el usuario lo cierre después de imprimir
+    // setShowCashCutModal(false);
+    toast.success('Corte de caja realizado correctamente');
+    
+    // Opcional: cerrar sesión después del corte
+    // setScreen('login');
+  };
+
+  // Validación: No permitir agregar productos sin caja abierta
+  const validateCashSessionBeforeAction = (): boolean => {
+    if (!currentCashSession || !cashOpen) {
+      toast.error('Debes abrir caja antes de realizar ventas', {
+        duration: 4000,
+        icon: '🔒',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // Wrapper para addItem con validación
+  const handleAddItem = (product: Product) => {
+    if (!validateCashSessionBeforeAction()) {
+      return;
+    }
+    addItem(product);
+    toast.success(`${product.name} agregado`, { duration: 1500 });
+  };
+
+  // =============== LOGIN ===============
+  const handleLogin = async () => {
+    if (pin.length !== 4) {
+      toast.error('El PIN debe tener 4 dígitos');
+      return;
+    }
+
+    // Determinar usuario basado en PIN
+    let userName = 'Cajero';
+    let userIdValue = 'user-cashier';
+    
+    if (pin === '1234') {
+      userName = 'Cajero 1';
+      userIdValue = 'user-cashier';
+    } else if (pin === '0000' || pin === '9999') {
+      userName = 'Administrador';
+      userIdValue = 'user-admin';
+    }
+
+    setUser(userName);
+    setUserId(userIdValue);
+    
+    toast.success(`Bienvenido ${userName}`, { icon: '👋' });
+    console.log('✅ Login exitoso:', { userName, userIdValue });
+
+    // Iniciar turno automáticamente si no existe
+    const shift = await startShift(userIdValue);
+    
+    if (shift) {
+      console.log('✅ Turno iniciado automáticamente');
+    }
+
+    setScreen('cash-open');
+  };
+
+  // =============== CASH OPEN ===============
+  const handleOpenCash = async () => {
+    const amount = parseFloat(openingFloat) || 0;
+    
+    if (amount <= 0) {
+      toast.error('El monto inicial debe ser mayor a 0');
+      return;
+    }
+
+    if (!userId) {
+      toast.error('Error: Usuario no identificado');
+      return;
+    }
+
+    const session = await openCashSession(amount);
+    
+    if (session) {
+      console.log('✅ Caja abierta, navegando al POS');
       setScreen('pos');
     }
   };
@@ -407,7 +575,21 @@ export const App: React.FC = () => {
           </div>
           <div className="hidden sm:block">
             <h1 className="text-sm sm:text-lg font-bold text-gray-900 leading-tight">YCC POS</h1>
-            <p className="text-xs text-gray-500">Country Club - {user}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-gray-500">{user}</p>
+              {currentShift && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Turno activo
+                </span>
+              )}
+              {cashOpen && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <DollarSign className="w-3 h-3" />
+                  Caja abierta
+                </span>
+              )}
+            </div>
           </div>
           <div className="sm:hidden">
             <h1 className="text-sm font-bold text-gray-900">POS</h1>
@@ -447,9 +629,24 @@ export const App: React.FC = () => {
             <Settings className="w-3 h-3 opacity-70" />
           </button>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Botón de Corte de Caja */}
+          {cashOpen && currentCashSession && (
+            <button 
+              onClick={() => {
+                if (window.confirm('¿Deseas realizar el corte de caja?')) {
+                  setShowCashCutModal(true);
+                }
+              }}
+              className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1 transition-colors"
+              title="Corte de Caja"
+            >
+              <Scissors className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Corte</span>
+            </button>
+          )}
           <button onClick={() => setScreen('history')} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Historial"><Receipt className="w-3 h-3 sm:w-4 sm:h-4" /></button>
-          <button onClick={() => setScreen('cash-close')} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Cerrar Caja"><LogOut className="w-3 h-3 sm:w-4 sm:h-4" /></button>
+          <button onClick={() => setScreen('cash-close')} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Cerrar Sesión"><LogOut className="w-3 h-3 sm:w-4 sm:h-4" /></button>
         </div>
       </header>
 
@@ -475,7 +672,7 @@ export const App: React.FC = () => {
               {filteredProducts.map(product => {
                 const inCart = items.find(i => i.productId === product.id);
                 return (
-                  <motion.button key={product.id} whileTap={{ scale: 0.95 }} onClick={() => addItem(product)} className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-2 sm:p-3 text-left hover:shadow-md hover:border-emerald-200 transition-all relative group">
+                  <motion.button key={product.id} whileTap={{ scale: 0.95 }} onClick={() => handleAddItem(product)} className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-2 sm:p-3 text-left hover:shadow-md hover:border-emerald-200 transition-all relative group">
                     <div className="flex items-start justify-between mb-1">
                       <span className="text-xs font-mono text-gray-400 hidden sm:block">{product.sku}</span>
                       {inCart && <span className="bg-emerald-600 text-white text-xs font-bold rounded-full w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center text-xs">{inCart.quantity}</span>}
@@ -598,37 +795,26 @@ export const App: React.FC = () => {
           total={totals.total}
           onSendToKitchen={async (tableNumber, customerName) => {
             try {
-              const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004';
-              const baseUrl = apiUrl.replace('/api', '');
-              
-              const response = await fetch(`${baseUrl}/comandas`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  tipo: 'MESA',
-                  mesa: tableNumber,
-                  cliente: customerName,
-                  items: items.map(item => ({
-                    nombre: item.name,
-                    cantidad: item.quantity,
-                    precio: item.unitPrice,
-                    notas: ''
-                  })),
-                  total: totals.total,
+              await api.post(endpoints.comandas.create(), {
+                tipo: 'MESA',
+                mesa: tableNumber,
+                cliente: customerName,
+                items: items.map(item => ({
+                  nombre: item.name,
+                  cantidad: item.quantity,
+                  precio: item.unitPrice,
                   notas: ''
-                })
+                })),
+                total: totals.total,
+                notas: ''
               });
 
-              if (response.ok) {
-                clearCart();
-                setShowTableMode(false);
-                alert(`Pedido enviado a cocina\nMesa: ${tableNumber}\nCliente: ${customerName}`);
-              } else {
-                throw new Error('Error al crear comanda');
-              }
+              clearCart();
+              setShowTableMode(false);
+              toast.success(`Pedido enviado a cocina - Mesa: ${tableNumber}`);
             } catch (error) {
               console.error('Error:', error);
-              alert('Error al enviar pedido a cocina');
+              toast.error('Error al enviar pedido a cocina');
             }
           }}
           onCancel={() => setShowTableMode(false)}
@@ -642,43 +828,69 @@ export const App: React.FC = () => {
           total={totals.total}
           onCreateDelivery={async (customerName, phone, address) => {
             try {
-              const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004';
-              const baseUrl = apiUrl.replace('/api', '');
-              
-              const response = await fetch(`${baseUrl}/comandas`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  tipo: 'DOMICILIO',
-                  cliente: customerName,
-                  telefono: phone,
-                  domicilio: address,
-                  items: items.map(item => ({
-                    nombre: item.name,
-                    cantidad: item.quantity,
-                    precio: item.unitPrice,
-                    notas: ''
-                  })),
-                  total: totals.total,
+              await api.post(endpoints.comandas.create(), {
+                tipo: 'DOMICILIO',
+                cliente: customerName,
+                telefono: phone,
+                domicilio: address,
+                items: items.map(item => ({
+                  nombre: item.name,
+                  cantidad: item.quantity,
+                  precio: item.unitPrice,
                   notas: ''
-                })
+                })),
+                total: totals.total,
+                notas: ''
               });
 
-              if (response.ok) {
-                clearCart();
-                setShowDeliveryMode(false);
-                alert(`Pedido a domicilio creado\nCliente: ${customerName}\nTeléfono: ${phone}\nDirección: ${address}`);
-              } else {
-                throw new Error('Error al crear pedido');
-              }
+              clearCart();
+              setShowDeliveryMode(false);
+              toast.success(`Pedido a domicilio creado - ${customerName}`);
             } catch (error) {
               console.error('Error:', error);
-              alert('Error al crear pedido a domicilio');
+              toast.error('Error al crear pedido a domicilio');
             }
           }}
           onCancel={() => setShowDeliveryMode(false)}
         />
       )}
+
+      {/* Cash Cut Modal */}
+      {showCashCutModal && currentCashSession && (
+        <CashCutModal
+          isOpen={showCashCutModal}
+          onClose={() => setShowCashCutModal(false)}
+          sessionId={currentCashSession.id}
+          terminalId={terminalId}
+          userId={userId}
+          onCutComplete={handleCashCutComplete}
+        />
+      )}
+
+      {/* Toast Notifications */}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+            fontSize: '14px',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   );
 };

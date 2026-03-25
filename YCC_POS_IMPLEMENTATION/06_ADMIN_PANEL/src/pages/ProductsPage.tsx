@@ -1,21 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Plus, Edit2, Trash2, Search, X, Camera, Image as ImageIcon, Upload, Eye } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, Search, X, Camera, Image as ImageIcon, Upload } from 'lucide-react';
 
 interface Product {
   id: string;
+  sku: string;
   name: string;
-  description: string;
+  description?: string;
   price: number;
-  category: string;
-  stock: number;
+  category?: string;
+  categoryId: string;
+  stock?: number;
+  currentStock?: number;
   image?: string;
+  station?: string;
+  preparationTime?: number;
   isActive: boolean;
   createdAt: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,27 +36,83 @@ export const ProductsPage: React.FC = () => {
     name: '',
     description: '',
     price: 0,
-    category: '',
-    stock: 0,
+    categoryId: '',
+    currentStock: 0,
     isActive: true,
-    image: ''
+    image: '',
+    sku: '',
+    station: '',
+    preparationTime: 0
   });
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
-  // Cargar productos desde el API
+  // Cargar productos y categorías desde el API
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
 
   const loadProducts = async () => {
     try {
-      const response = await fetch('http://localhost:3004/products');
+      const response = await fetch('http://localhost:3004/api/products');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
-      setProducts(data);
+      // Validar que data sea un array
+      if (Array.isArray(data)) {
+        setProducts(data);
+      } else {
+        console.error('La respuesta del API no es un array:', data);
+        setProducts([]);
+      }
     } catch (error) {
       console.error('Error cargando productos:', error);
+      setProducts([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('http://localhost:3004/api/categories');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      // Validar que data sea un array
+      if (Array.isArray(data)) {
+        setCategories(data);
+      } else {
+        console.error('La respuesta del API no es un array:', data);
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('Error cargando categorías:', error);
+      setCategories([]);
+    }
+  };
+
+  const createCategory = async (name: string) => {
+    try {
+      const response = await fetch('http://localhost:3004/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: '' })
+      });
+      if (response.ok) {
+        const newCategory = await response.json();
+        setCategories([...categories, newCategory]);
+        setFormData({ ...formData, categoryId: newCategory.id });
+        setShowNewCategoryInput(false);
+        setNewCategoryName('');
+        return newCategory.id;
+      }
+    } catch (error) {
+      console.error('Error creando categoría:', error);
     }
   };
 
@@ -53,10 +121,12 @@ export const ProductsPage: React.FC = () => {
     
     try {
       const url = editingProduct 
-        ? `http://localhost:3004/products/${editingProduct.id}`
-        : 'http://localhost:3004/products';
+        ? `http://localhost:3004/api/products/${editingProduct.id}`
+        : 'http://localhost:3004/api/products';
       
       const method = editingProduct ? 'PUT' : 'POST';
+      
+      console.log(`${method} producto:`, formData);
       
       const response = await fetch(url, {
         method,
@@ -65,11 +135,17 @@ export const ProductsPage: React.FC = () => {
       });
 
       if (response.ok) {
+        alert(editingProduct ? '✅ Producto actualizado exitosamente' : '✅ Producto creado exitosamente');
         await loadProducts();
         closeModal();
+      } else {
+        const errorData = await response.json();
+        console.error('Error del servidor:', errorData);
+        alert(`❌ Error: ${errorData.error || 'Error desconocido'}\n${errorData.details || ''}`);
       }
     } catch (error) {
       console.error('Error guardando producto:', error);
+      alert('❌ Error de conexión. Verifica que el servidor esté funcionando.');
     }
   };
 
@@ -77,7 +153,7 @@ export const ProductsPage: React.FC = () => {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return;
     
     try {
-      const response = await fetch(`http://localhost:3004/products/${id}`, {
+      const response = await fetch(`http://localhost:3004/api/products/${id}`, {
         method: 'DELETE'
       });
 
@@ -94,12 +170,15 @@ export const ProductsPage: React.FC = () => {
       setEditingProduct(product);
       setFormData({
         name: product.name,
-        description: product.description,
+        description: product.description || '',
         price: product.price,
-        category: product.category,
-        stock: product.stock,
+        categoryId: product.categoryId || product.category || '',
+        currentStock: product.stock || product.currentStock || 0,
         isActive: product.isActive,
-        image: product.image || ''
+        image: product.image || '',
+        sku: product.sku,
+        station: product.station || '',
+        preparationTime: product.preparationTime || 0
       });
       setImagePreview(product.image || '');
     } else {
@@ -108,13 +187,18 @@ export const ProductsPage: React.FC = () => {
         name: '',
         description: '',
         price: 0,
-        category: '',
-        stock: 0,
+        categoryId: categories.length > 0 ? categories[0].id : '',
+        currentStock: 0,
         isActive: true,
-        image: ''
+        image: '',
+        sku: '',
+        station: '',
+        preparationTime: 0
       });
       setImagePreview('');
     }
+    setShowNewCategoryInput(false);
+    setNewCategoryName('');
     setIsModalOpen(true);
   };
 
@@ -126,27 +210,54 @@ export const ProductsPage: React.FC = () => {
       name: '',
       description: '',
       price: 0,
-      category: '',
-      stock: 0,
+      categoryId: '',
+      currentStock: 0,
       isActive: true,
-      image: ''
+      image: '',
+      sku: '',
+      station: '',
+      preparationTime: 0
     });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          setImagePreview(result);
-          setFormData(prev => ({ ...prev, image: result }));
-        };
-        reader.readAsDataURL(file);
-      } else {
-        alert('Por favor, selecciona un archivo de imagen válido');
+      // Validar tipo de archivo
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor, selecciona un archivo de imagen válido (JPG, PNG, GIF)');
+        return;
       }
+      
+      // Validar tamaño (máximo 1MB para evitar problemas con base64)
+      const maxSize = 1 * 1024 * 1024; // 1MB en bytes
+      if (file.size > maxSize) {
+        alert('⚠️ La imagen es demasiado grande. El tamaño máximo es 1MB.\n\nTip: Reduce el tamaño de la imagen antes de subirla.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        
+        // Verificar que el resultado base64 no sea demasiado grande
+        const base64Size = result.length;
+        const maxBase64Size = 1.5 * 1024 * 1024; // 1.5MB en base64
+        
+        if (base64Size > maxBase64Size) {
+          alert('⚠️ La imagen codificada es demasiado grande. Por favor, usa una imagen más pequeña.');
+          return;
+        }
+        
+        console.log('📷 Imagen cargada:', {
+          originalSize: (file.size / 1024).toFixed(2) + ' KB',
+          base64Size: (base64Size / 1024).toFixed(2) + ' KB'
+        });
+        
+        setImagePreview(result);
+        setFormData(prev => ({ ...prev, image: result }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -157,7 +268,7 @@ export const ProductsPage: React.FC = () => {
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    (product.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -206,12 +317,12 @@ export const ProductsPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
             >
-              <div className="h-48 bg-gray-100 relative overflow-hidden">
+              <div className="h-48 bg-white relative overflow-hidden flex items-center justify-center border-b border-gray-200">
                 {product.image ? (
                   <img 
                     src={product.image} 
                     alt={product.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain p-2"
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
@@ -299,19 +410,35 @@ export const ProductsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Imagen del Producto</label>
                   <div className="space-y-3">
                     {imagePreview ? (
-                      <div className="relative">
-                        <img 
-                          src={imagePreview} 
-                          alt="Vista previa"
-                          className="w-full h-48 object-cover rounded-lg border border-gray-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleImageRemove}
-                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                      <div className="space-y-3">
+                        <div className="relative bg-white border-2 border-gray-200 rounded-lg overflow-hidden">
+                          <div className="h-64 flex items-center justify-center p-4">
+                            <img 
+                              src={imagePreview} 
+                              alt="Vista previa"
+                              className="max-w-full max-h-full object-contain"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleImageRemove}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <label className="cursor-pointer block">
+                          <span className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">
+                            <Upload className="w-4 h-4" />
+                            Cambiar Imagen
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                        </label>
                       </div>
                     ) : (
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
@@ -332,12 +459,10 @@ export const ProductsPage: React.FC = () => {
                       </div>
                     )}
                     
-                    {!imagePreview && (
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Camera className="w-4 h-4" />
-                        <span>Formatos: JPG, PNG, GIF. Máximo 5MB</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Camera className="w-4 h-4" />
+                      <span>Formatos: JPG, PNG, GIF. Máximo 5MB</span>
+                    </div>
                   </div>
                 </div>
 
@@ -359,8 +484,8 @@ export const ProductsPage: React.FC = () => {
                     <input
                       type="number"
                       required
-                      value={formData.stock}
-                      onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })}
+                      value={formData.currentStock}
+                      onChange={(e) => setFormData({ ...formData, currentStock: parseInt(e.target.value) })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     />
                   </div>
@@ -368,13 +493,60 @@ export const ProductsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
+                  {!showNewCategoryInput ? (
+                    <div className="flex gap-2">
+                      <select
+                        required
+                        value={formData.categoryId}
+                        onChange={(e) => {
+                          if (e.target.value === '__new__') {
+                            setShowNewCategoryInput(true);
+                          } else {
+                            setFormData({ ...formData, categoryId: e.target.value });
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      >
+                        <option value="">Seleccionar categoría</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                        <option value="__new__" className="font-semibold text-indigo-600">+ Crear nueva categoría</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nombre de la nueva categoría"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (newCategoryName.trim()) {
+                            await createCategory(newCategoryName.trim());
+                          }
+                        }}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Crear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewCategoryInput(false);
+                          setNewCategoryName('');
+                        }}
+                        className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center">

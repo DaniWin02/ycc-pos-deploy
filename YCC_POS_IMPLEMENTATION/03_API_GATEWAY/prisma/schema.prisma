@@ -31,6 +31,8 @@ model User {
   updatedAt             DateTime            @updatedAt
   cashSessionsOpened    CashSession[]       @relation("CashSessionOpenedBy")
   cashSessionsClosed    CashSession[]       @relation("CashSessionClosedBy")
+  shifts                Shift[]
+  cashMovements         CashMovement[]
   inventoryMovements    InventoryMovement[]
   orders                Order[]
   comandasAsignadas     Comanda[]           @relation("ComandaAsignada")
@@ -71,20 +73,74 @@ model Terminal {
 // ========================================
 
 model CashSession {
-  id             String            @id @default(cuid())
-  terminalId     String
-  openedByUserId String
-  closedByUserId String?
-  openingFloat   Decimal
-  closingFloat   Decimal?
-  status         CashSessionStatus @default(OPEN)
-  openedAt       DateTime          @default(now())
-  closedAt       DateTime?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  terminal       Terminal          @relation(fields: [terminalId], references: [id])
-  openedByUser   User              @relation("CashSessionOpenedBy", fields: [openedByUserId], references: [id])
-  closedByUser   User?             @relation("CashSessionClosedBy", fields: [closedByUserId], references: [id])
+  id                  String            @id @default(cuid())
+  terminalId          String
+  openedByUserId      String
+  closedByUserId      String?
+  shiftId             String?           // Relación con turno
+  openingFloat        Decimal
+  closingFloat        Decimal?
+  expectedFloat       Decimal?          // Monto esperado calculado
+  countedCash         Decimal?          // Efectivo contado manualmente
+  difference          Decimal?          // Diferencia entre esperado y contado
+  totalSales          Decimal?          // Total de ventas
+  totalCash           Decimal?          // Total en efectivo
+  totalCard           Decimal?          // Total en tarjeta
+  totalMemberAccount  Decimal?          // Total en cuenta de socio
+  transactionCount    Int?              // Número de transacciones
+  notes               String?           // Notas del corte
+  status              CashSessionStatus @default(OPEN)
+  openedAt            DateTime          @default(now())
+  closedAt            DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  terminal            Terminal          @relation(fields: [terminalId], references: [id])
+  openedByUser        User              @relation("CashSessionOpenedBy", fields: [openedByUserId], references: [id])
+  closedByUser        User?             @relation("CashSessionClosedBy", fields: [closedByUserId], references: [id])
+  shift               Shift?            @relation(fields: [shiftId], references: [id])
+  cashMovements       CashMovement[]
+}
+
+// ========================================
+// TURNOS DE CAJEROS
+// ========================================
+
+model Shift {
+  id              String        @id @default(cuid())
+  userId          String
+  terminalId      String
+  status          ShiftStatus   @default(ACTIVE)
+  startedAt       DateTime      @default(now())
+  endedAt         DateTime?
+  totalSales      Decimal?
+  transactionCount Int?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id])
+  cashSessions    CashSession[]
+  cashMovements   CashMovement[]
+}
+
+// ========================================
+// MOVIMIENTOS DE CAJA
+// ========================================
+
+model CashMovement {
+  id              String             @id @default(cuid())
+  cashSessionId   String?
+  shiftId         String?
+  userId          String
+  type            CashMovementType
+  amount          Decimal
+  paymentMethod   PaymentMethod?
+  reference       String?            // Referencia a orden, retiro, etc.
+  description     String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  cashSession     CashSession?       @relation(fields: [cashSessionId], references: [id])
+  shift           Shift?             @relation(fields: [shiftId], references: [id])
+  user            User               @relation(fields: [userId], references: [id])
 }
 
 // ========================================
@@ -332,6 +388,21 @@ enum UserRole {
 enum CashSessionStatus {
   OPEN
   CLOSED
+}
+
+enum ShiftStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum CashMovementType {
+  SALE
+  OPENING
+  CLOSING
+  WITHDRAWAL
+  DEPOSIT
+  ADJUSTMENT
 }
 
 enum MovementType {

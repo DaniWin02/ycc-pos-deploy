@@ -131,35 +131,36 @@ export const useKdsStore = create<KdsState>()(
           set({ connectionStatus: 'reconnecting' })
           const currentTickets = get().tickets
           
-          // Cargar comandas desde el API filtradas por estación
-          const url = `http://localhost:3004/comandas?station=${encodeURIComponent(stationId)}`
+          // Cargar ventas desde el API
+          const API_BASE_URL = 'http://localhost:3004/api'
+          const url = `${API_BASE_URL}/sales`
+          console.log(`📡 Cargando pedidos desde: ${url}`)
+          
           const response = await fetch(url)
-          if (!response.ok) throw new Error('Error cargando comandas')
+          if (!response.ok) throw new Error('Error cargando pedidos')
           
-          const comandas = await response.json()
-          console.log(`📡 Comandas recibidas del API para estación ${stationId}:`, comandas.length)
+          const sales = await response.json()
+          console.log(`📡 Pedidos recibidos del API:`, sales.length)
           
-          // Transformar comandas del API a tickets KDS
-          const newTicketsFromAPI: KdsTicket[] = comandas.map((comanda: any) => ({
-            id: comanda.id,
-            folio: comanda.folio,
-            items: comanda.items.map((item: any) => ({
+          // Transformar ventas del API a tickets KDS
+          const newTicketsFromAPI: KdsTicket[] = sales.map((sale: any) => ({
+            id: sale.id,
+            folio: sale.folio,
+            items: sale.items.map((item: any) => ({
               id: item.id,
-              name: item.nombre,
-              quantity: item.cantidad,
-              notes: item.notas || '',
-              status: item.estado === 'LISTO' ? 'READY' : item.estado === 'PREPARANDO' ? 'PREPARING' : 'PENDING' as KdsItemStatus
+              name: item.productName,
+              quantity: item.quantity,
+              notes: item.modifiers ? JSON.stringify(item.modifiers) : '',
+              status: 'PENDING' as KdsItemStatus
             })),
-            status: comanda.estado === 'ENTREGADO' ? 'SERVED' : comanda.estado === 'CANCELADO' ? 'CANCELLED' : comanda.estado === 'LISTO' ? 'READY' : comanda.estado === 'PREPARANDO' ? 'PREPARING' : 'NEW' as KdsTicketStatus,
-            createdAt: new Date(comanda.createdAt),
-            completedAt: comanda.completedAt ? new Date(comanda.completedAt) : undefined,
-            table: comanda.mesa || undefined,
-            waiter: comanda.mesero || undefined,
-            priority: comanda.prioridad === 'ALTA' || comanda.prioridad === 'URGENTE' ? 'rush' : 'normal' as const,
-            tipo: comanda.tipo,
-            cliente: comanda.cliente,
-            telefono: comanda.telefono,
-            domicilio: comanda.domicilio
+            status: sale.status === 'COMPLETED' ? 'SERVED' : sale.status === 'CANCELLED' ? 'CANCELLED' : 'NEW' as KdsTicketStatus,
+            createdAt: new Date(sale.createdAt),
+            completedAt: sale.status === 'COMPLETED' ? new Date(sale.updatedAt) : undefined,
+            table: sale.customerName || undefined,
+            waiter: sale.createdByUser ? `${sale.createdByUser.firstName} ${sale.createdByUser.lastName}` : undefined,
+            priority: 'normal' as const,
+            tipo: 'MESA',
+            cliente: sale.customerName || undefined
           }))
           
           // Merge: mantener estado de tickets existentes, agregar solo nuevos
@@ -183,7 +184,7 @@ export const useKdsStore = create<KdsState>()(
           
           set({ tickets: allTickets, connectionStatus: 'connected' })
           get().saveToStorage() // Guardar en localStorage
-          console.log('✅ Comandas cargadas:', allTickets.length, '| Servidos:', allTickets.filter(t => t.status === 'SERVED').length, '| Papelera:', allTickets.filter(t => t.deletedAt).length)
+          console.log('✅ Pedidos cargados:', allTickets.length, '| Servidos:', allTickets.filter(t => t.status === 'SERVED').length, '| Papelera:', allTickets.filter(t => t.deletedAt).length)
         } catch (error) {
           console.error('❌ Error cargando tickets:', error)
           set({ connectionStatus: 'disconnected' })

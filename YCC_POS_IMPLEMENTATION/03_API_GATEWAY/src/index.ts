@@ -9,6 +9,11 @@ import comandasRouter from './routes/comandas.routes.enhanced'
 import inventoryRouter from './routes/inventory.routes'
 import recipesRouter from './routes/recipes.routes'
 import authRouter from './routes/auth.routes'
+import cashSessionsRouter from './routes/cashSessions.routes'
+import shiftsRouter from './routes/shifts.routes'
+import cashMovementsRouter from './routes/cashMovements.routes'
+import salesRouter from './routes/sales.routes'
+import systemRouter from './routes/system.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -24,23 +29,29 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+// Aumentar límite para permitir imágenes en base64 (hasta 10MB)
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-// Request logging middleware
+// Request logging middleware - Mejorado para debugging
 app.use((req, res, next) => {
-  console.log(`📨 ${req.method} ${req.path}`)
+  console.log(`[API] ${req.method} ${req.originalUrl}`)
   next()
 })
 
-// API Routes
-app.use('/products', productsRouter)
-app.use('/categories', categoriesRouter)
-app.use('/users', usersRouter)
-app.use('/comandas', comandasRouter)
-app.use('/inventory', inventoryRouter)
-app.use('/recipes', recipesRouter)
-app.use('/auth', authRouter)
+// API Routes - TODAS con prefijo /api para consistencia
+app.use('/api/products', productsRouter)
+app.use('/api/categories', categoriesRouter)
+app.use('/api/users', usersRouter)
+app.use('/api/comandas', comandasRouter)
+app.use('/api/inventory', inventoryRouter)
+app.use('/api/recipes', recipesRouter)
+app.use('/api/auth', authRouter)
+app.use('/api/cash-sessions', cashSessionsRouter)
+app.use('/api/shifts', shiftsRouter)
+app.use('/api/cash-movements', cashMovementsRouter)
+app.use('/api/sales', salesRouter)
+app.use('/api/system', systemRouter)
 
 // Health check
 app.get('/health', (req, res) => {
@@ -321,6 +332,16 @@ app.get('/api/sales', async (req, res) => {
     console.error('Error fetching sales:', error)
     res.status(500).json({ error: 'Failed to fetch sales' })
   }
+})
+
+// 404 handler - DEBE ir antes del error handler
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method,
+    message: `Cannot ${req.method} ${req.path}`
+  })
 })
 
 // Error handler

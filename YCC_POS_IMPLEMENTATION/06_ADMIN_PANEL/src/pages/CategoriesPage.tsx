@@ -23,11 +23,21 @@ export const CategoriesPage: React.FC = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('http://localhost:3004/categories');
+      const response = await fetch('http://localhost:3004/api/categories');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
-      setCategories(data);
+      // Validar que data sea un array
+      if (Array.isArray(data)) {
+        setCategories(data);
+      } else {
+        console.error('La respuesta del API no es un array:', data);
+        setCategories([]);
+      }
     } catch (error) {
       console.error('Error cargando categorías:', error);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
@@ -37,8 +47,8 @@ export const CategoriesPage: React.FC = () => {
     e.preventDefault();
     try {
       const url = editingCategory 
-        ? `http://localhost:3004/categories/${editingCategory.id}`
-        : 'http://localhost:3004/categories';
+        ? `http://localhost:3004/api/categories/${editingCategory.id}`
+        : 'http://localhost:3004/api/categories';
       const method = editingCategory ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -59,7 +69,7 @@ export const CategoriesPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar esta categoría?')) return;
     try {
-      const response = await fetch(`http://localhost:3004/categories/${id}`, {
+      const response = await fetch(`http://localhost:3004/api/categories/${id}`, {
         method: 'DELETE'
       });
       if (response.ok) await loadCategories();

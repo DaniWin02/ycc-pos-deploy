@@ -10,10 +10,12 @@ async function main() {
     // 1. Crear usuarios
     console.log('👥 Creando usuarios...');
     const users = await Promise.all([
+      // Usuario admin con ID específico para el frontend
       prisma.user.upsert({
-        where: { username: 'admin' },
+        where: { id: 'user-admin' },
         update: {},
         create: {
+          id: 'user-admin',
           username: 'admin',
           email: 'admin@yccpos.com',
           passwordHash: await bcrypt.hash('admin123', 12),
@@ -23,15 +25,17 @@ async function main() {
           isActive: true
         }
       }),
+      // Usuario cajero con ID específico para el frontend
       prisma.user.upsert({
-        where: { username: 'cajero1' },
+        where: { id: 'user-cashier' },
         update: {},
         create: {
+          id: 'user-cashier',
           username: 'cajero1',
           email: 'cajero1@yccpos.com',
           passwordHash: await bcrypt.hash('cajero123', 12),
-          firstName: 'Juan',
-          lastName: 'Pérez',
+          firstName: 'Cajero',
+          lastName: '1',
           role: 'CASHIER',
           isActive: true
         }

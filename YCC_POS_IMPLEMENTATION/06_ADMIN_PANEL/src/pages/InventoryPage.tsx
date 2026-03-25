@@ -45,17 +45,34 @@ export default function InventoryPage() {
     setLoading(true)
     try {
       const [productsRes, alertsRes] = await Promise.all([
-        fetch('http://localhost:3004/products'),
-        fetch('http://localhost:3004/inventory/alerts')
+        fetch('http://localhost:3004/api/products'),
+        fetch('http://localhost:3004/api/inventory/alerts')
       ])
+
+      if (!productsRes.ok) {
+        throw new Error(`HTTP error! status: ${productsRes.status}`)
+      }
 
       const productsData = await productsRes.json()
       const alertsData = await alertsRes.json()
 
-      setProducts(productsData.filter((p: Product) => p.trackInventory))
-      setAlerts(alertsData)
+      // Validar que productsData sea un array
+      if (Array.isArray(productsData)) {
+        setProducts(productsData.filter((p: Product) => p.trackInventory))
+      } else {
+        console.error('La respuesta de productos no es un array:', productsData)
+        setProducts([])
+      }
+      
+      if (Array.isArray(alertsData)) {
+        setAlerts(alertsData)
+      } else {
+        setAlerts([])
+      }
     } catch (error) {
       console.error('Error cargando datos:', error)
+      setProducts([])
+      setAlerts([])
     } finally {
       setLoading(false)
     }

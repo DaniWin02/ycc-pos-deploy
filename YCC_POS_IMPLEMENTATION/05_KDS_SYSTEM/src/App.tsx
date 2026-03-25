@@ -51,8 +51,8 @@ function App() {
   useEffect(() => {
     if (stationId) {
       loadTickets()
-      // Reload tickets every 10 seconds
-      const interval = setInterval(loadTickets, 10000)
+      // Reload tickets every 5 seconds for real-time sync
+      const interval = setInterval(loadTickets, 5000)
       return () => clearInterval(interval)
     }
   }, [stationId, loadTickets])
