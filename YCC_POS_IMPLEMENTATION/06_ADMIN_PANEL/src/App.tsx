@@ -45,7 +45,7 @@ export const App: React.FC = () => {
         const timestamp = Date.now();
         const [salesRes, productsRes] = await Promise.all([
           fetch(`http://localhost:3004/api/sales?t=${timestamp}`),
-          fetch(`http://localhost:3004/products?t=${timestamp}`)
+          fetch(`http://localhost:3004/api/products?t=${timestamp}`)
         ]);
         
         const salesData = await salesRes.json();

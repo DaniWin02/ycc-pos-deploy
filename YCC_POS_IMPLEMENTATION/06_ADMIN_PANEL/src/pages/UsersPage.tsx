@@ -37,9 +37,13 @@ export const UsersPage: React.FC = () => {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('http://localhost:3004/users');
+      const response = await fetch('http://localhost:3004/api/users');
+      if (!response.ok) {
+        throw new Error('Error al cargar usuarios');
+      }
       const data = await response.json();
-      setUsers(data);
+      // Asegurar que data sea un array
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error cargando usuarios:', error);
       // Mock data para desarrollo

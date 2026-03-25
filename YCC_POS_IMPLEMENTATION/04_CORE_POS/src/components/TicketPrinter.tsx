@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { loadPrinterConfig, PrinterConfig } from '../config/printerConfig';
 
 export interface TicketData {
   folio: string;
@@ -27,12 +28,14 @@ export interface PrinterOptions {
 }
 
 export class TicketPrinter {
-  static generateTicketHTML(ticket: TicketData): string {
+  static generateTicketHTML(ticket: TicketData, config?: PrinterConfig): string {
+    const printerConfig = config || loadPrinterConfig();
     const items = ticket.items.map(item => `
       <tr>
-        <td style="padding: 2px 0; font-size: 12px;">${item.quantity}x ${item.name}</td>
-        <td style="padding: 2px 0; font-size: 12px; text-align: right;">$${item.unitPrice.toFixed(2)}</td>
-        <td style="padding: 2px 0; font-size: 12px; text-align: right;">$${item.totalPrice.toFixed(2)}</td>
+        <td style="padding: 4px 0; font-size: ${printerConfig.fontSize.normal}px; line-height: 1.4;">
+          <strong>${item.quantity}x</strong> ${item.name}
+        </td>
+        <td style="padding: 4px 0; font-size: ${printerConfig.fontSize.normal}px; text-align: right; white-space: nowrap;">$${item.totalPrice.toFixed(2)}</td>
       </tr>
     `).join('');
 
@@ -44,122 +47,181 @@ export class TicketPrinter {
           <title>Ticket - ${ticket.folio}</title>
           <style>
             @page {
-              size: 80mm auto;
-              margin: 5mm;
+              size: ${printerConfig.paperWidth}mm auto;
+              margin: 2mm;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
             }
             body {
-              font-family: 'Courier New', monospace;
+              font-family: 'Courier New', 'Consolas', monospace;
               margin: 0;
-              padding: 10px;
-              width: 76mm;
-              font-size: 10px;
+              padding: 8px;
+              width: ${printerConfig.paperWidth - 4}mm;
+              font-size: ${printerConfig.fontSize.normal}px;
+              color: #000;
+              line-height: 1.3;
             }
             .header {
               text-align: center;
-              margin-bottom: 15px;
-              border-bottom: 1px dashed #000;
-              padding-bottom: 10px;
+              margin-bottom: 12px;
+              border-bottom: 2px dashed #000;
+              padding-bottom: 8px;
             }
             .header h1 {
-              font-size: 16px;
-              margin: 0;
+              font-size: ${printerConfig.fontSize.header}px;
+              margin: 0 0 4px 0;
+              font-weight: bold;
+              letter-spacing: 1px;
+            }
+            .header .subtitle {
+              font-size: ${printerConfig.fontSize.normal}px;
+              margin: 3px 0;
               font-weight: bold;
             }
             .header p {
-              font-size: 10px;
+              font-size: ${printerConfig.fontSize.small}px;
               margin: 2px 0;
+              line-height: 1.4;
+            }
+            .separator {
+              border-top: 1px dashed #000;
+              margin: 8px 0;
+            }
+            .separator-solid {
+              border-top: 2px solid #000;
+              margin: 8px 0;
             }
             .info {
-              margin-bottom: 10px;
-              font-size: 10px;
+              margin-bottom: 8px;
+              font-size: ${printerConfig.fontSize.normal}px;
             }
             .info-row {
               display: flex;
               justify-content: space-between;
-              margin: 2px 0;
+              margin: 3px 0;
+              line-height: 1.4;
+            }
+            .info-row .label {
+              font-weight: normal;
+            }
+            .info-row .value {
+              font-weight: bold;
+              text-align: right;
             }
             .items-table {
               width: 100%;
-              margin: 10px 0;
+              margin: 8px 0;
               border-collapse: collapse;
             }
             .items-table th {
               text-align: left;
-              border-bottom: 1px solid #000;
-              padding: 3px 0;
-              font-size: 10px;
+              border-bottom: 2px solid #000;
+              padding: 4px 0;
+              font-size: ${printerConfig.fontSize.normal}px;
+              font-weight: bold;
             }
             .items-table td {
-              padding: 2px 0;
-              font-size: 10px;
+              padding: 4px 0;
+              font-size: ${printerConfig.fontSize.normal}px;
+              vertical-align: top;
+              line-height: 1.4;
             }
             .totals {
-              border-top: 1px dashed #000;
-              margin-top: 10px;
-              padding-top: 10px;
+              border-top: 2px dashed #000;
+              margin-top: 8px;
+              padding-top: 8px;
             }
             .total-row {
               display: flex;
               justify-content: space-between;
-              margin: 3px 0;
-              font-size: 10px;
-            }
-            .total-row.grand-total {
+              margin: 4px 0;
+              font-size: ${printerConfig.fontSize.normal}px;
               font-weight: bold;
-              font-size: 12px;
-              border-top: 1px solid #000;
-              padding-top: 3px;
-              margin-top: 5px;
+            }
+            .grand-total {
+              font-size: ${printerConfig.fontSize.header}px;
+              margin: 6px 0;
+              padding: 6px 0;
+            }
+            .tax-info {
+              font-size: ${printerConfig.fontSize.small}px;
+              color: #555;
+            }
+            .tax-info .row {
+              display: flex;
+              justify-content: space-between;
+              margin: 2px 0;
+              font-weight: normal;
             }
             .payment-info {
-              margin-top: 10px;
-              padding-top: 10px;
+              margin-top: 8px;
+              padding-top: 8px;
               border-top: 1px dashed #000;
-              font-size: 10px;
+              font-size: ${printerConfig.fontSize.normal}px;
             }
             .footer {
               text-align: center;
-              margin-top: 15px;
-              padding-top: 10px;
-              border-top: 1px dashed #000;
-              font-size: 9px;
+              margin-top: 12px;
+              padding-top: 8px;
+              border-top: 2px dashed #000;
+              font-size: ${printerConfig.fontSize.small}px;
+              line-height: 1.5;
+            }
+            .footer p {
+              margin: 3px 0;
+            }
+            strong {
+              font-weight: bold;
             }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>YCC COUNTRY CLUB</h1>
-            <p>Ticket de Venta</p>
-            <p>Mérida, Yucatán</p>
+            <h1>${printerConfig.businessName}</h1>
+            <p class="subtitle">TICKET DE VENTA</p>
+            <p>${printerConfig.businessAddress}</p>
+            <p>${printerConfig.businessPhone}</p>
+            ${printerConfig.businessEmail ? `<p>${printerConfig.businessEmail}</p>` : ''}
+            ${printerConfig.showTaxInfo && printerConfig.taxId ? `<p>${printerConfig.taxId}</p>` : ''}
           </div>
 
+          <div class="separator"></div>
+          
           <div class="info">
             <div class="info-row">
-              <span>Folio:</span>
-              <span>${ticket.folio}</span>
+              <span class="label">FOLIO:</span>
+              <span class="value">${ticket.folio}</span>
             </div>
             <div class="info-row">
-              <span>Fecha:</span>
-              <span>${ticket.date.toLocaleString('es-MX')}</span>
+              <span class="label">FECHA:</span>
+              <span class="value">${ticket.date.toLocaleDateString('es-MX')}</span>
             </div>
             <div class="info-row">
-              <span>Cajero:</span>
-              <span>${ticket.cashier}</span>
+              <span class="label">HORA:</span>
+              <span class="value">${ticket.date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">CAJERO:</span>
+              <span class="value">${ticket.cashier}</span>
             </div>
             ${ticket.customerName ? `
               <div class="info-row">
-                <span>Cliente:</span>
-                <span>${ticket.customerName}</span>
+                <span class="label">CLIENTE:</span>
+                <span class="value">${ticket.customerName}</span>
               </div>
             ` : ''}
           </div>
+          
+          <div class="separator"></div>
 
           <table class="items-table">
             <thead>
               <tr>
-                <th style="width: 50%;">Producto</th>
-                <th style="width: 25%; text-align: right;">P.U.</th>
-                <th style="width: 25%; text-align: right;">Total</th>
+                <th style="width: 70%;">PRODUCTO</th>
+                <th style="width: 30%; text-align: right;">IMPORTE</th>
               </tr>
             </thead>
             <tbody>
@@ -168,43 +230,48 @@ export class TicketPrinter {
           </table>
 
           <div class="totals">
-            <div class="total-row">
-              <span>Subtotal:</span>
-              <span>$${ticket.subtotal.toFixed(2)}</span>
-            </div>
-            <div class="total-row">
-              <span>IVA (16%):</span>
-              <span>$${ticket.taxAmount.toFixed(2)}</span>
-            </div>
+            <div class="separator-solid"></div>
             <div class="total-row grand-total">
               <span>TOTAL:</span>
               <span>$${ticket.total.toFixed(2)}</span>
             </div>
+            <div class="separator"></div>
+            <div class="tax-info">
+              <div class="row">
+                <span>Subtotal:</span>
+                <span>$${ticket.subtotal.toFixed(2)}</span>
+              </div>
+              <div class="row">
+                <span>IVA 16% (incluido):</span>
+                <span>$${ticket.taxAmount.toFixed(2)}</span>
+              </div>
+            </div>
           </div>
 
+          <div class="separator"></div>
+          
           <div class="payment-info">
             <div class="info-row">
-              <span>Método:</span>
-              <span>${ticket.paymentMethod === 'CASH' ? 'Efectivo' : ticket.paymentMethod === 'CARD' ? 'Tarjeta' : 'Cuenta Socio'}</span>
+              <span class="label"><strong>MÉTODO PAGO:</strong></span>
+              <span class="value"><strong>${ticket.paymentMethod === 'CASH' ? 'EFECTIVO' : ticket.paymentMethod === 'CARD' ? 'TARJETA' : 'CUENTA SOCIO'}</strong></span>
             </div>
             ${ticket.amountPaid ? `
               <div class="info-row">
-                <span>Recibido:</span>
-                <span>$${ticket.amountPaid.toFixed(2)}</span>
+                <span class="label">Recibido:</span>
+                <span class="value">$${ticket.amountPaid.toFixed(2)}</span>
               </div>
             ` : ''}
-            ${ticket.changeAmount ? `
+            ${ticket.changeAmount && ticket.changeAmount > 0 ? `
               <div class="info-row">
-                <span>Cambio:</span>
-                <span>$${ticket.changeAmount.toFixed(2)}</span>
+                <span class="label"><strong>CAMBIO:</strong></span>
+                <span class="value"><strong>$${ticket.changeAmount.toFixed(2)}</strong></span>
               </div>
             ` : ''}
           </div>
 
           <div class="footer">
-            <p>¡Gracias por su visita!</p>
-            <p>Vuelva pronto</p>
-            <p>--------------------</p>
+            ${printerConfig.footerMessage.split('\n').map(line => `<p>${line}</p>`).join('')}
+            <p>================================</p>
           </div>
         </body>
       </html>

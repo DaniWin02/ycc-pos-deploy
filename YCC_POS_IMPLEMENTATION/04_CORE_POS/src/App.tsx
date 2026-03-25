@@ -4,7 +4,7 @@ import {
   ShoppingCart, Package, CreditCard, DollarSign, Users, LogOut,
   Plus, Minus, Trash2, Search, X, Check, Banknote, ArrowLeft,
   Lock, ChevronRight, Receipt, Clock, TrendingUp, AlertCircle,
-  Store, Utensils, Truck, Settings, Scissors, UserCircle
+  Store, Utensils, Truck, Settings, Scissors, UserCircle, Printer
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useCartStore } from './stores/cart.store';
@@ -13,6 +13,8 @@ import { ModeSelector } from './components/ModeSelector';
 import { TableMode } from './components/TableMode';
 import { DeliveryMode } from './components/DeliveryMode';
 import { CashCutModal } from './components/CashCutModal';
+import { TicketPrinter, TicketData } from './components/TicketPrinter';
+import { PrinterConfigModal } from './components/PrinterConfigModal';
 import { api, endpoints } from './lib/apiClient';
 
 // ===================== HELPERS =====================
@@ -46,7 +48,12 @@ export const App: React.FC = () => {
   const [currentCashSession, setCurrentCashSession] = useState<any>(null);
   const [currentShift, setCurrentShift] = useState<any>(null);
   const [showCashCutModal, setShowCashCutModal] = useState(false);
+  const [showPrinterConfig, setShowPrinterConfig] = useState(false);
   const [terminalId] = useState('terminal-main');
+  
+  // Print Error Modal
+  const [showPrintError, setShowPrintError] = useState(false);
+  const [printErrorMessage, setPrintErrorMessage] = useState('');
 
   // POS
   const [searchTerm, setSearchTerm] = useState('');
@@ -199,14 +206,22 @@ export const App: React.FC = () => {
 
   const handleCashCutComplete = (report: any) => {
     console.log('✅ Corte de caja completado:', report);
-    setCurrentCashSession(null);
-    setCashOpen(false);
-    // NO cerrar el modal aquí - dejar que el usuario lo cierre después de imprimir
-    // setShowCashCutModal(false);
-    toast.success('Corte de caja realizado correctamente');
+    console.log('🔍 Estado actual - Modal abierto:', showCashCutModal);
     
-    // Opcional: cerrar sesión después del corte
-    // setScreen('login');
+    // Actualizar estado de caja
+    setCashOpen(false);
+    
+    // IMPORTANTE: NO limpiar currentCashSession aquí ni cerrar el modal
+    // El modal necesita currentCashSession para seguir renderizándose
+    // La limpieza se hará cuando el usuario cierre el modal manualmente
+    
+    toast.success('Corte de caja realizado correctamente');
+  };
+
+  const handleCloseCashCutModal = () => {
+    console.log('🚪 Cerrando modal de corte de caja');
+    setShowCashCutModal(false);
+    setCurrentCashSession(null);
   };
 
   // Validación: No permitir agregar productos sin caja abierta
@@ -287,6 +302,36 @@ export const App: React.FC = () => {
     }
   };
 
+  // =============== PRINT TICKET ===============
+  const handlePrintSaleTicket = async (sale: SaleRecord) => {
+    try {
+      const ticketData: TicketData = {
+        folio: sale.folio,
+        items: sale.items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.totalPrice / item.quantity,
+          totalPrice: item.totalPrice
+        })),
+        subtotal: sale.subtotal,
+        taxAmount: sale.taxAmount,
+        total: sale.total,
+        paymentMethod: sale.paymentMethod,
+        amountPaid: sale.amountPaid,
+        changeAmount: sale.changeAmount,
+        date: sale.createdAt,
+        cashier: user
+      };
+
+      await TicketPrinter.printTicket(ticketData);
+      toast.success('Ticket enviado a impresora');
+    } catch (error: any) {
+      console.error('❌ Error al imprimir ticket:', error);
+      setPrintErrorMessage(error.message || 'No se pudo imprimir el ticket. Verifica que la impresora esté conectada.');
+      setShowPrintError(true);
+    }
+  };
+
   // =============== PAYMENT ===============
   const handlePay = async () => {
     setIsProcessing(true);
@@ -318,6 +363,11 @@ export const App: React.FC = () => {
       setScreen('complete');
       
       console.log('✅ Venta completada y guardada en backend:', saleFromBackend);
+      
+      // OPCIÓN 2: Imprimir automáticamente después de completar la venta
+      setTimeout(() => {
+        handlePrintSaleTicket(sale);
+      }, 500);
     } catch (error) {
       console.error('❌ Error al procesar venta:', error);
       alert('Error al procesar la venta. Por favor intenta de nuevo.');
@@ -412,9 +462,11 @@ export const App: React.FC = () => {
           <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">Venta Completada</h2>
           <p className="text-gray-500 mb-3 sm:mb-4 text-xs sm:text-sm">Folio: {lastSale.folio}</p>
           <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 text-left space-y-1 sm:space-y-2 text-xs sm:text-sm">
-            <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span className="font-medium">{fmt(lastSale.subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-600">IVA (16%)</span><span className="font-medium">{fmt(lastSale.taxAmount)}</span></div>
-            <div className="flex justify-between font-bold border-t pt-1"><span>Total</span><span className="text-emerald-600">{fmt(lastSale.total)}</span></div>
+            <div className="flex justify-between font-bold text-base"><span>Total</span><span className="text-emerald-600">{fmt(lastSale.total)}</span></div>
+            <div className="border-t pt-2 mt-2 space-y-1">
+              <div className="flex justify-between text-xs text-gray-500"><span>Subtotal</span><span>{fmt(lastSale.subtotal)}</span></div>
+              <div className="flex justify-between text-xs text-gray-500"><span>IVA 16% (incluido)</span><span>{fmt(lastSale.taxAmount)}</span></div>
+            </div>
             {lastSale.paymentMethod === 'CASH' && (
               <>
                 <div className="flex justify-between"><span className="text-gray-600">Recibido</span><span>{fmt(lastSale.amountPaid)}</span></div>
@@ -438,57 +490,133 @@ export const App: React.FC = () => {
     const canPay = paymentMethod === 'CASH' ? cashAmount >= totals.total : true;
     return (
       <div className="h-screen bg-gray-50 flex flex-col">
-        <header className="bg-white border-b px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
-          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline text-xs sm:text-sm">Volver</span></button>
-          <h1 className="text-base sm:text-lg font-bold text-gray-900">Cobrar</h1>
-          <div className="text-base sm:text-lg font-bold text-emerald-600">{fmt(totals.total)}</div>
-        </header>
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
-          {/* Payment methods */}
-          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4">
-            <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">Metodo de Pago</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
-              {([['CASH', 'Efectivo', Banknote], ['CREDIT_CARD', 'Tarjeta', CreditCard], ['DEBIT_CARD', 'Debito', CreditCard], ['MEMBER_ACCOUNT', 'Socio', Users]] as [PaymentMethod, string, any][]).map(([method, label, Icon]) => (
-                <button key={method} onClick={() => setPaymentMethod(method)} className={`p-2 sm:p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === method ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${paymentMethod === method ? 'text-emerald-600' : 'text-gray-400'}`} />
-                  <span className={`font-medium text-xs sm:text-sm ${paymentMethod === method ? 'text-emerald-700' : 'text-gray-600'}`}>{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* Cash input */}
-          {paymentMethod === 'CASH' && (
-            <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Efectivo Recibido</h3>
-              <input type="number" value={cashReceived} onChange={e => setCashReceived(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 sm:py-3 border-2 border-gray-200 rounded-lg text-xl sm:text-2xl text-center font-bold focus:border-emerald-500 focus:outline-none" autoFocus />
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 sm:gap-2 mt-2">
-                {[50, 100, 200, 500, 1000].map(n => (
-                  <button key={n} onClick={() => setCashReceived(String(n))} className="py-1 sm:py-2 px-1 bg-gray-100 rounded font-medium text-xs sm:text-sm hover:bg-gray-200 transition-all">{fmt(n)}</button>
-                ))}
-                <button onClick={() => setCashReceived(String(Math.ceil(totals.total / 10) * 10))} className="py-1 sm:py-2 px-1 bg-emerald-100 text-emerald-700 rounded font-medium text-xs sm:text-sm hover:bg-emerald-200">Exacto</button>
-              </div>
-              {cashAmount > 0 && (
-                <div className={`mt-2 p-2 sm:p-3 rounded-lg text-center text-base sm:text-lg font-bold ${change >= 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
-                  Cambio: {fmt(change)}
-                </div>
-              )}
-            </div>
-          )}
-          {/* Order summary */}
-          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4">
-            <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Resumen</h3>
-            <div className="space-y-1 text-xs sm:text-sm max-h-32 overflow-y-auto">
-              {items.map(item => (
-                <div key={item.productId} className="flex justify-between"><span className="text-gray-600 truncate flex-1 mr-2">{item.quantity}x {item.name}</span><span className="flex-shrink-0">{fmt(item.totalPrice)}</span></div>
-              ))}
-              <div className="border-t pt-1 flex justify-between"><span>Subtotal</span><span>{fmt(totals.subtotal)}</span></div>
-              <div className="flex justify-between"><span>IVA (16%)</span><span>{fmt(totals.taxAmount)}</span></div>
-              <div className="flex justify-between font-bold border-t pt-1"><span>Total</span><span className="text-emerald-600">{fmt(totals.total)}</span></div>
-            </div>
-          </div>
-          <button onClick={handlePay} disabled={!canPay || isProcessing} className="w-full py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base hover:bg-emerald-700 disabled:opacity-40 transition-all flex items-center justify-center gap-2">
-            {isProcessing ? <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full" /> Procesando...</> : <><Check className="w-4 h-4 sm:w-5 sm:h-5" /> Confirmar Pago</>}
+        <header className="bg-white border-b px-3 sm:px-4 py-2 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 text-gray-600 hover:text-gray-900">
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm">Volver</span>
           </button>
+          <h1 className="text-lg font-bold text-gray-900">Cobrar</h1>
+          <div className="text-lg font-bold text-emerald-600">{fmt(totals.total)}</div>
+        </header>
+        
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+          <div className="max-w-md mx-auto space-y-3">
+            {/* Payment methods - Compacto */}
+            <div className="bg-white rounded-lg shadow-sm p-3">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Método de Pago</h3>
+              <div className="grid grid-cols-4 gap-2">
+                {([['CASH', 'Efectivo', Banknote], ['CREDIT_CARD', 'Tarjeta', CreditCard], ['DEBIT_CARD', 'Débito', CreditCard], ['MEMBER_ACCOUNT', 'Socio', Users]] as [PaymentMethod, string, any][]).map(([method, label, Icon]) => (
+                  <button 
+                    key={method} 
+                    onClick={() => setPaymentMethod(method)} 
+                    className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                      paymentMethod === method 
+                        ? 'border-emerald-500 bg-emerald-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 ${paymentMethod === method ? 'text-emerald-600' : 'text-gray-400'}`} />
+                    <span className={`font-medium text-xs ${paymentMethod === method ? 'text-emerald-700' : 'text-gray-600'}`}>
+                      {label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cash input - Optimizado */}
+            {paymentMethod === 'CASH' && (
+              <div className="bg-white rounded-lg shadow-sm p-3">
+                <h3 className="font-semibold text-gray-900 mb-2 text-sm">Efectivo Recibido</h3>
+                <input 
+                  type="number" 
+                  value={cashReceived} 
+                  onChange={e => setCashReceived(e.target.value)} 
+                  placeholder="0.00" 
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-2xl text-center font-bold focus:border-emerald-500 focus:outline-none" 
+                  autoFocus 
+                />
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {[50, 100, 200, 500, 1000].map(n => (
+                    <button 
+                      key={n} 
+                      onClick={() => setCashReceived(String(n))} 
+                      className="py-2 px-2 bg-gray-100 rounded font-medium text-sm hover:bg-gray-200 transition-colors"
+                    >
+                      ${n}
+                    </button>
+                  ))}
+                  <button 
+                    onClick={() => setCashReceived(String(Math.ceil(totals.total / 10) * 10))} 
+                    className="py-2 px-2 bg-emerald-100 text-emerald-700 rounded font-medium text-sm hover:bg-emerald-200 transition-colors"
+                  >
+                    Exacto
+                  </button>
+                </div>
+                {cashAmount > 0 && (
+                  <div className={`mt-2 p-2 rounded-lg text-center text-lg font-bold ${
+                    change >= 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'
+                  }`}>
+                    Cambio: {fmt(change)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Order summary - Compacto */}
+            <div className="bg-white rounded-lg shadow-sm p-3">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Resumen de Compra</h3>
+              <div className="space-y-1 text-sm max-h-40 overflow-y-auto">
+                {items.map(item => (
+                  <div key={item.productId} className="flex justify-between py-1">
+                    <span className="text-gray-600 truncate flex-1 mr-2">
+                      <span className="font-semibold">{item.quantity}x</span> {item.name}
+                    </span>
+                    <span className="font-medium flex-shrink-0">{fmt(item.totalPrice)}</span>
+                  </div>
+                ))}
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-1">
+                  <div className="flex justify-between font-bold text-base">
+                    <span>TOTAL</span>
+                    <span className="text-emerald-600">{fmt(totals.total)}</span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-2 mt-2 space-y-1">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Subtotal</span>
+                      <span>{fmt(totals.subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>IVA 16% (incluido)</span>
+                      <span>{fmt(totals.taxAmount)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Botón de pago - Destacado */}
+            <button 
+              onClick={handlePay} 
+              disabled={!canPay || isProcessing} 
+              className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold text-base hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg"
+            >
+              {isProcessing ? (
+                <>
+                  <motion.div 
+                    animate={{ rotate: 360 }} 
+                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} 
+                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" 
+                  />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" />
+                  Confirmar Pago
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -546,15 +674,23 @@ export const App: React.FC = () => {
           ) : (
             <div className="space-y-2">
               {salesHistory.map(sale => (
-                <div key={sale.id} className="bg-white rounded-lg shadow-sm p-2 sm:p-3 flex items-center justify-between">
+                <div key={sale.id} className="bg-white rounded-lg shadow-sm p-2 sm:p-3 flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{sale.folio}</div>
                     <div className="text-xs text-gray-500">{sale.items.length} articulos - {sale.createdAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-2">
+                  <div className="text-right flex-shrink-0">
                     <div className="font-bold text-emerald-600 text-xs sm:text-sm">{fmt(sale.total)}</div>
                     <div className="text-xs text-gray-400 capitalize">{sale.paymentMethod === 'CASH' ? 'Efectivo' : 'Tarjeta'}</div>
                   </div>
+                  {/* OPCIÓN 3: Botón de impresión en historial */}
+                  <button
+                    onClick={() => handlePrintSaleTicket(sale)}
+                    className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors flex-shrink-0"
+                    title="Imprimir ticket"
+                  >
+                    <Printer className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -646,6 +782,7 @@ export const App: React.FC = () => {
             </button>
           )}
           <button onClick={() => setScreen('history')} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Historial"><Receipt className="w-3 h-3 sm:w-4 sm:h-4" /></button>
+          <button onClick={() => setShowPrinterConfig(true)} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Configurar Impresora"><Printer className="w-3 h-3 sm:w-4 sm:h-4" /></button>
           <button onClick={() => setScreen('cash-close')} className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Cerrar Sesión"><LogOut className="w-3 h-3 sm:w-4 sm:h-4" /></button>
         </div>
       </header>
@@ -743,13 +880,13 @@ export const App: React.FC = () => {
           {/* Cart totals + pay */}
           {items.length > 0 && (
             <div className="border-t bg-gray-50 p-2 sm:p-3 space-y-2">
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>{fmt(totals.subtotal)}</span></div>
-                <div className="flex justify-between text-gray-600"><span>IVA (16%)</span><span>{fmt(totals.taxAmount)}</span></div>
-              </div>
               <div className="flex justify-between font-bold text-sm sm:text-base">
                 <span>Total</span>
                 <span className="text-emerald-600">{fmt(totals.total)}</span>
+              </div>
+              <div className="border-t pt-2 space-y-1 text-xs">
+                <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(totals.subtotal)}</span></div>
+                <div className="flex justify-between text-gray-500"><span>IVA 16% (incluido)</span><span>{fmt(totals.taxAmount)}</span></div>
               </div>
               <button 
                 onClick={() => {
@@ -859,13 +996,78 @@ export const App: React.FC = () => {
       {showCashCutModal && currentCashSession && (
         <CashCutModal
           isOpen={showCashCutModal}
-          onClose={() => setShowCashCutModal(false)}
+          onClose={handleCloseCashCutModal}
           sessionId={currentCashSession.id}
           terminalId={terminalId}
           userId={userId}
           onCutComplete={handleCashCutComplete}
         />
       )}
+
+      {/* Print Error Modal */}
+      {showPrintError && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Error de Impresión</h2>
+              </div>
+              <button
+                onClick={() => setShowPrintError(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 mb-4">{printErrorMessage}</p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Posibles soluciones:</strong>
+                </p>
+                <ul className="text-sm text-yellow-700 mt-2 space-y-1 list-disc list-inside">
+                  <li>Verifica que la impresora esté encendida</li>
+                  <li>Asegúrate de que la impresora esté conectada</li>
+                  <li>Permite ventanas emergentes en tu navegador</li>
+                  <li>Intenta imprimir nuevamente desde el historial</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPrintError(false)}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => {
+                  setShowPrintError(false);
+                  setScreen('history');
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Ir al Historial
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Printer Config Modal */}
+      <PrinterConfigModal 
+        isOpen={showPrinterConfig}
+        onClose={() => setShowPrinterConfig(false)}
+      />
 
       {/* Toast Notifications */}
       <Toaster

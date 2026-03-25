@@ -84,12 +84,14 @@ export const useCartStore = create<CartState>()(
 
         getTotals: () => {
           const { items, discount, discountType } = get()
-          const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0)
-          const discountAmount = discountType === 'percentage' ? subtotal * (discount / 100) : discount
-          const taxableAmount = Math.max(0, subtotal - discountAmount)
-          const taxAmount = taxableAmount * 0.16
-          const total = taxableAmount + taxAmount
-          return { subtotal, discountAmount, taxAmount, total, itemCount: items.reduce((s, i) => s + i.quantity, 0) }
+          // En México, los precios ya incluyen IVA
+          const total = items.reduce((sum, item) => sum + item.totalPrice, 0)
+          const discountAmount = discountType === 'percentage' ? total * (discount / 100) : discount
+          const totalAfterDiscount = Math.max(0, total - discountAmount)
+          // Desglosar IVA del total (16% incluido)
+          const subtotal = totalAfterDiscount / 1.16
+          const taxAmount = totalAfterDiscount - subtotal
+          return { subtotal, discountAmount, taxAmount, total: totalAfterDiscount, itemCount: items.reduce((s, i) => s + i.quantity, 0) }
         },
 
         getItemCount: () => get().items.reduce((s, i) => s + i.quantity, 0),

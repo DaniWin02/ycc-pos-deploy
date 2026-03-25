@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, DollarSign, Calculator, TrendingUp, TrendingDown, AlertCircle, Printer, CheckCircle } from 'lucide-react';
+import { X, DollarSign, TrendingUp, CheckCircle, Printer, AlertCircle } from 'lucide-react';
 import { api, endpoints } from '../lib/apiClient';
+import { loadPrinterConfig } from '../config/printerConfig';
 
 interface CashCutModalProps {
   isOpen: boolean;
@@ -135,283 +136,238 @@ export const CashCutModal: React.FC<CashCutModalProps> = ({
   const handlePrintTicket = () => {
     if (!report) return;
     
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    const printerConfig = loadPrinterConfig();
 
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('es-MX', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    const timeStr = now.toLocaleTimeString('es-MX');
-
-    const ticketHTML = `
+    const printContent = `
       <!DOCTYPE html>
       <html>
-      <head>
-        <title>Corte de Caja - ${report.session.terminal?.name || terminalId}</title>
-        <meta charset="UTF-8">
-        <style>
-          @media print {
-            @page { 
-              margin: 0; 
-              size: 80mm auto;
+        <head>
+          <meta charset="utf-8">
+          <title>Corte de Caja - ${report.session.id}</title>
+          <style>
+            @page {
+              size: ${printerConfig.paperWidth}mm auto;
+              margin: 2mm;
             }
-            body { 
+            
+            * {
               margin: 0;
-              padding: 5mm;
+              padding: 0;
+              box-sizing: border-box;
             }
-            .no-print {
-              display: none;
+            
+            body {
+              font-family: 'Courier New', 'Consolas', monospace;
+              font-size: ${printerConfig.fontSize.normal}px;
+              line-height: 1.4;
+              max-width: ${printerConfig.paperWidth - 4}mm;
+              margin: 0 auto;
+              padding: 8px;
+              background: white;
+              color: #000;
             }
-          }
-          
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 11px;
-            line-height: 1.4;
-            max-width: 80mm;
-            margin: 0 auto;
-            padding: 5mm;
-            background: white;
-            color: #000;
-          }
-          
-          .header {
-            text-align: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px dashed #000;
-          }
-          
-          .logo {
-            font-size: 16px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            margin-bottom: 5px;
-          }
-          
-          .subtitle {
-            font-size: 14px;
-            font-weight: bold;
-            margin: 8px 0;
-          }
-          
-          .date-time {
-            font-size: 10px;
-            margin-top: 8px;
-          }
-          
-          .section {
-            margin: 12px 0;
-            padding-bottom: 10px;
-            border-bottom: 1px dashed #000;
-          }
-          
-          .section-title {
-            font-weight: bold;
-            font-size: 12px;
-            margin-bottom: 8px;
-            text-align: center;
-            background: #000;
-            color: #fff;
-            padding: 3px;
-          }
-          
-          .row {
-            display: flex;
-            justify-content: space-between;
-            margin: 4px 0;
-            padding: 2px 0;
-          }
-          
-          .row-label {
-            flex: 1;
-          }
-          
-          .row-value {
-            text-align: right;
-            font-weight: bold;
-          }
-          
-          .total-row {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #000;
-            font-size: 13px;
-            font-weight: bold;
-          }
-          
-          .difference-positive {
-            color: #059669;
-          }
-          
-          .difference-negative {
-            color: #dc2626;
-          }
-          
-          .notes {
-            background: #f5f5f5;
-            padding: 8px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            font-size: 10px;
-          }
-          
-          .footer {
-            text-align: center;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 2px dashed #000;
-            font-size: 10px;
-          }
-          
-          .print-button {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 10px 20px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-          }
-          
-          .print-button:hover {
-            background: #2563eb;
-          }
-        </style>
-      </head>
-      <body>
-        <button class="print-button no-print" onclick="window.print()">🖨️ Imprimir</button>
-        
-        <div class="header">
-          <div class="logo">═══════════════════════</div>
-          <div class="logo">YCC COUNTRY CLUB</div>
-          <div class="logo">═══════════════════════</div>
-          <div class="subtitle">CORTE DE CAJA</div>
-          <div class="date-time">
-            ${dateStr}<br>
-            ${timeStr}
+            
+            .header {
+              text-align: center;
+              margin-bottom: 12px;
+              padding-bottom: 8px;
+              border-bottom: 2px dashed #000;
+            }
+            
+            .logo {
+              font-size: ${printerConfig.fontSize.header}px;
+              font-weight: bold;
+              letter-spacing: 1px;
+              margin-bottom: 4px;
+            }
+            
+            .address {
+              font-size: ${printerConfig.fontSize.small}px;
+              margin: 2px 0;
+              line-height: 1.4;
+            }
+            
+            .subtitle {
+              font-size: ${printerConfig.fontSize.normal}px;
+              font-weight: bold;
+              margin: 6px 0;
+            }
+            
+            .date-time {
+              font-size: ${printerConfig.fontSize.small}px;
+              margin-top: 6px;
+            }
+            
+            .separator {
+              border-top: 1px dashed #000;
+              margin: 8px 0;
+            }
+            
+            .separator-solid {
+              border-top: 2px solid #000;
+              margin: 8px 0;
+            }
+            
+            .section {
+              margin: 10px 0;
+              padding-bottom: 8px;
+            }
+            
+            .section-title {
+              font-weight: bold;
+              font-size: ${printerConfig.fontSize.normal}px;
+              margin-bottom: 6px;
+              text-align: center;
+              background: #000;
+              color: #fff;
+              padding: 4px;
+              letter-spacing: 0.5px;
+            }
+            
+            .row {
+              display: flex;
+              justify-content: space-between;
+              margin: 4px 0;
+              padding: 2px 0;
+              line-height: 1.4;
+            }
+            
+            .row-label {
+              flex: 1;
+              font-size: ${printerConfig.fontSize.normal}px;
+            }
+            
+            .row-value {
+              text-align: right;
+              font-weight: bold;
+              font-size: ${printerConfig.fontSize.normal}px;
+              white-space: nowrap;
+              margin-left: 8px;
+            }
+            
+            .total-row {
+              margin-top: 8px;
+              padding-top: 8px;
+              border-top: 2px solid #000;
+              font-size: ${printerConfig.fontSize.header}px;
+              font-weight: bold;
+            }
+            
+            .difference-positive {
+              color: #059669;
+            }
+            
+            .difference-negative {
+              color: #dc2626;
+            }
+            
+            .notes-section {
+              margin-top: 10px;
+              padding: 8px;
+              background: #f5f5f5;
+              border: 1px solid #000;
+            }
+            
+            .notes-title {
+              font-weight: bold;
+              margin-bottom: 4px;
+              font-size: ${printerConfig.fontSize.normal}px;
+            }
+            
+            .notes-content {
+              font-size: ${printerConfig.fontSize.small}px;
+              white-space: pre-wrap;
+            }
+            
+            .footer {
+              text-align: center;
+              margin-top: 12px;
+              padding-top: 8px;
+              border-top: 2px dashed #000;
+              font-size: ${printerConfig.fontSize.small}px;
+            }
+            
+            strong {
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">${printerConfig.businessName}</div>
+            <div class="address">${printerConfig.businessAddress}</div>
+            <div class="subtitle">CORTE DE CAJA</div>
+            <div class="date-time">
+              ${new Date(report.session.closedAt).toLocaleString('es-MX', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </div>
           </div>
-        </div>
-        
-        <div class="section">
-          <div class="row">
-            <span class="row-label">Cajero:</span>
-            <span class="row-value">${report.session.closedByUser?.firstName || ''} ${report.session.closedByUser?.lastName || 'N/A'}</span>
+          
+          <div class="section">
+            <div class="section-title">═══ RESUMEN DE VENTAS ═══</div>
+            <div class="row">
+              <span class="row-label"><strong>TRANSACCIONES:</strong></span>
+              <span class="row-value">${report.sales.count}</span>
+            </div>
+            <div class="row total-row">
+              <span class="row-label">TOTAL VENTAS:</span>
+              <span class="row-value">${fmt(report.sales.total)}</span>
+            </div>
           </div>
-          <div class="row">
-            <span class="row-label">Terminal:</span>
-            <span class="row-value">${report.session.terminal?.name || terminalId}</span>
+          
+          <div class="separator"></div>
+          
+          <div class="section">
+            <div class="section-title">═══ EFECTIVO EN CAJA ═══</div>
+            <div class="row">
+              <span class="row-label">Fondo Inicial:</span>
+              <span class="row-value">${fmt(report.cash.opening)}</span>
+            </div>
+            <div class="row">
+              <span class="row-label">Efectivo Esperado:</span>
+              <span class="row-value">${fmt(report.cash.expected)}</span>
+            </div>
+            <div class="row">
+              <span class="row-label"><strong>Efectivo Contado:</strong></span>
+              <span class="row-value"><strong>${fmt(report.cash.counted)}</strong></span>
+            </div>
+            <div class="separator-solid"></div>
+            <div class="row total-row ${report.cash.difference >= 0 ? 'difference-positive' : 'difference-negative'}">
+              <span class="row-label">DIFERENCIA:</span>
+              <span class="row-value">${report.cash.difference >= 0 ? '+' : ''}${fmt(report.cash.difference)}</span>
+            </div>
           </div>
-          <div class="row">
-            <span class="row-label">Sesión ID:</span>
-            <span class="row-value">${report.session.id.substring(0, 8)}...</span>
+          
+          ${report.notes ? `
+            <div class="separator"></div>
+            <div class="notes-section">
+              <div class="notes-title">NOTAS DEL CORTE:</div>
+              <div class="notes-content">${report.notes}</div>
+            </div>
+          ` : ''}
+          
+          <div class="footer">
+            <p><strong>Cajero:</strong> ${report.session.closedByUserId || 'Sistema'}</p>
+            <p>Documento generado automáticamente</p>
+            <p>Sistema POS - ${printerConfig.businessName}</p>
+            <p>================================</p>
           </div>
-        </div>
-        
-        <div class="section">
-          <div class="row">
-            <span class="row-label">Apertura:</span>
-            <span class="row-value">${new Date(report.session.openedAt).toLocaleString('es-MX', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              day: '2-digit',
-              month: '2-digit'
-            })}</span>
-          </div>
-          <div class="row">
-            <span class="row-label">Cierre:</span>
-            <span class="row-value">${new Date(report.session.closedAt).toLocaleString('es-MX', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              day: '2-digit',
-              month: '2-digit'
-            })}</span>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">RESUMEN DE VENTAS</div>
-          <div class="row">
-            <span class="row-label">Transacciones:</span>
-            <span class="row-value">${report.sales.count}</span>
-          </div>
-          <div class="row">
-            <span class="row-label">Efectivo:</span>
-            <span class="row-value">$${report.sales.totalCash.toFixed(2)}</span>
-          </div>
-          <div class="row">
-            <span class="row-label">Tarjeta:</span>
-            <span class="row-value">$${report.sales.totalCard.toFixed(2)}</span>
-          </div>
-          <div class="row">
-            <span class="row-label">Cuenta Socio:</span>
-            <span class="row-value">$${report.sales.totalMemberAccount.toFixed(2)}</span>
-          </div>
-          <div class="row total-row">
-            <span class="row-label">TOTAL VENTAS:</span>
-            <span class="row-value">$${report.sales.total.toFixed(2)}</span>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">EFECTIVO EN CAJA</div>
-          <div class="row">
-            <span class="row-label">Fondo Inicial:</span>
-            <span class="row-value">$${report.cash.opening.toFixed(2)}</span>
-          </div>
-          <div class="row">
-            <span class="row-label">+ Ventas Efectivo:</span>
-            <span class="row-value">$${report.sales.totalCash.toFixed(2)}</span>
-          </div>
-          <div class="row">
-            <span class="row-label">= Esperado:</span>
-            <span class="row-value">$${report.cash.expected.toFixed(2)}</span>
-          </div>
-          <div class="row">
-            <span class="row-label">Contado Real:</span>
-            <span class="row-value">$${report.cash.counted.toFixed(2)}</span>
-          </div>
-          <div class="row total-row ${report.cash.difference >= 0 ? 'difference-positive' : 'difference-negative'}">
-            <span class="row-label">DIFERENCIA:</span>
-            <span class="row-value">${report.cash.difference >= 0 ? '+' : ''}$${report.cash.difference.toFixed(2)}</span>
-          </div>
-        </div>
-        
-        ${report.notes ? `
-        <div class="notes">
-          <strong>NOTAS:</strong><br>
-          ${report.notes}
-        </div>
-        ` : ''}
-        
-        <div class="footer">
-          <p>═══════════════════════</p>
-          <p>Gracias por su preferencia</p>
-          <p>YCC Country Club</p>
-          <p>═══════════════════════</p>
-          <p style="margin-top: 10px; font-size: 9px;">
-            Documento generado automáticamente<br>
-            No válido como comprobante fiscal
-          </p>
-        </div>
+        </body>
       </body>
       </html>
     `;
 
-    printWindow.document.write(ticketHTML);
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (!printWindow) {
+      alert('No se pudo abrir la ventana de impresión. Permite ventanas emergentes.');
+      return;
+    }
+
+    printWindow.document.write(printContent);
     printWindow.document.close();
     
     // Esperar a que se cargue el contenido antes de imprimir
