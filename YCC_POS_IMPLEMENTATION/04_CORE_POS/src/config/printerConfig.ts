@@ -27,9 +27,9 @@ export const DEFAULT_PRINTER_CONFIG: PrinterConfig = {
   footerMessage: '¡Gracias por su visita!\nVuelva pronto',
   paperWidth: 80,
   fontSize: {
-    header: 14,
-    normal: 11,
-    small: 9
+    header: 20,
+    normal: 14,
+    small: 12
   },
   showLogo: false,
   showTaxInfo: true

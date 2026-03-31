@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Plus, Edit2, Trash2, Search, X, Camera, Image as ImageIcon, Upload } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, Search, X, Camera, Image as ImageIcon, Upload, Sparkles } from 'lucide-react';
+import { StationSelector } from '../components/StationSelector';
+import { detectStation, getSuggestedStationName } from '../utils/stationAutoAssign';
 
 interface Product {
   id: string;
@@ -13,7 +15,8 @@ interface Product {
   stock?: number;
   currentStock?: number;
   image?: string;
-  station?: string;
+  stationId?: string;
+  station?: { id: string; name: string; displayName: string; color?: string };
   preparationTime?: number;
   isActive: boolean;
   createdAt: string;
@@ -25,9 +28,18 @@ interface Category {
   description?: string;
 }
 
+interface Station {
+  id: string;
+  name: string;
+  displayName: string;
+  color?: string;
+  isActive: boolean;
+}
+
 export const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,17 +53,18 @@ export const ProductsPage: React.FC = () => {
     isActive: true,
     image: '',
     sku: '',
-    station: '',
+    stationId: '',
     preparationTime: 0
   });
   const [imagePreview, setImagePreview] = useState<string>('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  // Cargar productos y categorías desde el API
+  // Cargar productos, categorías y estaciones desde el API
   useEffect(() => {
     loadProducts();
     loadCategories();
+    loadStations();
   }, []);
 
   const loadProducts = async () => {
@@ -96,6 +109,18 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
+  const loadStations = async () => {
+    try {
+      const response = await fetch('http://localhost:3004/api/stations');
+      if (response.ok) {
+        const data = await response.json();
+        setStations(data.filter((s: Station) => s.isActive));
+      }
+    } catch (error) {
+      console.error('Error cargando estaciones:', error);
+    }
+  };
+
   const createCategory = async (name: string) => {
     try {
       const response = await fetch('http://localhost:3004/api/categories', {
@@ -118,6 +143,12 @@ export const ProductsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // VALIDACIÓN: stationId es obligatorio
+    if (!formData.stationId) {
+      alert('⚠️ Debes seleccionar una estación para el producto.\n\nTodos los productos deben tener una estación asignada para el sistema KDS.');
+      return;
+    }
     
     try {
       const url = editingProduct 
@@ -177,7 +208,7 @@ export const ProductsPage: React.FC = () => {
         isActive: product.isActive,
         image: product.image || '',
         sku: product.sku,
-        station: product.station || '',
+        stationId: product.stationId || product.station?.id || '',
         preparationTime: product.preparationTime || 0
       });
       setImagePreview(product.image || '');
@@ -192,7 +223,7 @@ export const ProductsPage: React.FC = () => {
         isActive: true,
         image: '',
         sku: '',
-        station: '',
+        stationId: '',
         preparationTime: 0
       });
       setImagePreview('');
@@ -215,7 +246,7 @@ export const ProductsPage: React.FC = () => {
       isActive: true,
       image: '',
       sku: '',
-      station: '',
+      stationId: '',
       preparationTime: 0
     });
   };
@@ -264,6 +295,19 @@ export const ProductsPage: React.FC = () => {
   const handleImageRemove = () => {
     setImagePreview('');
     setFormData(prev => ({ ...prev, image: '' }));
+  };
+
+  // Función para asignar estación automáticamente basada en categoría y nombre
+  const autoAssignStation = (categoryId: string, productName: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category || !productName || stations.length === 0) return;
+    
+    const detectedStationId = detectStation(category.name, productName, stations);
+    if (detectedStationId) {
+      const station = stations.find(s => s.id === detectedStationId);
+      console.log(`✨ Estación detectada automáticamente: ${station?.displayName || detectedStationId}`);
+      setFormData(prev => ({ ...prev, stationId: detectedStationId }));
+    }
   };
 
   const filteredProducts = products.filter(product =>
@@ -390,7 +434,14 @@ export const ProductsPage: React.FC = () => {
                     type="text"
                     required
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => {
+                      const newName = e.target.value;
+                      setFormData({ ...formData, name: newName });
+                      // Asignar estación automáticamente si ya hay categoría seleccionada
+                      if (formData.categoryId && newName && !formData.stationId) {
+                        autoAssignStation(formData.categoryId, newName);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
@@ -502,7 +553,12 @@ export const ProductsPage: React.FC = () => {
                           if (e.target.value === '__new__') {
                             setShowNewCategoryInput(true);
                           } else {
-                            setFormData({ ...formData, categoryId: e.target.value });
+                            const newCategoryId = e.target.value;
+                            setFormData({ ...formData, categoryId: newCategoryId });
+                            // Asignar estación automáticamente basada en la nueva categoría
+                            if (newCategoryId && formData.name) {
+                              autoAssignStation(newCategoryId, formData.name);
+                            }
                           }
                         }}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -548,6 +604,13 @@ export const ProductsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Selector de Estación - OBLIGATORIO */}
+                <StationSelector
+                  value={formData.stationId}
+                  onChange={(stationId) => setFormData({ ...formData, stationId })}
+                  required={true}
+                />
 
                 <div className="flex items-center">
                   <input

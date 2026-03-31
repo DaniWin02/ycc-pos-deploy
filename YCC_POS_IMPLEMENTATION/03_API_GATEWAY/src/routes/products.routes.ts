@@ -8,6 +8,11 @@ const prisma = new PrismaClient();
 router.get('/', async (req, res) => {
   try {
     const products = await prisma.product.findMany({
+      where: { isActive: true },
+      include: {
+        category: true,
+        station: true // IMPORTANTE: Incluir estación
+      },
       orderBy: { createdAt: 'desc' }
     });
     res.json(products);
@@ -39,25 +44,46 @@ router.get('/:id', async (req, res) => {
 // POST /products - Crear un nuevo producto
 router.post('/', async (req, res) => {
   try {
-    const { name, description, price, categoryId, sku, isActive, image, station, preparationTime } = req.body;
+    const { name, description, price, categoryId, sku, isActive, image, stationId, preparationTime } = req.body;
     
-    console.log('📝 Creando producto:', { name, price, categoryId });
+    console.log('📝 Creando producto:', { name, price, categoryId, stationId });
+    
+    // VALIDACIÓN OBLIGATORIA: stationId es requerido
+    if (!stationId) {
+      return res.status(400).json({ 
+        error: 'Estación es requerida',
+        details: 'Todos los productos deben tener una estación asignada'
+      });
+    }
+    
+    // Verificar que la estación existe
+    const station = await prisma.station.findUnique({
+      where: { id: stationId }
+    });
+    
+    if (!station) {
+      return res.status(404).json({ error: 'Estación no encontrada' });
+    }
     
     const product = await prisma.product.create({
       data: {
         sku: sku || `PROD-${Date.now()}`,
         name,
         description: description || '',
-        categoryId: categoryId || 'cat-bebidas',
+        categoryId: categoryId || 'cmn93ybl30002mzmaou7c0e38', // Bebidas por defecto
         price: parseFloat(price),
         isActive: isActive !== undefined ? isActive : true,
         image: image || null,
-        station: station || null,
+        stationId, // OBLIGATORIO
         preparationTime: preparationTime ? parseInt(preparationTime) : null
+      },
+      include: {
+        category: true,
+        station: true // Incluir estación en respuesta
       }
     });
     
-    console.log('✅ Producto creado:', product.id);
+    console.log('✅ Producto creado:', product.id, 'en estación:', station.displayName);
     res.status(201).json(product);
   } catch (error: any) {
     console.error('Error creando producto:', error);

@@ -110,6 +110,7 @@ export const App: React.FC = () => {
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [cashReceived, setCashReceived] = useState('');
+  const [customerName, setCustomerName] = useState(''); // Nombre del cliente
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Sales history
@@ -337,6 +338,10 @@ export const App: React.FC = () => {
     setIsProcessing(true);
     
     try {
+      // Actualizar el nombre del cliente en el store antes de completar la venta
+      const { setCustomerName: setStoreCustomerName } = useCartStore.getState();
+      setStoreCustomerName(customerName);
+      
       // Enviar venta al backend
       const saleFromBackend = await completeSale();
       
@@ -360,6 +365,7 @@ export const App: React.FC = () => {
       setSalesHistory(prev => [sale, ...prev]);
       setLastSale(sale);
       setCashReceived('');
+      setCustomerName(''); // Limpiar nombre del cliente
       setScreen('complete');
       
       console.log('✅ Venta completada y guardada en backend:', saleFromBackend);
@@ -501,6 +507,21 @@ export const App: React.FC = () => {
         
         <div className="flex-1 overflow-y-auto p-3 sm:p-4">
           <div className="max-w-md mx-auto space-y-3">
+            {/* Nombre del Cliente */}
+            <div className="bg-white rounded-lg shadow-sm p-3">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
+                <UserCircle className="w-4 h-4" />
+                Nombre del Cliente (Opcional)
+              </h3>
+              <input 
+                type="text" 
+                value={customerName} 
+                onChange={e => setCustomerName(e.target.value)} 
+                placeholder="Ingrese el nombre del cliente" 
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-base focus:border-emerald-500 focus:outline-none" 
+              />
+            </div>
+
             {/* Payment methods - Compacto */}
             <div className="bg-white rounded-lg shadow-sm p-3">
               <h3 className="font-semibold text-gray-900 mb-2 text-sm">Método de Pago</h3>

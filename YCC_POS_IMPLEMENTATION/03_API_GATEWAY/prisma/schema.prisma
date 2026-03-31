@@ -162,6 +162,21 @@ model Customer {
 }
 
 // ========================================
+// ESTACIONES DE COCINA (KDS)
+// ========================================
+
+model Station {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  displayName String    // Nombre para mostrar
+  color       String?   // Color hex para UI
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+// ========================================
 // PRODUCTOS Y CATEGORÍAS
 // ========================================
 
@@ -184,6 +199,7 @@ model Product {
   name               String
   description        String?
   categoryId         String
+  stationId          String              // Estación de cocina asignada (OBLIGATORIO)
   price              Decimal
   cost               Decimal?
   taxRate            Decimal             @default(0.16)
@@ -194,12 +210,12 @@ model Product {
   reorderPoint       Decimal?
   unit               String              @default("unidad")
   image              String?
-  station            String?             // Estación de cocina asignada
   preparationTime    Int?                // Tiempo de preparación en minutos
   isActive           Boolean             @default(true)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   category           Category            @relation(fields: [categoryId], references: [id])
+  station            Station             @relation(fields: [stationId], references: [id])
   inventoryMovements InventoryMovement[]
   recipe             Recipe?
   stockAlerts        StockAlert[]
@@ -284,6 +300,7 @@ model OrderItem {
   productId      String
   productName    String
   sku            String
+  stationId      String?         // Estación asignada al item (para filtrado en KDS)
   quantity       Decimal
   unitPrice      Decimal
   totalPrice     Decimal
@@ -344,11 +361,12 @@ model Modifier {
 // ========================================
 
 enum OrderStatus {
-  PENDING
-  ACTIVE
-  COMPLETED
-  CANCELLED
-  REFUNDED
+  PENDING      // Orden recibida, esperando preparación
+  PREPARING    // En preparación en cocina
+  READY        // Lista para entregar
+  DELIVERED    // Entregada al cliente (historial)
+  CANCELLED    // Cancelada
+  REFUNDED     // Reembolsada
 }
 
 enum OrderItemStatus {

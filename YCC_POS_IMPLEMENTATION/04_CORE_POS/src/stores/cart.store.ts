@@ -52,7 +52,9 @@ export const useCartStore = create<CartState>()(
                 unitPrice: product.price,
                 quantity,
                 totalPrice: product.price * quantity,
-                categoryName: product.categoryName
+                categoryName: product.categoryName,
+                stationId: product.stationId || product.station?.id,
+                stationName: product.station?.displayName || product.station?.name
               })
             }
             return { items: newItems }
@@ -113,7 +115,9 @@ export const useCartStore = create<CartState>()(
                 name: item.name,
                 sku: item.sku,
                 price: item.unitPrice,
-                quantity: item.quantity
+                quantity: item.quantity,
+                stationId: item.stationId,
+                stationName: item.stationName
               })),
               customerId: null,
               customerName: customerName || 'Guest',
@@ -152,36 +156,8 @@ export const useCartStore = create<CartState>()(
             const sale = await response.json()
             console.log('✅ Venta creada en el backend:', sale)
             
-            // Crear comanda automáticamente para KDS
-            try {
-              const comandaResponse = await fetch(`${apiUrl}/comandas`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  cliente: customerName || 'Mostrador',
-                  mesa: 'MOSTRADOR',
-                  tipo: 'LLEVAR',
-                  prioridad: 'MEDIA',
-                  items: items.map(item => ({
-                    productId: item.productId,
-                    nombre: item.name,
-                    cantidad: item.quantity,
-                    precio: item.unitPrice,
-                    notas: '',
-                    image: item.image
-                  })),
-                  notas: notes || '',
-                  mesero: 'Cajero'
-                })
-              })
-              
-              if (comandaResponse.ok) {
-                const comanda = await comandaResponse.json()
-                console.log('✅ Comanda creada para KDS:', comanda.comanda?.folio)
-              }
-            } catch (comandaError) {
-              console.warn('⚠️ No se pudo crear comanda para KDS:', comandaError)
-            }
+            // Las órdenes se envían automáticamente al KDS vía Socket.io desde el backend
+            // No necesitamos crear comandas manualmente aquí
             
             // Limpiar carrito después de venta exitosa
             get().clearCart()

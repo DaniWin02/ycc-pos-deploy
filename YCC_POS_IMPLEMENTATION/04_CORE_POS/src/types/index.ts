@@ -18,6 +18,13 @@ export interface Product {
   image?: string;
   currentStock: number;
   isActive: boolean;
+  stationId?: string;
+  station?: {
+    id: string;
+    name: string;
+    displayName: string;
+    color?: string;
+  };
 }
 
 export interface CartItem {
@@ -28,6 +35,8 @@ export interface CartItem {
   quantity: number;
   totalPrice: number;
   categoryName: string;
+  stationId?: string;
+  stationName?: string;
 }
 
 export interface CartTotals {

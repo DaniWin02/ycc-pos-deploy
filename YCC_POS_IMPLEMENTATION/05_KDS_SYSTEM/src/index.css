@@ -2,14 +2,166 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  :root {
+    /* Tema Verde YCC - Optimizado para Tablets */
+    --color-primary: #16a34a;
+    --color-primary-dark: #15803d;
+    --color-primary-light: #dcfce7;
+    --color-background: #ffffff;
+    --color-surface: #f0fdf4;
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-border: #bbf7d0;
+    
+    /* Estaciones - Colores identificadores (mejorados para contraste) */
+    --color-bar: #2563eb;
+    --color-bar-text: #1e40af;
+    --color-cocina-caliente: #dc2626;
+    --color-cocina-caliente-text: #991b1b;
+    --color-cocina-fria: #0891b2;
+    --color-cocina-fria-text: #155e75;
+    --color-cocina-general: #7c3aed;
+    --color-cocina-general-text: #5b21b6;
+    --color-parrilla: #ea580c;
+    --color-parrilla-text: #c2410c;
+    --color-postres: #db2777;
+    --color-postres-text: #be185d;
+  }
+  
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  
+  #root {
+    min-height: 100vh;
+  }
 }
 
-#root {
-  min-height: 100vh;
+@layer components {
+  /* Touch Targets - Mínimo 44x44px */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Botones optimizados para tablets */
+  .btn-tablet {
+    @apply touch-target px-6 py-4 rounded-xl font-semibold text-base;
+    @apply transition-all duration-200 active:scale-95;
+    @apply focus:outline-none focus:ring-4 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply bg-[var(--color-primary)] text-white;
+    @apply hover:bg-[var(--color-primary-dark)];
+    @apply focus:ring-[var(--color-primary-light)];
+    @apply active:bg-[var(--color-primary-dark)];
+  }
+  
+  .btn-success {
+    @apply bg-[var(--color-success)] text-white;
+    @apply hover:bg-green-600;
+    @apply focus:ring-green-200;
+  }
+  
+  .btn-danger {
+    @apply bg-[var(--color-danger)] text-white;
+    @apply hover:bg-red-600;
+    @apply focus:ring-red-200;
+  }
+  
+  .btn-warning {
+    @apply bg-[var(--color-warning)] text-white;
+    @apply hover:bg-amber-600;
+    @apply focus:ring-amber-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-700 text-white;
+    @apply hover:bg-gray-800;
+    @apply focus:ring-gray-300;
+  }
+  
+  /* Cards optimizadas para tablets */
+  .card-tablet {
+    @apply bg-[var(--color-surface)] rounded-2xl shadow-lg;
+    @apply border-2 border-[var(--color-border)];
+    @apply transition-all duration-300;
+    min-width: 280px;
+  }
+  
+  .card-tablet:active {
+    @apply scale-[0.98] shadow-md;
+  }
+  
+  /* Timer con colores */
+  .timer-green {
+    @apply text-[var(--color-success)] font-mono font-bold;
+  }
+  
+  .timer-yellow {
+    @apply text-[var(--color-warning)] font-mono font-bold;
+  }
+  
+  .timer-red {
+    @apply text-[var(--color-danger)] font-mono font-bold animate-pulse;
+  }
+  
+  /* Badges de estado */
+  .badge-new {
+    @apply bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-preparing {
+    @apply bg-[var(--color-warning)] text-white px-3 py-1 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-ready {
+    @apply bg-[var(--color-success)] text-white px-3 py-1 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-served {
+    @apply bg-gray-400 text-white px-3 py-1 rounded-full text-sm font-semibold;
+  }
+  
+  /* Grid responsivo para tablets */
+  .grid-tablet {
+    @apply grid gap-6;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+  
+  /* Scrollbar personalizado */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: var(--color-surface);
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary);
+  }
 }

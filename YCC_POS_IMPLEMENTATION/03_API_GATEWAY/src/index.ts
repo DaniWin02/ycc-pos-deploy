@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import { createServer } from 'http'
+import { Server as SocketIOServer } from 'socket.io'
 import { PrismaClient } from '@prisma/client'
 import productsRouter from './routes/products.routes'
 import categoriesRouter from './routes/categories.routes'
@@ -14,6 +16,9 @@ import shiftsRouter from './routes/shifts.routes'
 import cashMovementsRouter from './routes/cashMovements.routes'
 import salesRouter from './routes/sales.routes'
 import systemRouter from './routes/system.routes'
+import ordersRouter from './routes/orders.routes'
+import stationsRouter from './routes/stations.routes'
+import orderItemsRouter from './routes/orderItems.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -26,7 +31,7 @@ app.use(helmet())
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://localhost:3004', 'http://localhost:3005'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
 // Aumentar límite para permitir imágenes en base64 (hasta 10MB)
@@ -52,6 +57,9 @@ app.use('/api/shifts', shiftsRouter)
 app.use('/api/cash-movements', cashMovementsRouter)
 app.use('/api/sales', salesRouter)
 app.use('/api/system', systemRouter)
+app.use('/api/orders', ordersRouter)
+app.use('/api/stations', stationsRouter)
+app.use('/api/order-items', orderItemsRouter)
 
 // Health check
 app.get('/health', (req, res) => {
@@ -262,13 +270,12 @@ app.post('/api/sales', async (req, res) => {
         terminalId: terminal.id,
         storeId: store.id,
         createdByUserId: user.id,
-        status: 'COMPLETED',
+        status: 'PENDING',
         subtotal,
         taxAmount,
         totalAmount: Number(totalAmount),
         paymentStatus: 'CAPTURED',
         notes,
-        completedAt: new Date(),
         items: {
           create: items.map((item: any) => {
             const itemTotal = item.price * item.quantity
@@ -353,12 +360,45 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   })
 })
 
-// Start server
+// Start server with Socket.io
 const PORT = process.env.PORT || 3004
-app.listen(PORT, () => {
+const httpServer = createServer(app)
+
+// Initialize Socket.io
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003'],
+    credentials: true
+  }
+})
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log(`🔌 Cliente conectado: ${socket.id}`)
+
+  socket.on('join-station', (station: string) => {
+    socket.join(`station-${station}`)
+    console.log(`👨‍🍳 Cliente ${socket.id} se unió a estación: ${station}`)
+  })
+
+  socket.on('leave-station', (station: string) => {
+    socket.leave(`station-${station}`)
+    console.log(`👋 Cliente ${socket.id} salió de estación: ${station}`)
+  })
+
+  socket.on('disconnect', () => {
+    console.log(`🔌 Cliente desconectado: ${socket.id}`)
+  })
+})
+
+// Exponer Socket.io para que esté disponible en los routers
+app.set('io', io)
+
+httpServer.listen(PORT, () => {
   console.log(`🚀 API Gateway running on http://localhost:${PORT}`)
   console.log(`📊 Health check: http://localhost:${PORT}/health`)
   console.log(`🔌 Database connected: ${prisma ? 'Yes' : 'No'}`)
+  console.log(`⚡ Socket.io ready for real-time communication`)
 })
 
 // Graceful shutdown

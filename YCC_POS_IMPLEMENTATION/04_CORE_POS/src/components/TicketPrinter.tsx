@@ -32,10 +32,10 @@ export class TicketPrinter {
     const printerConfig = config || loadPrinterConfig();
     const items = ticket.items.map(item => `
       <tr>
-        <td style="padding: 4px 0; font-size: ${printerConfig.fontSize.normal}px; line-height: 1.4;">
+        <td style="padding: 4px 0; font-size: ${printerConfig.fontSize.normal}px; line-height: 1.4; font-weight: 900;">
           <strong>${item.quantity}x</strong> ${item.name}
         </td>
-        <td style="padding: 4px 0; font-size: ${printerConfig.fontSize.normal}px; text-align: right; white-space: nowrap;">$${item.totalPrice.toFixed(2)}</td>
+        <td style="padding: 4px 0; font-size: ${printerConfig.fontSize.normal}px; text-align: right; white-space: nowrap; font-weight: 900;">$${item.totalPrice.toFixed(2)}</td>
       </tr>
     `).join('');
 
@@ -62,7 +62,11 @@ export class TicketPrinter {
               width: ${printerConfig.paperWidth - 4}mm;
               font-size: ${printerConfig.fontSize.normal}px;
               color: #000;
-              line-height: 1.3;
+              line-height: 1.4;
+              font-weight: 900 !important;
+            }
+            * {
+              font-weight: 900 !important;
             }
             .header {
               text-align: center;
@@ -73,13 +77,13 @@ export class TicketPrinter {
             .header h1 {
               font-size: ${printerConfig.fontSize.header}px;
               margin: 0 0 4px 0;
-              font-weight: bold;
-              letter-spacing: 1px;
+              font-weight: 900;
+              letter-spacing: 1.5px;
             }
             .header .subtitle {
-              font-size: ${printerConfig.fontSize.normal}px;
+              font-size: ${printerConfig.fontSize.normal + 1}px;
               margin: 3px 0;
-              font-weight: bold;
+              font-weight: 900;
             }
             .header p {
               font-size: ${printerConfig.fontSize.small}px;
@@ -105,10 +109,10 @@ export class TicketPrinter {
               line-height: 1.4;
             }
             .info-row .label {
-              font-weight: normal;
+              font-weight: 700;
             }
             .info-row .value {
-              font-weight: bold;
+              font-weight: 900;
               text-align: right;
             }
             .items-table {
@@ -121,7 +125,7 @@ export class TicketPrinter {
               border-bottom: 2px solid #000;
               padding: 4px 0;
               font-size: ${printerConfig.fontSize.normal}px;
-              font-weight: bold;
+              font-weight: 900;
             }
             .items-table td {
               padding: 4px 0;
@@ -139,12 +143,13 @@ export class TicketPrinter {
               justify-content: space-between;
               margin: 4px 0;
               font-size: ${printerConfig.fontSize.normal}px;
-              font-weight: bold;
+              font-weight: 900;
             }
             .grand-total {
-              font-size: ${printerConfig.fontSize.header}px;
+              font-size: ${printerConfig.fontSize.header + 2}px;
               margin: 6px 0;
               padding: 6px 0;
+              font-weight: 900;
             }
             .tax-info {
               font-size: ${printerConfig.fontSize.small}px;
@@ -154,7 +159,7 @@ export class TicketPrinter {
               display: flex;
               justify-content: space-between;
               margin: 2px 0;
-              font-weight: normal;
+              font-weight: 700;
             }
             .payment-info {
               margin-top: 8px;
@@ -174,7 +179,13 @@ export class TicketPrinter {
               margin: 3px 0;
             }
             strong {
-              font-weight: bold;
+              font-weight: 900;
+            }
+            .customer-highlight {
+              background-color: #f0f0f0;
+              padding: 4px 0;
+              font-size: ${printerConfig.fontSize.normal + 1}px;
+              font-weight: 900;
             }
           </style>
         </head>
@@ -208,9 +219,9 @@ export class TicketPrinter {
               <span class="value">${ticket.cashier}</span>
             </div>
             ${ticket.customerName ? `
-              <div class="info-row">
+              <div class="info-row customer-highlight">
                 <span class="label">CLIENTE:</span>
-                <span class="value">${ticket.customerName}</span>
+                <span class="value">${ticket.customerName.toUpperCase()}</span>
               </div>
             ` : ''}
           </div>

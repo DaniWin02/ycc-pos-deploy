@@ -42,10 +42,38 @@ const statusBadge: Record<KdsTicketStatus, string> = {
   NEW: 'bg-blue-500', PREPARING: 'bg-amber-500', READY: 'bg-emerald-500', SERVED: 'bg-gray-400', CANCELLED: 'bg-red-500'
 }
 
+interface Station {
+  id: string;
+  name: string;
+  displayName: string;
+  color?: string;
+  isActive: boolean;
+}
+
 function App() {
   const { tickets, stationId, setStationId, bumpTicket, recallTicket, deleteTicket, permanentDeleteTicket, loadTickets } = useKdsStore()
   const [filter, setFilter] = useState<'active' | 'history' | KdsTicketStatus>('active')
   const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'all'>('today')
+  const [stations, setStations] = useState<Station[]>([])
+  const [loadingStations, setLoadingStations] = useState(true)
+
+  // Cargar estaciones desde API
+  useEffect(() => {
+    const loadStations = async () => {
+      try {
+        const response = await fetch('http://localhost:3004/api/stations')
+        if (response.ok) {
+          const data = await response.json()
+          setStations(data.filter((s: Station) => s.isActive))
+        }
+      } catch (error) {
+        console.error('Error cargando estaciones:', error)
+      } finally {
+        setLoadingStations(false)
+      }
+    }
+    loadStations()
+  }, [])
 
   // Load tickets from API on station select
   useEffect(() => {
@@ -107,21 +135,36 @@ function App() {
             <p className="text-gray-500 mt-1">YCC Country Club</p>
           </div>
           <h3 className="font-semibold text-gray-700 mb-4">Selecciona Estación</h3>
-          <div className="space-y-3">
-            {[
-              { id: 'COCINA_PRINCIPAL', name: 'Cocina Principal', desc: 'Línea caliente - Comidas' }, 
-              { id: 'COCINA_FRIA', name: 'Cocina Fría', desc: 'Ensaladas y postres' }, 
-              { id: 'BAR', name: 'Bar', desc: 'Bebidas y cócteles' }, 
-              { id: 'PARRILLA', name: 'Parrilla', desc: 'Carnes y asados' },
-              { id: 'POSTRES', name: 'Postres', desc: 'Repostería y dulces' },
-              { id: 'ENSALADAS', name: 'Ensaladas', desc: 'Ensaladas y vegetales' }
-            ].map(s => (
-              <button key={s.id} onClick={() => setStationId(s.id)} className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 text-left transition-all flex items-center justify-between group">
-                <div><div className="font-semibold text-gray-900">{s.name}</div><div className="text-sm text-gray-500">{s.desc}</div></div>
-                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 transition-colors" />
-              </button>
-            ))}
-          </div>
+          {loadingStations ? (
+            <div className="text-center py-8 text-gray-500">Cargando estaciones...</div>
+          ) : stations.length === 0 ? (
+            <div className="text-center py-8 text-red-500">No hay estaciones disponibles</div>
+          ) : (
+            <div className="space-y-3">
+              {stations.map(s => (
+                <button 
+                  key={s.id} 
+                  onClick={() => setStationId(s.id)} 
+                  className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 text-left transition-all flex items-center justify-between group"
+                  style={{ borderLeftWidth: '6px', borderLeftColor: s.color || '#6B7280' }}
+                >
+                  <div>
+                    <div className="font-semibold text-gray-900 flex items-center gap-2">
+                      {s.displayName}
+                      {s.color && (
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: s.color }}
+                        />
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-500">Estación de cocina</div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                </button>
+              ))}
+            </div>
+          )}
         </motion.div>
       </div>
     )
