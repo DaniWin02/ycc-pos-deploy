@@ -23,6 +23,19 @@ import {
 } from '@ycc/types'
 import { useAdminStore } from '../stores/useAdminStore'
 
+// Helper function to generate dynamic dates
+const getDynamicDate = (daysAgo: number = 0, hoursAgo: number = 0, minutesAgo: number = 0): Date => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  date.setHours(date.getHours() - hoursAgo);
+  date.setMinutes(date.getMinutes() - minutesAgo);
+  return date;
+};
+
+const formatDateToISO = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
 // Mock API functions
 const fetchInventoryMovements = async (filters?: InventoryMovementFilters): Promise<InventoryMovement[]> => {
   await new Promise(resolve => setTimeout(resolve, 1000))
@@ -32,7 +45,7 @@ const fetchInventoryMovements = async (filters?: InventoryMovementFilters): Prom
       movementNumber: 'MOV-2024-001',
       storeId: 'store-1',
       movementType: InventoryMovementType.PURCHASE_RECEIPT,
-      movementDate: new Date('2024-01-20T10:30:00'),
+      movementDate: new Date(`${formatDateToISO(getDynamicDate(10))}T10:30:00`),
       referenceId: 'po-1',
       referenceNumber: 'PO-2024-001',
       description: 'Recepción de orden de compra - Carnicería Central',
@@ -73,7 +86,7 @@ const fetchInventoryMovements = async (filters?: InventoryMovementFilters): Prom
       movementNumber: 'MOV-2024-002',
       storeId: 'store-1',
       movementType: InventoryMovementType.WASTE,
-      movementDate: new Date('2024-01-20T14:15:00'),
+      movementDate: new Date(`${formatDateToISO(getDynamicDate(10))}T14:15:00`),
       referenceId: 'waste-1',
       referenceNumber: 'WASTE-2024-001',
       description: 'Registro de desperdicio - Productos vencidos',
@@ -114,7 +127,7 @@ const fetchInventoryMovements = async (filters?: InventoryMovementFilters): Prom
       movementNumber: 'MOV-2024-003',
       storeId: 'store-1',
       movementType: InventoryMovementType.PHYSICAL_COUNT,
-      movementDate: new Date('2024-01-18T09:00:00'),
+      movementDate: new Date(`${formatDateToISO(getDynamicDate(12))}T09:00:00`),
       referenceId: 'count-1',
       referenceNumber: 'COUNT-2024-001',
       description: 'Ajuste por conteo físico - Conteo mensual',
@@ -155,7 +168,7 @@ const fetchInventoryMovements = async (filters?: InventoryMovementFilters): Prom
       movementNumber: 'MOV-2024-004',
       storeId: 'store-1',
       movementType: InventoryMovementType.SALE_USAGE,
-      movementDate: new Date('2024-01-20T12:30:00'),
+      movementDate: new Date(`${formatDateToISO(getDynamicDate(10))}T12:30:00`),
       referenceId: 'sale-123',
       referenceNumber: 'SALE-2024-001',
       description: 'Uso en venta - Pedido #123',
@@ -196,7 +209,7 @@ const fetchInventoryMovements = async (filters?: InventoryMovementFilters): Prom
       movementNumber: 'MOV-2024-005',
       storeId: 'store-1',
       movementType: InventoryMovementType.TRANSFER,
-      movementDate: new Date('2024-01-19T16:45:00'),
+      movementDate: new Date(`${formatDateToISO(getDynamicDate(11))}T16:45:00`),
       referenceId: 'transfer-1',
       referenceNumber: 'TRANS-2024-001',
       description: 'Transferencia entre tiendas - Envío a sucursal 2',
@@ -237,7 +250,7 @@ const fetchInventoryMovements = async (filters?: InventoryMovementFilters): Prom
       movementNumber: 'MOV-2024-006',
       storeId: 'store-1',
       movementType: InventoryMovementType.ADJUSTMENT,
-      movementDate: new Date('2024-01-17T11:20:00'),
+      movementDate: new Date(`${formatDateToISO(getDynamicDate(13))}T11:20:00`),
       referenceId: 'adj-1',
       referenceNumber: 'ADJ-2024-001',
       description: 'Ajuste manual - Corrección de inventario',
@@ -265,7 +278,7 @@ const fetchInventoryMovements = async (filters?: InventoryMovementFilters): Prom
       movementNumber: 'MOV-2024-007',
       storeId: 'store-1',
       movementType: InventoryMovementType.RETURN,
-      movementDate: new Date('2024-01-16T15:30:00'),
+      movementDate: new Date(`${formatDateToISO(getDynamicDate(14))}T15:30:00`),
       referenceId: 'return-1',
       referenceNumber: 'RETURN-2024-001',
       description: 'Devolución a proveedor - Calidad insuficiente',

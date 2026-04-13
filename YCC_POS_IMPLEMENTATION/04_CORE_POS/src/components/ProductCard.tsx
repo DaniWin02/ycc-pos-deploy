@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Product } from '../types/product.types';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface ProductCardProps {
   product: Product;
@@ -18,6 +19,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   className = '',
   disabled = false 
 }) => {
+  const { isMobile } = useResponsive();
+  
   const handleAddToCart = () => {
     onAddToCart(product);
   };
@@ -31,63 +34,72 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <motion.div
       className={`
-        bg-white rounded-lg shadow-md p-4 cursor-pointer transition-all duration-200 
-        hover:shadow-lg hover:scale-105 active:scale-100
+        bg-white rounded-xl shadow-md p-fluid-sm cursor-pointer transition-all duration-200 
+        hover:shadow-lg hover:scale-[1.02] active:scale-100
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-50'}
         ${className}
+        touch-target
       `}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       onClick={disabled ? undefined : handleAddToCart}
       layout
     >
-      <div className="relative h-48 w-full">
-        {/* Imagen del producto */}
-        <div className="h-32 w-32 bg-gray-100 rounded-lg flex items-center justify-center">
-          <div className="text-2xl font-bold text-gray-400">
-            {product.name.charAt(0)}
+      <div className="flex flex-col sm:flex-row gap-fluid-sm">
+        {/* Imagen/Icono del producto */}
+        <div className="flex-shrink-0">
+          <div className="h-16 w-16 sm:h-20 sm:w-20 bg-gray-100 rounded-xl flex items-center justify-center shadow-inner">
+            <span className="text-fluid-2xl font-bold text-gray-400">
+              {product.name.charAt(0)}
+            </span>
           </div>
         </div>
         
         {/* Información del producto */}
-        <div className="ml-4 flex-1">
+        <div className="flex-1 min-w-0">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-fluid-base font-bold text-gray-900 line-clamp-1">
               {product.name}
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-fluid-sm text-gray-600 mt-1 line-clamp-2">
               {product.description}
             </p>
-            <div className="flex items-center mt-2">
-              <span className="text-2xl font-bold text-green-600">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="text-fluid-lg font-bold text-green-600">
                 ${new Intl.NumberFormat('es-MX', {
                   style: 'currency',
                   currency: 'MXN'
                 }).format(product.price)}
               </span>
               {product.trackInventory && (
-                <span className="ml-2 text-sm text-gray-500">
-                  Stock: {product.currentStock}
+                <span className="text-fluid-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                  📦 {product.currentStock}
                 </span>
               )}
             </div>
           </div>
           
           {/* Botones de acción */}
-          <div className="mt-4 flex gap-2">
+          <div className="mt-fluid-sm flex flex-col sm:flex-row gap-2">
             <button
-              onClick={handleAddToCart}
-              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddToCart();
+              }}
+              className="touch-target flex-1 bg-blue-600 text-white px-fluid-sm py-2 rounded-lg hover:bg-blue-700 active:scale-95 transition-all duration-200 text-fluid-sm font-semibold flex items-center justify-center gap-1"
             >
-              Agregar al Carrito
+              <span>🛒</span> Agregar
             </button>
             
             {onQuickAdd && (
               <button
-                onClick={handleQuickAdd}
-                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleQuickAdd();
+                }}
+                className="touch-target flex-1 bg-green-600 text-white px-fluid-sm py-2 rounded-lg hover:bg-green-700 active:scale-95 transition-all duration-200 text-fluid-sm font-semibold flex items-center justify-center gap-1"
               >
-                Venta Rápida
+                <span>⚡</span> Rápido
               </button>
             )}
           </div>

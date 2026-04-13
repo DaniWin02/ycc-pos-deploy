@@ -66,6 +66,11 @@ export interface CashSession {
   closingFloat?: number;
 }
 
+export interface SplitPayment {
+  method: PaymentMethod;
+  amount: number;
+}
+
 export interface SaleRecord {
   id: string;
   folio: string;
@@ -75,6 +80,7 @@ export interface SaleRecord {
   discountAmount: number;
   total: number;
   paymentMethod: PaymentMethod;
+  splitPayments?: SplitPayment[];
   amountPaid: number;
   changeAmount: number;
   customerName?: string;
@@ -102,4 +108,30 @@ export interface DeliveryOrder {
   estimatedTime?: number;
   status: 'PENDING' | 'PREPARING' | 'READY' | 'DELIVERED';
   createdAt: Date;
+}
+
+// Sistema de Multicomandas
+export type ComandaStatus = 'ACTIVE' | 'IN_PROCESS' | 'CLOSED';
+export type ComandaType = 'MESA' | 'LLEVAR' | 'PEDIDO' | 'BARRA';
+
+export interface Comanda {
+  id: string;
+  nombre: string; // Mesa 1, Pedido 23, Llevar, etc.
+  tipo: ComandaType;
+  items: CartItem[];
+  customerName?: string;
+  status: ComandaStatus;
+  discount: number;
+  discountType: 'percentage' | 'amount';
+  notes: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ComandaTotals {
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  total: number;
+  itemCount: number;
 }

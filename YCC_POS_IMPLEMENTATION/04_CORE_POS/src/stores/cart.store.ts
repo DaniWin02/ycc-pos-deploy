@@ -101,14 +101,14 @@ export const useCartStore = create<CartState>()(
         completeSale: async () => {
           const { items, paymentMethod, customerName, notes } = get()
           const totals = get().getTotals()
-          
+
           try {
             // Asegurar que la URL base no incluya /api
             let apiUrl = import.meta.env?.VITE_API_URL || 'http://localhost:3004'
             // Remover /api del final si existe
             apiUrl = apiUrl.replace(/\/api\/?$/, '')
             console.log('🔗 API URL:', apiUrl)
-            
+
             const requestBody = {
               items: items.map(item => ({
                 productId: item.productId,
@@ -125,46 +125,61 @@ export const useCartStore = create<CartState>()(
               paymentMethod: paymentMethod,
               notes: notes
             }
-            
+
             console.log('📤 Sending request to:', `${apiUrl}/api/sales`)
             console.log('📤 Request body:', requestBody)
-            
+
+            // Crear un AbortController para timeout de 30 segundos (aumentado de 15s)
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 30000)
+
             const response = await fetch(`${apiUrl}/api/sales`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody)
+              body: JSON.stringify(requestBody),
+              signal: controller.signal
             })
-            
+
+            clearTimeout(timeoutId)
+
             console.log('📥 Response status:', response.status, response.statusText)
             console.log('📥 Response ok:', response.ok)
 
             if (!response.ok) {
               const errorText = await response.text()
               console.error('❌ Response text:', errorText)
-              
+
               let errorData
               try {
                 errorData = JSON.parse(errorText)
               } catch {
                 errorData = { error: errorText || 'Unknown error' }
               }
-              
+
               console.error('❌ Error del servidor:', errorData)
               throw new Error(errorData.details || errorData.error || 'Failed to create sale')
             }
 
             const sale = await response.json()
             console.log('✅ Venta creada en el backend:', sale)
-            
+
             // Las órdenes se envían automáticamente al KDS vía Socket.io desde el backend
             // No necesitamos crear comandas manualmente aquí
-            
+
             // Limpiar carrito después de venta exitosa
             get().clearCart()
-            
+
             return sale
-          } catch (error) {
+          } catch (error: any) {
             console.error('❌ Error al crear venta:', error)
+            // Mostrar mensaje más claro para timeout
+            if (error.name === 'AbortError') {
+              throw new Error('Timeout: La solicitud tardó demasiado. Verifica que el servidor backend esté corriendo en el puerto 3004 y tu conexión de red.')
+            }
+            // Si es error de red (fetch failed)
+            if (error.message && error.message.includes('fetch failed')) {
+              throw new Error('Error de conexión: No se pudo conectar al servidor. Verifica que el backend esté corriendo.')
+            }
             throw error
           }
         },

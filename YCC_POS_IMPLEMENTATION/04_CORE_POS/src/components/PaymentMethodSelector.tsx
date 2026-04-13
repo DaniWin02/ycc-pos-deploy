@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PaymentMethod, PaymentRequest } from '../types/payment.types';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface PaymentMethodSelectorProps {
   totalAmount: number;
@@ -28,6 +29,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
     cvv: ''
   });
   const [memberNumber, setMemberNumber] = useState('');
+  const { isMobile } = useResponsive();
 
   const paymentMethods = [
     {
@@ -170,14 +172,15 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
     >
-      <div className="bg-white rounded-lg shadow-xl p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Seleccionar Método de Pago
+      <div className="bg-white rounded-xl shadow-xl p-fluid-lg max-w-2xl mx-auto">
+        <h2 className="text-fluid-2xl font-bold text-gray-900 mb-fluid-md text-center">
+          💳 Método de Pago
         </h2>
 
-        <div className="text-center mb-6">
-          <div className="text-3xl font-bold text-gray-900">
-            Total: ${new Intl.NumberFormat('es-MX', {
+        <div className="text-center mb-fluid-md bg-gray-50 rounded-lg p-fluid-sm">
+          <div className="text-fluid-sm text-gray-600 mb-1">Total a Pagar</div>
+          <div className="text-fluid-3xl font-bold text-gray-900">
+            ${new Intl.NumberFormat('es-MX', {
               style: 'currency',
               currency: 'MXN'
             }).format(totalAmount)}
@@ -186,23 +189,24 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
         {/* Selección de método de pago */}
         {!selectedMethod && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-fluid-sm mb-fluid-md">
             {paymentMethods.map((method) => (
               <motion.button
                 key={method.method}
                 onClick={() => handleMethodSelect(method.method)}
                 className={`
-                  ${method.color} text-white rounded-lg p-6 text-center
-                  transition-all duration-200 transform hover:scale-105
+                  ${method.color} text-white rounded-xl touch-target-comfortable
+                  transition-all duration-200 transform hover:scale-105 shadow-lg
                   ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                  flex flex-col items-center justify-center gap-1 p-fluid-sm
                 `}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 disabled={disabled}
               >
-                <div className="text-4xl mb-2">{method.icon}</div>
-                <div className="text-lg font-semibold">{method.name}</div>
-                <div className="text-sm opacity-90">{method.description}</div>
+                <span className="text-fluid-3xl">{method.icon}</span>
+                <span className="text-fluid-base font-bold">{method.name}</span>
+                <span className="text-fluid-xs opacity-90 hidden sm:block">{method.description}</span>
               </motion.button>
             ))}
           </div>
@@ -218,13 +222,13 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             >
               {/* Formulario de pago en efectivo */}
               {selectedMethod === PaymentMethod.CASH && (
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Pago en Efectivo
+                <div className="bg-gray-50 rounded-xl p-fluid-md">
+                  <h3 className="text-fluid-lg font-bold text-gray-900 mb-fluid-sm flex items-center gap-2">
+                    <span className="text-fluid-xl">💵</span> Efectivo
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-fluid-sm">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-fluid-sm font-medium text-gray-700 mb-1">
                         Monto Recibido
                       </label>
                       <input
@@ -232,15 +236,15 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                         value={cashAmount}
                         onChange={(e) => setCashAmount(e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full touch-target px-fluid-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-fluid-lg"
                         disabled={isProcessing}
                       />
                     </div>
                     {changeAmount > 0 && (
-                      <div className="bg-green-100 border border-green-300 rounded-lg p-4">
+                      <div className="bg-green-100 border-2 border-green-300 rounded-xl p-fluid-md">
                         <div className="text-green-800">
-                          <div className="font-semibold">Cambio:</div>
-                          <div className="text-2xl font-bold">
+                          <div className="font-semibold text-fluid-base">Cambio:</div>
+                          <div className="text-fluid-2xl font-bold">
                             ${new Intl.NumberFormat('es-MX', {
                               style: 'currency',
                               currency: 'MXN'
@@ -343,20 +347,20 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               )}
 
               {/* Botones de acción */}
-              <div className="flex gap-4">
+              <div className="flex gap-fluid-sm mt-fluid-md">
                 <button
                   onClick={() => setSelectedMethod(null)}
-                  className="flex-1 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition-colors duration-200"
+                  className="touch-target-comfortable flex-1 bg-gray-500 text-white px-fluid-md rounded-xl hover:bg-gray-600 transition-all duration-200 font-semibold text-fluid-base active:scale-95"
                   disabled={isProcessing}
                 >
-                  Volver
+                  ← Volver
                 </button>
                 <button
                   onClick={handlePayment}
-                  className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors duration-200 disabled={isProcessing}"
+                  className="touch-target-comfortable flex-1 bg-green-600 text-white px-fluid-md rounded-xl hover:bg-green-700 transition-all duration-200 font-bold text-fluid-base shadow-lg active:scale-95 disabled:opacity-50"
                   disabled={isProcessing}
                 >
-                  {isProcessing ? 'Procesando...' : 'Pagar'}
+                  {isProcessing ? '⏳ Procesando...' : '✓ Confirmar Pago'}
                 </button>
               </div>
             </motion.div>

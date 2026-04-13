@@ -19,6 +19,10 @@ import systemRouter from './routes/system.routes'
 import ordersRouter from './routes/orders.routes'
 import stationsRouter from './routes/stations.routes'
 import orderItemsRouter from './routes/orderItems.routes'
+import suppliersRouter from './routes/suppliers.routes'
+import purchaseOrdersRouter from './routes/purchaseOrders.routes'
+import physicalCountsRouter from './routes/physicalCounts.routes'
+import wasteRouter from './routes/waste.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -60,6 +64,10 @@ app.use('/api/system', systemRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/stations', stationsRouter)
 app.use('/api/order-items', orderItemsRouter)
+app.use('/api/suppliers', suppliersRouter)
+app.use('/api/purchase-orders', purchaseOrdersRouter)
+app.use('/api/physical-counts', physicalCountsRouter)
+app.use('/api/waste', wasteRouter)
 
 // Health check
 app.get('/health', (req, res) => {
@@ -190,156 +198,8 @@ app.get('/api/products', async (req, res) => {
 // Handle preflight for /api/sales
 app.options('/api/sales', cors())
 
-app.post('/api/sales', async (req, res) => {
-  try {
-    const { items, customerId, customerName, totalAmount, paymentMethod, notes } = req.body
-    
-    console.log('📦 Creating sale:', { items: items?.length, totalAmount, paymentMethod })
-    console.log('📦 Request body:', JSON.stringify(req.body, null, 2))
-    
-    // Validate items
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      console.error('❌ Invalid items:', items)
-      return res.status(400).json({ error: 'Items array is required and must not be empty' })
-    }
-    
-    // Get or create required entities
-    console.log('🔍 Looking for terminal...')
-    let terminal = await prisma.terminal.findFirst({ where: { isActive: true } })
-    if (!terminal) {
-      console.log('⚠️ No terminal found, creating default...')
-      const store = await prisma.store.findFirst()
-      terminal = await prisma.terminal.create({
-        data: {
-          name: 'Terminal Principal',
-          location: 'Mostrador Principal',
-          storeId: store?.id || (await prisma.store.create({ data: { name: 'Tienda Principal', address: 'N/A', phone: '0000000000', isActive: true } })).id,
-          isActive: true
-        }
-      })
-    }
-    
-    console.log('✅ Terminal found/created:', terminal.id)
-    
-    console.log('🔍 Looking for store...')
-    let store = await prisma.store.findFirst({ where: { isActive: true } })
-    if (!store) {
-      console.log('⚠️ No store found, creating default...')
-      store = await prisma.store.create({
-        data: {
-          name: 'Tienda Principal',
-          address: 'N/A',
-          phone: '0000000000',
-          isActive: true
-        }
-      })
-    }
-    console.log('✅ Store found/created:', store.id)
-    
-    console.log('🔍 Looking for user...')
-    let user = await prisma.user.findFirst({ where: { isActive: true } })
-    if (!user) {
-      console.log('⚠️ No user found, creating default...')
-      user = await prisma.user.create({
-        data: {
-          email: 'cajero@ycc.com',
-          username: 'cajero',
-          passwordHash: '$2b$10$abcdefghijklmnopqrstuv',
-          firstName: 'Cajero',
-          lastName: 'Principal',
-          role: 'CASHIER',
-          isActive: true
-        }
-      })
-    }
-    console.log('✅ User found/created:', user.id)
-    
-    // Calculate tax (16%)
-    console.log('💰 Calculating totals...')
-    const taxAmount = Number(totalAmount) * 0.16
-    const subtotal = Number(totalAmount) - taxAmount
-    console.log('💰 Subtotal:', subtotal, 'Tax:', taxAmount, 'Total:', totalAmount)
-    
-    // Create order
-    console.log('📝 Creating order...')
-    const order = await prisma.order.create({
-      data: {
-        folio: `ORD-${Date.now().toString(36).toUpperCase()}`,
-        customerId,
-        customerName: customerName || 'Guest',
-        terminalId: terminal.id,
-        storeId: store.id,
-        createdByUserId: user.id,
-        status: 'PENDING',
-        subtotal,
-        taxAmount,
-        totalAmount: Number(totalAmount),
-        paymentStatus: 'CAPTURED',
-        notes,
-        items: {
-          create: items.map((item: any) => {
-            const itemTotal = item.price * item.quantity
-            const itemTax = itemTotal * 0.16
-            return {
-              productId: item.productId,
-              productName: item.name,
-              sku: item.sku || 'SKU-' + item.productId,
-              quantity: item.quantity,
-              unitPrice: item.price,
-              totalPrice: itemTotal,
-              taxRate: 0.16,
-              taxAmount: itemTax,
-              modifiers: JSON.stringify([])
-            }
-          })
-        },
-        payments: {
-          create: {
-            method: paymentMethod || 'CASH',
-            amount: Number(totalAmount),
-            status: 'CAPTURED',
-            capturedAt: new Date()
-          }
-        }
-      },
-      include: {
-        items: true,
-        payments: true,
-        customer: true
-      }
-    })
-    
-    console.log('✅ Sale created successfully:', order.folio)
-    res.json(order)
-  } catch (error) {
-    console.error('❌ Error creating sale:', error)
-    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
-    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack')
-    res.status(500).json({ 
-      error: 'Failed to create sale', 
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    })
-  }
-})
-
-app.get('/api/sales', async (req, res) => {
-  try {
-    const sales = await prisma.order.findMany({
-      include: {
-        items: true,
-        payments: true,
-        customer: true
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50
-    })
-    res.json(sales)
-  } catch (error) {
-    console.error('Error fetching sales:', error)
-    res.status(500).json({ error: 'Failed to fetch sales' })
-  }
-})
+// NOTE: The POST /api/sales handler is in sales.routes.ts (registered above)
+// GET /api/sales is also in sales.routes.ts - removed duplicate inline handler
 
 // 404 handler - DEBE ir antes del error handler
 app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {

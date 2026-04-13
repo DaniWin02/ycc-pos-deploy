@@ -33,6 +33,7 @@ export interface KdsTicket {
 
 interface KdsState {
   tickets: KdsTicket[]
+  completedTicketIds: string[] // Lista de IDs de tickets ya completados/cancelados (lista negra)
   stationId: string | null
   connectionStatus: 'connected' | 'reconnecting' | 'disconnected'
   setStationId: (stationId: string) => void
@@ -51,6 +52,10 @@ interface KdsState {
   loadTickets: () => Promise<void>
   saveToStorage: () => void
   loadFromStorage: () => void
+  addToCompletedList: (ticketId: string) => void // Agregar ID a lista de completados
+  isTicketCompleted: (ticketId: string) => boolean // Verificar si ticket fue completado
+  clearHistory: () => void // Limpiar historial (tickets PREPARING y READY)
+  clearHistoryByStation: (stationId: string) => void // Limpiar historial de una estación específica
 }
 
 // Cargar tickets desde localStorage al iniciar
@@ -58,7 +63,13 @@ const loadInitialTickets = (): KdsTicket[] => {
   try {
     const stored = localStorage.getItem('kds-tickets')
     if (stored) {
-      const tickets = JSON.parse(stored).map((t: any) => ({
+      const parsed = JSON.parse(stored)
+      if (!Array.isArray(parsed)) {
+        console.warn('⚠️ Datos de tickets inválidos en localStorage, limpiando...')
+        localStorage.removeItem('kds-tickets')
+        return []
+      }
+      const tickets = parsed.map((t: any) => ({
         ...t,
         createdAt: new Date(t.createdAt),
         completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
@@ -69,17 +80,67 @@ const loadInitialTickets = (): KdsTicket[] => {
     }
   } catch (error) {
     console.error('❌ Error cargando desde localStorage:', error)
+    // Si hay un error de parsing, limpiar los datos corruptos
+    localStorage.removeItem('kds-tickets')
   }
   return []
+}
+
+// Cargar lista de IDs de tickets completados desde localStorage
+const loadCompletedTicketIds = (): string[] => {
+  try {
+    const stored = localStorage.getItem('kds-completed-ticket-ids')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (!Array.isArray(parsed)) {
+        console.warn('⚠️ Lista de completados inválida en localStorage, limpiando...')
+        localStorage.removeItem('kds-completed-ticket-ids')
+        return []
+      }
+      console.log('✅ Lista de tickets completados cargada:', parsed.length, 'IDs')
+      return parsed
+    }
+  } catch (error) {
+    console.error('❌ Error cargando lista de completados:', error)
+    localStorage.removeItem('kds-completed-ticket-ids')
+  }
+  return []
+}
+
+// Verificar si es un nuevo día y si se debe limpiar el historial
+const shouldClearHistoryForNewDay = (): boolean => {
+  try {
+    const lastSessionDate = localStorage.getItem('kds-last-session-date')
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+    
+    if (lastSessionDate && lastSessionDate !== today) {
+      console.log(`📅 Nueva sesión detectada: ${today} (última: ${lastSessionDate})`)
+      return true
+    }
+    
+    // Guardar fecha de hoy
+    localStorage.setItem('kds-last-session-date', today)
+    return false
+  } catch (error) {
+    console.error('❌ Error verificando fecha:', error)
+    return false
+  }
 }
 
 // Socket.io instance (singleton)
 let socket: any = null;
 
+// Verificar si se debe limpiar historial al iniciar
+const isNewDay = shouldClearHistoryForNewDay()
+
 export const useKdsStore = create<KdsState>()(
   devtools(
     (set, get) => ({
-      tickets: loadInitialTickets(),
+      // Si es un nuevo día, no cargar tickets de historial (PREPARING/READY)
+      tickets: isNewDay 
+        ? loadInitialTickets().filter(t => t.status === 'NEW') 
+        : loadInitialTickets(),
+      completedTicketIds: loadCompletedTicketIds(), // Lista negra de tickets completados
       stationId: null,
       connectionStatus: 'connected',
 
@@ -169,6 +230,11 @@ export const useKdsStore = create<KdsState>()(
           console.log(`⚠️ Ticket ${ticket.folio} ya existe, no se agrega duplicado`);
           return { tickets: s.tickets };
         }
+        // SOLUCIÓN CLAVE: Verificar si el ticket está en la lista de completados (lista negra)
+        if (s.completedTicketIds.includes(ticket.id)) {
+          console.log(`🚫 Ticket ${ticket.folio} está en lista de completados, ignorando`);
+          return { tickets: s.tickets };
+        }
         return { tickets: [ticket, ...s.tickets] };
       }),
 
@@ -220,6 +286,13 @@ export const useKdsStore = create<KdsState>()(
             return t
           })
         }))
+        
+        // SOLUCIÓN CLAVE: Si el ticket se marcó como SERVED, agregar a lista de completados
+        if (ticket.status === 'READY' && newTicketStatus === 'SERVED') {
+          get().addToCompletedList(ticketId)
+          console.log(`✅ Ticket ${ticket.folio} marcado como completado y agregado a lista negra`)
+        }
+        
         get().saveToStorage()
         
         // Sincronizar con el backend - ACTUALIZAR ITEMS, NO LA ORDEN COMPLETA
@@ -261,6 +334,9 @@ export const useKdsStore = create<KdsState>()(
           // IMPORTANTE: Cargar primero desde localStorage para no perder estados locales
           get().loadFromStorage()
           const currentTickets = get().tickets
+          const completedIds = get().completedTicketIds
+          
+          console.log(`📋 Lista de tickets completados cargada:`, completedIds.length, 'IDs')
           
           // Cargar ventas desde el API
           const API_BASE_URL = 'http://localhost:3004/api'
@@ -273,8 +349,21 @@ export const useKdsStore = create<KdsState>()(
           const sales = await response.json()
           console.log(`📡 Pedidos recibidos del API:`, sales.length)
           
+          // SOLUCIÓN CLAVE: Filtrar tickets que están en la lista de completados (lista negra)
+          // Esto evita que tickets despachados/cancelados reaparezcan
+          const filteredSales = sales.filter((sale: any) => {
+            // Si el ticket está en la lista de completados, NO cargarlo
+            if (completedIds.includes(sale.id)) {
+              console.log(`🚫 Ignorando ticket ${sale.folio} - está en lista de completados`)
+              return false
+            }
+            return true
+          })
+          
+          console.log(`🎯 Pedidos después de filtrar completados:`, filteredSales.length)
+          
           // FILTRAR: Solo ventas activas (no completadas ni canceladas)
-          const activeSales = sales.filter((sale: any) => {
+          const activeSales = filteredSales.filter((sale: any) => {
             if (!sale.items || sale.items.length === 0) return false
             // Mostrar si no está completado ni cancelado
             return sale.status !== 'DELIVERED' && sale.status !== 'CANCELLED'
@@ -365,11 +454,17 @@ export const useKdsStore = create<KdsState>()(
       },
 
       deleteTicket: (ticketId) => {
+        const ticket = get().tickets.find(t => t.id === ticketId)
         set((s) => ({
           tickets: s.tickets.map(t =>
             t.id === ticketId ? { ...t, deletedAt: new Date(), status: 'CANCELLED' as KdsTicketStatus } : t
           )
         }))
+        // SOLUCIÓN CLAVE: Agregar a lista de completados para que no reaparezca
+        get().addToCompletedList(ticketId)
+        if (ticket) {
+          console.log(`🚫 Ticket ${ticket.folio} cancelado y agregado a lista negra`)
+        }
         get().saveToStorage()
       },
 
@@ -428,23 +523,110 @@ export const useKdsStore = create<KdsState>()(
         console.log(`🔄 Ticket ${ticketId} regresado a comandas activas (NEW)`)
       },
 
-      saveToStorage: () => {
-        const { tickets, stationId } = get()
+      // Agregar ticket ID a la lista de completados (lista negra)
+      addToCompletedList: (ticketId: string) => {
+        const { completedTicketIds } = get()
+        if (!completedTicketIds.includes(ticketId)) {
+          const newList = [...completedTicketIds, ticketId]
+          set({ completedTicketIds: newList })
+          localStorage.setItem('kds-completed-ticket-ids', JSON.stringify(newList))
+          console.log(`🚫 Ticket ${ticketId} agregado a lista de completados`)
+        }
+      },
+
+      // Verificar si un ticket está en la lista de completados
+      isTicketCompleted: (ticketId: string) => {
+        return get().completedTicketIds.includes(ticketId)
+      },
+
+      // Limpiar historial: mover todos los tickets PREPARING y READY a SERVED (completados)
+      clearHistory: () => {
+        const { tickets } = get()
+        const historyTickets = tickets.filter(t => t.status === 'PREPARING' || t.status === 'READY')
         
-        // Limpiar tickets antiguos: eliminar SERVED y eliminados de hace más de 1 hora
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        if (historyTickets.length === 0) {
+          console.log('📋 No hay tickets en historial para limpiar')
+          return
+        }
+        
+        // Marcar cada ticket del historial como SERVED y agregar a lista de completados
+        historyTickets.forEach(ticket => {
+          get().addToCompletedList(ticket.id)
+        })
+        
+        // Actualizar estado: eliminar tickets del historial (marcarlos como SERVED)
+        set((s) => ({
+          tickets: s.tickets.map(t =>
+            (t.status === 'PREPARING' || t.status === 'READY')
+              ? { ...t, status: 'SERVED' as KdsTicketStatus, completedAt: new Date() }
+              : t
+          )
+        }))
+        
+        get().saveToStorage()
+        console.log(`🧹 Historial limpiado: ${historyTickets.length} tickets marcados como SERVED`)
+      },
+
+      // Limpiar historial de una estación específica
+      clearHistoryByStation: (stationId: string) => {
+        const { tickets } = get()
+        
+        // Filtrar tickets en historial que tienen items de esta estación
+        const stationHistoryTickets = tickets.filter(t => {
+          const isInHistory = t.status === 'PREPARING' || t.status === 'READY'
+          const hasStationItems = t.items.some(item => item.stationId === stationId)
+          return isInHistory && hasStationItems
+        })
+        
+        if (stationHistoryTickets.length === 0) {
+          console.log(`📋 No hay tickets en historial para la estación ${stationId}`)
+          return
+        }
+        
+        // Marcar cada ticket como SERVED y agregar a lista de completados
+        stationHistoryTickets.forEach(ticket => {
+          get().addToCompletedList(ticket.id)
+        })
+        
+        // Actualizar estado: marcar estos tickets como SERVED
+        set((s) => ({
+          tickets: s.tickets.map(t => {
+            // Solo modificar tickets del historial de esta estación
+            if ((t.status === 'PREPARING' || t.status === 'READY') && 
+                t.items.some(item => item.stationId === stationId)) {
+              return { ...t, status: 'SERVED' as KdsTicketStatus, completedAt: new Date() }
+            }
+            return t
+          })
+        }))
+        
+        get().saveToStorage()
+        console.log(`🧹 Historial limpiado para estación ${stationId}: ${stationHistoryTickets.length} tickets marcados como SERVED`)
+      },
+
+      saveToStorage: () => {
+        const { tickets, stationId, completedTicketIds } = get()
+        
+        // SOLUCIÓN: NO guardar tickets SERVED, CANCELLED o eliminados
+        // Esto evita que reaparezcan al reiniciar el servidor
         const ticketsToSave = tickets
           .filter(t => {
-            // Eliminar tickets SERVED de hace más de 1 hora
-            if (t.status === 'SERVED' && t.completedAt && t.completedAt < oneHourAgo) {
-              console.log(`🗑️ Limpiando ticket SERVED antiguo: ${t.folio}`);
+            // NO guardar tickets despachados
+            if (t.status === 'SERVED') {
+              console.log(`🗑️ No guardando ticket SERVED: ${t.folio}`);
               return false;
             }
-            // Eliminar tickets eliminados definitivamente de hace más de 1 hora
-            if (t.deletedAt && t.deletedAt < oneHourAgo) {
-              console.log(`🗑️ Limpiando ticket eliminado antiguo: ${t.folio}`);
+            // NO guardar tickets cancelados
+            if (t.status === 'CANCELLED') {
+              console.log(`🗑️ No guardando ticket CANCELLED: ${t.folio}`);
               return false;
             }
+            // NO guardar tickets eliminados
+            if (t.deletedAt) {
+              console.log(`🗑️ No guardando ticket eliminado: ${t.folio}`);
+              return false;
+            }
+            // Solo guardar tickets activos (NEW, PREPARING, READY)
             return true;
           })
           .map(t => ({
@@ -456,11 +638,14 @@ export const useKdsStore = create<KdsState>()(
           }));
         
         localStorage.setItem('kds-tickets', JSON.stringify(ticketsToSave))
-        console.log(`💾 Guardados ${ticketsToSave.length} tickets en localStorage (estación: ${stationId})`);
+        // También guardar la lista de completados
+        localStorage.setItem('kds-completed-ticket-ids', JSON.stringify(completedTicketIds))
+        console.log(`💾 Guardados ${ticketsToSave.length} tickets ACTIVOS y ${completedTicketIds.length} IDs de completados`);
       },
 
       loadFromStorage: () => {
         try {
+          // Cargar tickets activos
           const stored = localStorage.getItem('kds-tickets')
           if (stored) {
             const tickets = JSON.parse(stored).map((t: any) => ({
@@ -471,6 +656,14 @@ export const useKdsStore = create<KdsState>()(
             }))
             set({ tickets })
             console.log('✅ Tickets cargados desde localStorage:', tickets.length)
+          }
+          
+          // Cargar lista de IDs completados (lista negra)
+          const completedStored = localStorage.getItem('kds-completed-ticket-ids')
+          if (completedStored) {
+            const completedIds = JSON.parse(completedStored)
+            set({ completedTicketIds: completedIds })
+            console.log('✅ Lista de completados cargada desde localStorage:', completedIds.length)
           }
         } catch (error) {
           console.error('❌ Error cargando desde localStorage:', error)

@@ -28,7 +28,7 @@ export const SalesPage: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
   useEffect(() => {

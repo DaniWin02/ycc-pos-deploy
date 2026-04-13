@@ -215,19 +215,27 @@ router.post('/close/:id', async (req, res) => {
     }
     
     // Calcular totales de ventas durante la sesión
-    const sales = await prisma.order.findMany({
-      where: {
-        terminalId: session.terminalId,
-        createdAt: {
-          gte: session.openedAt,
-          lte: new Date()
+    let sales = [];
+    try {
+      sales = await prisma.order.findMany({
+        where: {
+          terminalId: session.terminalId,
+          createdAt: {
+            gte: session.openedAt,
+            lte: new Date()
+          },
+          status: 'COMPLETED'
         },
-        status: 'COMPLETED'
-      },
-      include: {
-        payments: true
-      }
-    });
+        include: {
+          payments: true
+        }
+      });
+      console.log(`✅ Órdenes encontradas para cierre: ${sales.length}`);
+    } catch (orderError: any) {
+      console.error('❌ Error buscando órdenes para cierre:', orderError.message);
+      // Continuar con sales vacío
+      sales = [];
+    }
     
     // Calcular totales por método de pago
     const totalCash = sales.reduce((sum, sale) => {
@@ -333,6 +341,8 @@ router.get('/:id/report', async (req, res) => {
   try {
     const { id } = req.params;
     
+    console.log('📊 Generando reporte para sesión:', id);
+    
     const session = await prisma.cashSession.findUnique({
       where: { id },
       include: {
@@ -347,25 +357,48 @@ router.get('/:id/report', async (req, res) => {
     });
     
     if (!session) {
+      console.log('❌ Sesión no encontrada:', id);
       return res.status(404).json({ error: 'Sesión no encontrada' });
     }
     
+    console.log('✅ Sesión encontrada:', {
+      id: session.id,
+      terminalId: session.terminalId,
+      openedAt: session.openedAt,
+      closedAt: session.closedAt,
+      status: session.status
+    });
+    
     const endDate = session.closedAt || new Date();
     
-    const sales = await prisma.order.findMany({
-      where: {
-        terminalId: session.terminalId,
-        createdAt: {
-          gte: session.openedAt,
-          lte: endDate
-        },
-        status: 'COMPLETED'
-      },
-      include: {
-        payments: true,
-        items: true
-      }
+    console.log('🔍 Buscando órdenes entre:', {
+      terminalId: session.terminalId,
+      desde: session.openedAt,
+      hasta: endDate
     });
+    
+    let sales = [];
+    try {
+      sales = await prisma.order.findMany({
+        where: {
+          terminalId: session.terminalId,
+          createdAt: {
+            gte: session.openedAt,
+            lte: endDate
+          },
+          status: 'COMPLETED'
+        },
+        include: {
+          payments: true,
+          items: true
+        }
+      });
+      console.log(`✅ Órdenes encontradas: ${sales.length}`);
+    } catch (orderError: any) {
+      console.error('❌ Error buscando órdenes:', orderError.message);
+      // Continuar con sales vacío
+      sales = [];
+    }
     
     const totalCash = sales.reduce((sum, sale) => {
       const cashPayments = sale.payments
@@ -392,6 +425,15 @@ router.get('/:id/report', async (req, res) => {
     const countedCash = Number(session.countedCash || session.closingFloat || 0);
     const difference = countedCash - expectedCash;
     
+    console.log('💰 Totales calculados:', {
+      totalCash,
+      totalCard,
+      totalMemberAccount,
+      expectedCash,
+      countedCash,
+      difference
+    });
+    
     const report = {
       session,
       sales: {
@@ -411,10 +453,17 @@ router.get('/:id/report', async (req, res) => {
       notes: session.notes || ''
     };
     
+    console.log('✅ Reporte generado exitosamente');
     res.json(report);
-  } catch (error) {
-    console.error('Error generando reporte:', error);
-    res.status(500).json({ error: 'Error generando reporte' });
+  } catch (error: any) {
+    console.error('❌ Error generando reporte:', error);
+    console.error('Mensaje:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Error generando reporte',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

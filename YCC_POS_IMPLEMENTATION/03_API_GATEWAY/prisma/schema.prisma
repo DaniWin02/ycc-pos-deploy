@@ -580,3 +580,185 @@ model KitchenStation {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ========================================
+// PROVEEDORES (SUPPLIERS)
+// ========================================
+
+model Supplier {
+  id              String          @id @default(cuid())
+  name            String          @unique
+  description     String?
+  contactPerson   String?
+  email           String?
+  phone           String?
+  address         String?
+  city            String?
+  state           String?
+  country         String?
+  postalCode      String?
+  taxId           String?
+  paymentTerms    String?
+  deliveryDays    Json?           // Array de días de entrega
+  minimumOrder    Decimal?
+  isActive        Boolean         @default(true)
+  rating          Decimal?        @default(0)
+  totalOrders     Int             @default(0)
+  lastOrderDate   DateTime?
+  notes           String?
+  website         String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  purchaseOrders  PurchaseOrder[]
+}
+
+// ========================================
+// ÓRDENES DE COMPRA (PURCHASE ORDERS)
+// ========================================
+
+model PurchaseOrder {
+  id                   String              @id @default(cuid())
+  orderNumber          String              @unique
+  supplierId           String
+  storeId              String
+  status               PurchaseOrderStatus @default(DRAFT)
+  orderDate            DateTime            @default(now())
+  expectedDeliveryDate DateTime
+  actualDeliveryDate   DateTime?
+  subtotal             Decimal
+  taxAmount            Decimal
+  totalAmount          Decimal
+  notes                String?
+  internalNotes        String?
+  createdBy            String
+  approvedBy           String?
+  receivedBy           String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  supplier             Supplier            @relation(fields: [supplierId], references: [id])
+  items                PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id                String        @id @default(cuid())
+  purchaseOrderId   String
+  ingredientId      String
+  quantity          Decimal
+  unit              String
+  unitPrice         Decimal
+  totalPrice        Decimal
+  receivedQuantity  Decimal       @default(0)
+  remainingQuantity Decimal
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  purchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  PARTIAL_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+// ========================================
+// CONTEOS FÍSICOS (PHYSICAL COUNTS)
+// ========================================
+
+model PhysicalCount {
+  id                 String             @id @default(cuid())
+  countNumber        String             @unique
+  storeId            String
+  status             PhysicalCountStatus @default(DRAFT)
+  countDate          DateTime
+  startedAt          DateTime?
+  completedAt        DateTime?
+  countedBy          String?
+  reviewedBy         String?
+  notes              String?
+  varianceAmount     Decimal            @default(0)
+  variancePercentage Decimal            @default(0)
+  totalItems         Int                @default(0)
+  countedItems       Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  items              PhysicalCountItem[]
+}
+
+model PhysicalCountItem {
+  id                String        @id @default(cuid())
+  physicalCountId   String
+  ingredientId      String
+  expectedQuantity  Decimal
+  countedQuantity   Decimal?
+  varianceQuantity  Decimal?
+  varianceValue     Decimal?
+  unit              String
+  unitCost          Decimal
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  physicalCount     PhysicalCount @relation(fields: [physicalCountId], references: [id], onDelete: Cascade)
+}
+
+enum PhysicalCountStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  REVIEWED
+  CANCELLED
+}
+
+// ========================================
+// REGISTRO DE DESPERDICIO (WASTE)
+// ========================================
+
+model WasteRecord {
+  id           String         @id @default(cuid())
+  wasteNumber  String         @unique
+  storeId      String
+  wasteDate    DateTime       @default(now())
+  reportedBy   String
+  approvedBy   String?
+  status       WasteStatus    @default(PENDING)
+  totalValue   Decimal        @default(0)
+  reason       String?
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  items        WasteItem[]
+}
+
+model WasteItem {
+  id            String      @id @default(cuid())
+  wasteRecordId String
+  ingredientId  String
+  quantity      Decimal
+  unit          String
+  unitCost      Decimal
+  totalCost     Decimal
+  reason        WasteReason
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  wasteRecord   WasteRecord @relation(fields: [wasteRecordId], references: [id], onDelete: Cascade)
+}
+
+enum WasteStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WasteReason {
+  EXPIRED
+  DAMAGED
+  SPOILED
+  OVERPRODUCTION
+  CONTAMINATED
+  OTHER
+}

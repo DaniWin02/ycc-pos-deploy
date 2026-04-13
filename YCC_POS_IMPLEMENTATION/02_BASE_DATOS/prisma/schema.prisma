@@ -220,6 +220,7 @@ model OrderItem {
   discountAmount   Decimal   @default(0)
   modifiers        Json
   notes           String?
+  stationId       String?
   status          OrderItemStatus @default(PENDING)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
   DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ChevronRight, Bell, Search, Menu, X, LogOut, Clock, AlertTriangle,
-  Store, FolderOpen, Utensils, Warehouse
+  Store, FolderOpen, Utensils, Warehouse, Hash
 } from 'lucide-react';
 import { ProductsPage } from './pages/ProductsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -14,14 +14,17 @@ import { UsersPage } from './pages/UsersPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import InventoryPage from './pages/InventoryPage';
+import { FoliosPage } from './pages/FoliosPage';
+import { SaleListItem, ProductListItem, TopProduct } from './types/api.types';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
-type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'comandas' | 'users' | 'reports' | 'settings' | 'inventory';
+type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'comandas' | 'users' | 'reports' | 'settings' | 'inventory' | 'folios';
 
-const SIDEBAR_ITEMS: { id: Page; label: string; icon: any }[] = [
+const SIDEBAR_ITEMS: { id: Page; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'sales', label: 'Ventas', icon: ShoppingCart },
+  { id: 'folios', label: 'Folios', icon: Hash },
   { id: 'products', label: 'Productos', icon: Package },
   { id: 'categories', label: 'Categorías', icon: FolderOpen },
   { id: 'inventory', label: 'Inventario', icon: Warehouse },
@@ -34,8 +37,8 @@ const SIDEBAR_ITEMS: { id: Page; label: string; icon: any }[] = [
 export const App: React.FC = () => {
   const [page, setPage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sales, setSales] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [sales, setSales] = useState<SaleListItem[]>([]);
+  const [products, setProducts] = useState<ProductListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Cargar datos desde el API
@@ -52,7 +55,7 @@ export const App: React.FC = () => {
         const productsData = await productsRes.json();
         
         // Mapear datos de ventas
-        const mappedSales = salesData.map((sale: any) => ({
+        const mappedSales = salesData.map((sale: SaleListItem) => ({
           ...sale,
           total: Number(sale.totalAmount || sale.total || 0) || 0,
           subtotal: Number(sale.subtotal || 0) || 0,
@@ -85,15 +88,15 @@ export const App: React.FC = () => {
       // Manejar diferentes estructuras de datos de items
       const items = sale.items || sale.saleItems || [];
       console.log('🔍 Debug - Sale items:', items);
-      return items.map((item: any) => ({
+      return items.map((item: SaleItem) => ({
         name: item.productName || item.name || 'Producto desconocido',
-        quantity: parseInt(item.quantity) || 0,
-        price: parseFloat(item.price) || parseFloat(item.unitPrice) || 0
+        quantity: parseInt(String(item.quantity)) || 0,
+        price: parseFloat(String(item.price || item.unitPrice)) || 0
       }));
     })
     .filter(item => item.quantity > 0 && item.price > 0) // Filtrar items inválidos
-    .reduce((acc: any, item: any) => {
-      const existing = acc.find((p: any) => p.name === item.name);
+    .reduce((acc: TopProduct[], item) => {
+      const existing = acc.find((p: TopProduct) => p.name === item.name);
       if (existing) {
         existing.sold += item.quantity;
         existing.revenue += item.price * item.quantity;
@@ -113,7 +116,7 @@ export const App: React.FC = () => {
   const recentSales = sales
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 6)
-    .map(sale => ({
+    .map((sale: SaleListItem) => ({
       folio: sale.folio,
       customer: sale.customerName || 'Cliente',
       total: parseFloat(sale.total),
@@ -263,7 +266,7 @@ export const App: React.FC = () => {
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="font-semibold text-gray-900 mb-4">Top Productos</h3>
                   <div className="space-y-3">
-                    {topProducts.length > 0 ? topProducts.map((p: any, i: number) => {
+                    {topProducts.length > 0 ? topProducts.map((p: TopProduct, i: number) => {
                       // Validación adicional para evitar NaN
                       const sold = p.sold || 0;
                       const revenue = p.revenue || 0;
@@ -371,13 +374,13 @@ export const App: React.FC = () => {
           )}
 
           {page === 'sales' && <SalesPage />}
+          {page === 'folios' && <FoliosPage />}
           {page === 'products' && <ProductsPage />}
           {page === 'categories' && <CategoriesPage />}
           {page === 'inventory' && <InventoryPage />}
           {page === 'comandas' && <ComandasPage />}
           {page === 'users' && <UsersPage />}
           {page === 'reports' && <ReportsPage />}
-          
           {page === 'settings' && <SettingsPage />}
         </main>
       </div>

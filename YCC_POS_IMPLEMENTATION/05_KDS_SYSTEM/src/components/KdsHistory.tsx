@@ -49,7 +49,12 @@ export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
       <div className="flex flex-col items-center justify-center py-12 text-gray-400">
         <AlertCircle className="w-16 h-16 mb-3" />
         <p className="text-lg font-medium">Sin pedidos en historial</p>
-        <p className="text-sm">Los pedidos en preparación aparecerán aquí</p>
+        <p className="text-sm">
+          {selectedStationId 
+            ? 'No hay pedidos en preparación para esta estación'
+            : 'Los pedidos en preparación aparecerán aquí'
+          }
+        </p>
       </div>
     )
   }

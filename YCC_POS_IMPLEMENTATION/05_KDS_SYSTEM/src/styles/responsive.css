@@ -1,0 +1,558 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   SISTEMA RESPONSIVE KDS - Kitchen Display
+   ============================================ */
+
+@layer base {
+  :root {
+    /* KDS Dark Theme Variables */
+    --kds-bg-primary: #111827;
+    --kds-bg-secondary: #1f2937;
+    --kds-bg-tertiary: #374151;
+    --kds-text-primary: #f9fafb;
+    --kds-text-secondary: #d1d5db;
+    --kds-text-muted: #9ca3af;
+    
+    /* Status Colors */
+    --kds-status-new: #3b82f6;
+    --kds-status-preparing: #f59e0b;
+    --kds-status-ready: #10b981;
+    --kds-status-served: #6b7280;
+    --kds-status-cancelled: #ef4444;
+    --kds-status-rush: #dc2626;
+    
+    /* Station Colors */
+    --kds-station-bar: #2563eb;
+    --kds-station-cocina: #dc2626;
+    --kds-station-fria: #0891b2;
+    --kds-station-parrilla: #ea580c;
+    --kds-station-postres: #db2777;
+    
+    /* Touch Targets */
+    --kds-touch-min: 44px;
+    --kds-touch-comfortable: 56px;
+    --kds-touch-large: 64px;
+    
+    /* Grid Config */
+    --kds-card-min: min(320px, 95vw);
+    --kds-gap: clamp(0.5rem, 1.5vw, 1rem);
+    
+    /* Typography Fluid */
+    --kds-font-xs: clamp(0.625rem, 1.5vw, 0.75rem);
+    --kds-font-sm: clamp(0.75rem, 2vw, 0.875rem);
+    --kds-font-base: clamp(0.875rem, 2.5vw, 1rem);
+    --kds-font-lg: clamp(1rem, 3vw, 1.125rem);
+    --kds-font-xl: clamp(1.125rem, 4vw, 1.25rem);
+    --kds-font-2xl: clamp(1.25rem, 5vw, 1.5rem);
+    
+    /* Spacing */
+    --kds-space-xs: clamp(0.25rem, 1vw, 0.5rem);
+    --kds-space-sm: clamp(0.5rem, 1.5vw, 0.75rem);
+    --kds-space-md: clamp(0.75rem, 2vw, 1rem);
+    --kds-space-lg: clamp(1rem, 2.5vw, 1.5rem);
+    
+    /* Safe Area */
+    --kds-safe-top: env(safe-area-inset-top);
+    --kds-safe-bottom: env(safe-area-inset-bottom);
+    --kds-safe-left: env(safe-area-inset-left);
+    --kds-safe-right: env(safe-area-inset-right);
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+  
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--kds-bg-primary);
+    color: var(--kds-text-primary);
+    font-size: var(--kds-font-base);
+    line-height: 1.5;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  
+  /* Disable pull-to-refresh */
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+@layer components {
+  /* ============================================
+     KDS LAYOUT SYSTEM
+     ============================================ */
+  
+  /* Main KDS Container */
+  .kds-container {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height */
+    background-color: var(--kds-bg-primary);
+    overflow: hidden;
+  }
+  
+  /* KDS Header - Compacto y responsive */
+  .kds-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--kds-space-sm) var(--kds-space-md);
+    background-color: var(--kds-bg-secondary);
+    border-bottom: 1px solid var(--kds-bg-tertiary);
+    flex-shrink: 0;
+    min-height: var(--kds-touch-comfortable);
+  }
+  
+  /* KDS Filter Bar */
+  .kds-filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--kds-space-sm);
+    padding: var(--kds-space-sm) var(--kds-space-md);
+    background-color: rgba(31, 41, 55, 0.5);
+    border-bottom: 1px solid var(--kds-bg-tertiary);
+    flex-shrink: 0;
+  }
+  
+  @media (min-width: 768px) {
+    .kds-filter-bar {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+  
+  /* KDS Grid - Sistema dinámico */
+  .kds-grid {
+    display: grid;
+    gap: var(--kds-gap);
+    padding: var(--kds-space-md);
+    flex: 1;
+    overflow-y: auto;
+    align-content: start;
+    
+    /* Grid fluido con auto-fill */
+    grid-template-columns: repeat(auto-fill, minmax(var(--kds-card-min), 1fr));
+  }
+  
+  /* Grid con columnas fijas por breakpoint */
+  .kds-grid-cols {
+    display: grid;
+    gap: var(--kds-gap);
+    padding: var(--kds-space-md);
+    flex: 1;
+    overflow-y: auto;
+    align-content: start;
+    grid-template-columns: 1fr;
+  }
+  
+  @media (min-width: 640px) {
+    .kds-grid-cols { grid-template-columns: repeat(2, 1fr); }
+  }
+  
+  @media (min-width: 1024px) {
+    .kds-grid-cols { grid-template-columns: repeat(3, 1fr); }
+  }
+  
+  @media (min-width: 1280px) {
+    .kds-grid-cols { grid-template-columns: repeat(4, 1fr); }
+  }
+  
+  @media (min-width: 1536px) {
+    .kds-grid-cols { grid-template-columns: repeat(5, 1fr); }
+  }
+  
+  @media (min-width: 1920px) {
+    .kds-grid-cols { grid-template-columns: repeat(6, 1fr); }
+  }
+  
+  /* KDS Ticket Card */
+  .kds-ticket {
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    border-radius: clamp(0.5rem, 2vw, 0.75rem);
+    border: 2px solid;
+    overflow: hidden;
+    min-height: min(200px, 30vh);
+    max-height: calc(100vh - 200px);
+    transition: all 0.2s ease;
+  }
+  
+  .kds-ticket:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  }
+  
+  .kds-ticket:active {
+    transform: scale(0.98);
+  }
+  
+  /* Ticket Header */
+  .kds-ticket-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--kds-space-sm) var(--kds-space-md);
+    background-color: rgba(255, 255, 255, 0.8);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Ticket Content */
+  .kds-ticket-content {
+    flex: 1;
+    padding: var(--kds-space-sm) var(--kds-space-md);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+  }
+  
+  /* Ticket Actions */
+  .kds-ticket-actions {
+    display: flex;
+    gap: var(--kds-space-sm);
+    padding: var(--kds-space-sm) var(--kds-space-md);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+  
+  /* ============================================
+     TOUCH TARGETS KDS
+     ============================================ */
+  .kds-touch {
+    min-width: var(--kds-touch-min);
+    min-height: var(--kds-touch-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: clamp(0.375rem, 1.5vw, 0.5rem);
+  }
+  
+  .kds-touch-comfortable {
+    min-width: var(--kds-touch-comfortable);
+    min-height: var(--kds-touch-comfortable);
+  }
+  
+  .kds-touch-large {
+    min-width: var(--kds-touch-large);
+    min-height: var(--kds-touch-large);
+  }
+  
+  /* ============================================
+     KDS BUTTONS
+     ============================================ */
+  .kds-btn {
+    @apply kds-touch px-4 font-semibold;
+    font-size: var(--kds-font-sm);
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply active:scale-95;
+  }
+  
+  .kds-btn-primary {
+    @apply bg-amber-500 text-white;
+    @apply hover:bg-amber-600 focus:ring-amber-300;
+  }
+  
+  .kds-btn-success {
+    @apply bg-emerald-500 text-white;
+    @apply hover:bg-emerald-600 focus:ring-emerald-300;
+  }
+  
+  .kds-btn-danger {
+    @apply bg-red-500 text-white;
+    @apply hover:bg-red-600 focus:ring-red-300;
+  }
+  
+  .kds-btn-secondary {
+    @apply bg-gray-700 text-white;
+    @apply hover:bg-gray-600 focus:ring-gray-300;
+  }
+  
+  /* Status badges */
+  .kds-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: var(--kds-font-xs);
+    font-weight: 600;
+  }
+  
+  /* ============================================
+     KDS TIMER
+     ============================================ */
+  .kds-timer {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: var(--kds-font-sm);
+    font-weight: 700;
+  }
+  
+  .kds-timer-normal { color: var(--kds-text-muted); }
+  .kds-timer-warning { color: var(--kds-status-preparing); }
+  .kds-timer-danger { 
+    color: var(--kds-status-rush);
+    animation: kds-pulse 1s ease-in-out infinite;
+  }
+  
+  @keyframes kds-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  
+  /* ============================================
+     KDS LOGIN / PIN PAD
+     ============================================ */
+  .kds-login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    padding: var(--kds-space-md);
+    background: linear-gradient(135deg, #c2410c 0%, #ea580c 50%, #f97316 100%);
+  }
+  
+  .kds-login-card {
+    width: 100%;
+    max-width: min(400px, 90vw);
+    padding: var(--kds-space-lg);
+    background-color: white;
+    border-radius: clamp(1rem, 3vw, 1.5rem);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+  
+  .kds-pin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(0.5rem, 2vw, 1rem);
+  }
+  
+  .kds-pin-btn {
+    aspect-ratio: 1;
+    min-height: var(--kds-touch-large);
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    font-weight: 700;
+    border-radius: clamp(0.5rem, 2vw, 0.75rem);
+    background-color: #f3f4f6;
+    color: #1f2937;
+    @apply transition-all duration-150;
+    @apply active:scale-95 active:bg-orange-100;
+  }
+  
+  .kds-pin-btn:hover {
+    background-color: #e5e7eb;
+  }
+  
+  /* ============================================
+     SAFE AREAS
+     ============================================ */
+  .kds-safe-top { padding-top: var(--kds-safe-top); }
+  .kds-safe-bottom { padding-bottom: var(--kds-safe-bottom); }
+  .kds-safe-x { 
+    padding-left: var(--kds-safe-left); 
+    padding-right: var(--kds-safe-right); 
+  }
+  
+  /* ============================================
+     FULLSCREEN MODE
+     ============================================ */
+  .kds-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+  }
+  
+  /* Fullscreen toggle button */
+  .kds-fs-btn {
+    @apply kds-touch p-2;
+    background-color: rgba(55, 65, 81, 0.8);
+    color: white;
+    border-radius: 0.5rem;
+    @apply hover:bg-gray-600 transition-colors;
+  }
+}
+
+@layer utilities {
+  /* ============================================
+     KDS UTILITIES
+     ============================================ */
+  
+  /* Text utilities */
+  .kds-text-xs { font-size: var(--kds-font-xs); }
+  .kds-text-sm { font-size: var(--kds-font-sm); }
+  .kds-text-base { font-size: var(--kds-font-base); }
+  .kds-text-lg { font-size: var(--kds-font-lg); }
+  .kds-text-xl { font-size: var(--kds-font-xl); }
+  .kds-text-2xl { font-size: var(--kds-font-2xl); }
+  
+  /* Spacing utilities */
+  .kds-p-xs { padding: var(--kds-space-xs); }
+  .kds-p-sm { padding: var(--kds-space-sm); }
+  .kds-p-md { padding: var(--kds-space-md); }
+  .kds-p-lg { padding: var(--kds-space-lg); }
+  
+  .kds-gap-xs { gap: var(--kds-space-xs); }
+  .kds-gap-sm { gap: var(--kds-space-sm); }
+  .kds-gap-md { gap: var(--kds-space-md); }
+  .kds-gap-lg { gap: var(--kds-space-lg); }
+  
+  /* Status border colors */
+  .kds-border-new { border-color: var(--kds-status-new); }
+  .kds-border-preparing { border-color: var(--kds-status-preparing); }
+  .kds-border-ready { border-color: var(--kds-status-ready); }
+  .kds-border-served { border-color: var(--kds-status-served); }
+  .kds-border-cancelled { border-color: var(--kds-status-cancelled); }
+  .kds-border-rush { border-color: var(--kds-status-rush); }
+  
+  /* Status background colors */
+  .kds-bg-new { background-color: var(--kds-status-new); }
+  .kds-bg-preparing { background-color: var(--kds-status-preparing); }
+  .kds-bg-ready { background-color: var(--kds-status-ready); }
+  .kds-bg-served { background-color: var(--kds-status-served); }
+  .kds-bg-cancelled { background-color: var(--kds-status-cancelled); }
+  .kds-bg-rush { background-color: var(--kds-status-rush); }
+  
+  /* Scrollbar styling */
+  .kds-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .kds-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .kds-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
+    border-radius: 3px;
+  }
+  
+  .kds-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #6b7280;
+  }
+  
+  /* Hide scrollbar */
+  .kds-scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .kds-scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* No select */
+  .kds-no-select {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  /* GPU acceleration */
+  .kds-gpu {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  /* Line clamp */
+  .kds-line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  
+  .kds-line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+/* ============================================
+   MEDIA QUERIES ESPECÍFICAS KDS
+   ============================================ */
+
+/* Mobile optimization */
+@media (max-width: 767px) {
+  .kds-mobile-full {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .kds-ticket {
+    min-height: auto;
+    max-height: none;
+  }
+  
+  .kds-header-text-hide {
+    display: none;
+  }
+}
+
+/* Tablet optimization */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .kds-tablet-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1920px) {
+  :root {
+    --kds-font-base: 18px;
+    --kds-gap: 1.5rem;
+  }
+}
+
+/* Landscape orientation - KDS optimized */
+@media (orientation: landscape) and (max-height: 768px) {
+  .kds-landscape-compact {
+    --kds-space-md: 0.5rem;
+    --kds-touch-min: 40px;
+  }
+  
+  .kds-landscape-compact .kds-ticket {
+    max-height: calc(100vh - 150px);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .kds-timer-danger {
+    animation: none;
+  }
+  
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles - Hide KDS when printing */
+@media print {
+  .kds-container {
+    display: none !important;
+  }
+}
