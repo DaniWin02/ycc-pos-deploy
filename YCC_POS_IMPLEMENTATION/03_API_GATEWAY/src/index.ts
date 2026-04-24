@@ -23,6 +23,11 @@ import suppliersRouter from './routes/suppliers.routes'
 import purchaseOrdersRouter from './routes/purchaseOrders.routes'
 import physicalCountsRouter from './routes/physicalCounts.routes'
 import wasteRouter from './routes/waste.routes'
+import customersRouter from './routes/customers.routes'
+import modifierGroupsRouter from './routes/modifierGroups.routes'
+import modifiersRouter from './routes/modifiers.routes'
+import productVariantsRouter from './routes/productVariants.routes'
+import productModifierGroupsRouter from './routes/productModifierGroups.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -68,10 +73,25 @@ app.use('/api/suppliers', suppliersRouter)
 app.use('/api/purchase-orders', purchaseOrdersRouter)
 app.use('/api/physical-counts', physicalCountsRouter)
 app.use('/api/waste', wasteRouter)
+app.use('/api/customers', customersRouter)
+app.use('/api/modifier-groups', modifierGroupsRouter)
+app.use('/api/modifiers', modifiersRouter)
+app.use('/api/product-variants', productVariantsRouter)
+app.use('/api/product-modifier-groups', productModifierGroupsRouter)
 
-// Health check
+// Health check with feature flags
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    features: {
+      stations: true,
+      modifierGroups: true,
+      modifiers: true,
+      productVariants: true,
+      productModifierAssignments: true
+    }
+  })
 })
 
 // Initialize test data (GET for easy browser access)
@@ -91,65 +111,73 @@ app.get('/api/init-data', async (req, res) => {
       create: { id: 'terminal-1', storeId: 'store-1', name: 'Terminal 1', location: 'Main Counter' }
     })
 
-    // User
+    // Users - Admin y Cajero para POS
     await prisma.user.upsert({
-      where: { id: 'user-1' },
+      where: { id: 'user-admin' },
       update: {},
       create: {
-        id: 'user-1', username: 'admin', email: 'admin@ycc.com',
+        id: 'user-admin', username: 'admin', email: 'admin@ycc.com',
         passwordHash: '$2a$10$abcdefghijklmnopqrstuv',
-        firstName: 'Admin', lastName: 'User', role: 'ADMIN'
+        firstName: 'Administrador', lastName: 'Sistema', role: 'ADMIN'
+      }
+    })
+    await prisma.user.upsert({
+      where: { id: 'user-cashier' },
+      update: {},
+      create: {
+        id: 'user-cashier', username: 'cajero', email: 'cajero@ycc.com',
+        passwordHash: '$2a$10$abcdefghijklmnopqrstuv',
+        firstName: 'Cajero', lastName: 'Principal', role: 'CASHIER'
       }
     })
 
-    // Categories
-    await prisma.category.upsert({
-      where: { id: 'cat-bebidas' },
-      update: {},
-      create: { id: 'cat-bebidas', name: 'Bebidas', description: 'Bebidas y refrescos' }
-    })
-    await prisma.category.upsert({
-      where: { id: 'cat-comida' },
-      update: {},
-      create: { id: 'cat-comida', name: 'Comida', description: 'Platillos principales' }
-    })
-    await prisma.category.upsert({
-      where: { id: 'cat-postres' },
-      update: {},
-      create: { id: 'cat-postres', name: 'Postres', description: 'Postres y dulces' }
-    })
+    // Clean up existing data first to avoid unique constraint conflicts
+    await prisma.productVariant.deleteMany({})
+    await prisma.product.deleteMany({})
+    await prisma.category.deleteMany({})
 
-    // Crear categoría Snacks si no existe
-    await prisma.category.upsert({
-      where: { id: 'cat-snacks' },
+    // Categories
+    await prisma.category.create({ data: { id: 'cat-bebidas', name: 'Bebidas', description: 'Bebidas y refrescos' }})
+    await prisma.category.create({ data: { id: 'cat-comida', name: 'Comida', description: 'Platillos principales' }})
+    await prisma.category.create({ data: { id: 'cat-postres', name: 'Postres', description: 'Postres y dulces' }})
+    await prisma.category.create({ data: { id: 'cat-snacks', name: 'Snacks', description: 'Snacks y botanas' }})
+
+    // Stations (required for products)
+    await prisma.station.upsert({
+      where: { id: 'station-bar' },
       update: {},
-      create: { id: 'cat-snacks', name: 'Snacks', description: 'Snacks y botanas' }
+      create: { id: 'station-bar', name: 'bar', displayName: 'Barra', color: '#3B82F6', isActive: true }
+    })
+    await prisma.station.upsert({
+      where: { id: 'station-cocina' },
+      update: {},
+      create: { id: 'station-cocina', name: 'cocina', displayName: 'Cocina', color: '#EF4444', isActive: true }
     })
 
     // Products - Catálogo completo de 18 productos
     const products = [
-      // Bebidas (5 productos)
-      { sku: 'BEB-001', name: 'Coca Cola 600ml', categoryId: 'cat-bebidas', price: 35, cost: 18 },
-      { sku: 'BEB-002', name: 'Agua Natural 600ml', categoryId: 'cat-bebidas', price: 20, cost: 10 },
-      { sku: 'BEB-003', name: 'Jugo de Naranja', categoryId: 'cat-bebidas', price: 45, cost: 23 },
-      { sku: 'BEB-004', name: 'Limonada Natural', categoryId: 'cat-bebidas', price: 40, cost: 20 },
-      { sku: 'BEB-005', name: 'Cerveza Artesanal', categoryId: 'cat-bebidas', price: 85, cost: 43 },
-      // Comidas (7 productos)
-      { sku: 'COM-001', name: 'Hamburguesa Clasica', categoryId: 'cat-comida', price: 145, cost: 73 },
-      { sku: 'COM-002', name: 'Club Sandwich', categoryId: 'cat-comida', price: 125, cost: 63 },
-      { sku: 'COM-003', name: 'Ensalada Cesar', categoryId: 'cat-comida', price: 110, cost: 55 },
-      { sku: 'COM-004', name: 'Tacos de Arrachera (3)', categoryId: 'cat-comida', price: 165, cost: 83 },
-      { sku: 'COM-005', name: 'Pizza Margarita', categoryId: 'cat-comida', price: 195, cost: 98 },
-      { sku: 'COM-006', name: 'Alitas BBQ (12pz)', categoryId: 'cat-comida', price: 175, cost: 88 },
-      { sku: 'COM-007', name: 'Filete de Salmon', categoryId: 'cat-comida', price: 285, cost: 143 },
-      // Postres (3 productos)
-      { sku: 'POS-001', name: 'Pastel de Chocolate', categoryId: 'cat-postres', price: 75, cost: 38 },
-      { sku: 'POS-002', name: 'Flan Napolitano', categoryId: 'cat-postres', price: 55, cost: 28 },
-      { sku: 'POS-003', name: 'Helado (3 bolas)', categoryId: 'cat-postres', price: 65, cost: 33 },
-      // Snacks (3 productos)
-      { sku: 'SNK-001', name: 'Papas Fritas', categoryId: 'cat-snacks', price: 55, cost: 28 },
-      { sku: 'SNK-002', name: 'Nachos con Queso', categoryId: 'cat-snacks', price: 85, cost: 43 },
-      { sku: 'SNK-003', name: 'Guacamole con Totopos', categoryId: 'cat-snacks', price: 95, cost: 48 }
+      // Bebidas (5 productos) - Barra
+      { sku: 'BEB-001', name: 'Coca Cola 600ml', categoryId: 'cat-bebidas', stationId: 'station-bar', price: 35, cost: 18 },
+      { sku: 'BEB-002', name: 'Agua Natural 600ml', categoryId: 'cat-bebidas', stationId: 'station-bar', price: 20, cost: 10 },
+      { sku: 'BEB-003', name: 'Jugo de Naranja', categoryId: 'cat-bebidas', stationId: 'station-bar', price: 45, cost: 23 },
+      { sku: 'BEB-004', name: 'Limonada Natural', categoryId: 'cat-bebidas', stationId: 'station-bar', price: 40, cost: 20 },
+      { sku: 'BEB-005', name: 'Cerveza Artesanal', categoryId: 'cat-bebidas', stationId: 'station-bar', price: 85, cost: 43 },
+      // Comidas (7 productos) - Cocina
+      { sku: 'COM-001', name: 'Hamburguesa Clasica', categoryId: 'cat-comida', stationId: 'station-cocina', price: 145, cost: 73 },
+      { sku: 'COM-002', name: 'Club Sandwich', categoryId: 'cat-comida', stationId: 'station-cocina', price: 125, cost: 63 },
+      { sku: 'COM-003', name: 'Ensalada Cesar', categoryId: 'cat-comida', stationId: 'station-cocina', price: 110, cost: 55 },
+      { sku: 'COM-004', name: 'Tacos de Arrachera (3)', categoryId: 'cat-comida', stationId: 'station-cocina', price: 165, cost: 83 },
+      { sku: 'COM-005', name: 'Pizza Margarita', categoryId: 'cat-comida', stationId: 'station-cocina', price: 195, cost: 98 },
+      { sku: 'COM-006', name: 'Alitas BBQ (12pz)', categoryId: 'cat-comida', stationId: 'station-cocina', price: 175, cost: 88 },
+      { sku: 'COM-007', name: 'Filete de Salmon', categoryId: 'cat-comida', stationId: 'station-cocina', price: 285, cost: 143 },
+      // Postres (3 productos) - Cocina
+      { sku: 'POS-001', name: 'Pastel de Chocolate', categoryId: 'cat-postres', stationId: 'station-cocina', price: 75, cost: 38 },
+      { sku: 'POS-002', name: 'Flan Napolitano', categoryId: 'cat-postres', stationId: 'station-cocina', price: 55, cost: 28 },
+      { sku: 'POS-003', name: 'Helado (3 bolas)', categoryId: 'cat-postres', stationId: 'station-cocina', price: 65, cost: 33 },
+      // Snacks (3 productos) - Barra
+      { sku: 'SNK-001', name: 'Papas Fritas', categoryId: 'cat-snacks', stationId: 'station-bar', price: 55, cost: 28 },
+      { sku: 'SNK-002', name: 'Nachos con Queso', categoryId: 'cat-snacks', stationId: 'station-bar', price: 85, cost: 43 },
+      { sku: 'SNK-003', name: 'Guacamole con Totopos', categoryId: 'cat-snacks', stationId: 'station-bar', price: 95, cost: 48 }
     ]
 
     for (const p of products) {
@@ -158,6 +186,7 @@ app.get('/api/init-data', async (req, res) => {
         update: { 
           name: p.name, 
           categoryId: p.categoryId, 
+          stationId: p.stationId,
           price: p.price, 
           cost: p.cost 
         },
@@ -165,6 +194,7 @@ app.get('/api/init-data', async (req, res) => {
           sku: p.sku,
           name: p.name,
           categoryId: p.categoryId,
+          stationId: p.stationId,
           price: p.price,
           cost: p.cost,
           currentStock: 100, 
@@ -173,8 +203,242 @@ app.get('/api/init-data', async (req, res) => {
       })
     }
 
+    // Productos con variantes - EJEMPLOS CON VERSIONES/TIPOS
+    // Las variantes pueden ser: tamaño (355ml, 600ml), tipo (Light, Zero), o combinadas
+    const variantProducts = [
+      {
+        sku: 'VAR-001',
+        name: 'Coca-Cola',
+        categoryId: 'cat-bebidas',
+        stationId: 'station-bar',
+        hasVariants: true,
+        variantLabel: 'Presentación',
+        price: 35,
+        variants: [
+          // Lata 355ml - diferentes versiones
+          { name: '355ml Normal', price: 35, sku: 'VAR-001-355-N', sortOrder: 1, description: 'Sabor original' },
+          { name: '355ml Light', price: 35, sku: 'VAR-001-355-L', sortOrder: 2, description: 'Sin azúcar' },
+          { name: '355ml Zero', price: 35, sku: 'VAR-001-355-Z', sortOrder: 3, description: 'Zero azúcar' },
+          // Botella 600ml - diferentes versiones
+          { name: '600ml Normal', price: 45, sku: 'VAR-001-600-N', sortOrder: 4, description: 'Sabor original' },
+          { name: '600ml Light', price: 45, sku: 'VAR-001-600-L', sortOrder: 5, description: 'Sin azúcar' },
+          { name: '600ml Zero', price: 45, sku: 'VAR-001-600-Z', sortOrder: 6, description: 'Zero azúcar' },
+          // Botella 1.5L - solo normal
+          { name: '1.5L Normal', price: 65, sku: 'VAR-001-15L-N', sortOrder: 7, description: 'Sabor original' }
+        ]
+      },
+      {
+        sku: 'VAR-002',
+        name: 'Hamburguesa Especial',
+        categoryId: 'cat-comida',
+        stationId: 'station-cocina',
+        hasVariants: true,
+        variantLabel: 'Presentación',
+        price: 145,
+        variants: [
+          { name: 'Sencilla', price: 145, sku: 'VAR-002-SEN', sortOrder: 1, description: '1 carne, verduras' },
+          { name: 'Doble Carne', price: 185, sku: 'VAR-002-DOB', sortOrder: 2, description: '2 carnes, doble queso' },
+          { name: 'Triple + Tocino', price: 225, sku: 'VAR-002-TRI', sortOrder: 3, description: '3 carnes, tocino crispy' },
+          { name: 'Vegetariana', price: 135, sku: 'VAR-002-VEG', sortOrder: 4, description: 'Hamburguesa de portobello' }
+        ]
+      },
+      {
+        sku: 'VAR-003',
+        name: 'Café Americano',
+        categoryId: 'cat-bebidas',
+        stationId: 'station-bar',
+        hasVariants: true,
+        variantLabel: 'Tamaño',
+        price: 45,
+        variants: [
+          { name: 'Chico 8oz', price: 45, sku: 'VAR-003-CH', sortOrder: 1, description: '240ml' },
+          { name: 'Mediano 12oz', price: 55, sku: 'VAR-003-MD', sortOrder: 2, description: '360ml' },
+          { name: 'Grande 16oz', price: 65, sku: 'VAR-003-GR', sortOrder: 3, description: '480ml' },
+          { name: 'Térmico 20oz', price: 75, sku: 'VAR-003-TR', sortOrder: 4, description: '600ml + $10 termo' }
+        ]
+      }
+    ]
+
+    // Crear productos con variantes
+    for (const vp of variantProducts) {
+      const { variants, ...productData } = vp
+      
+      const product = await prisma.product.upsert({
+        where: { sku: productData.sku },
+        update: {
+          name: productData.name,
+          categoryId: productData.categoryId,
+          stationId: productData.stationId,
+          hasVariants: true,
+          variantLabel: productData.variantLabel,
+          price: productData.price,
+          currentStock: 100
+        },
+        create: {
+          sku: productData.sku,
+          name: productData.name,
+          categoryId: productData.categoryId,
+          stationId: productData.stationId,
+          hasVariants: true,
+          variantLabel: productData.variantLabel,
+          price: productData.price,
+          currentStock: 100
+        }
+      })
+
+      // Crear variantes para este producto
+      for (const variant of variants) {
+        await prisma.productVariant.upsert({
+          where: { sku: variant.sku },
+          update: {
+            name: variant.name,
+            price: variant.price,
+            sortOrder: variant.sortOrder,
+            description: variant.description || null,
+            currentStock: 50
+          },
+          create: {
+            productId: product.id,
+            name: variant.name,
+            sku: variant.sku,
+            price: variant.price,
+            sortOrder: variant.sortOrder,
+            description: variant.description || null,
+            currentStock: 50
+          }
+        })
+      }
+    }
+
+    // Crear grupos de modificadores (ingredientes extras, sin cebolla, etc.)
+    const modifierGroups = [
+      {
+        name: 'Ingredientes Extra',
+        description: 'Agrega ingredientes extra a tu platillo',
+        isRequired: false,
+        modifiers: [
+          { name: 'Extra Queso', priceAdd: 25, description: '+30g queso manchego' },
+          { name: 'Extra Carne', priceAdd: 45, description: '+50g de carne' },
+          { name: 'Extra Tocino', priceAdd: 30, description: '+2 tiras de tocino crispy' },
+          { name: 'Extra Aguacate', priceAdd: 35, description: '+1/2 aguacate' },
+          { name: 'Guacamole', priceAdd: 20, description: 'Porción de guacamole' }
+        ]
+      },
+      {
+        name: 'Sin / Quitar',
+        description: 'Quita ingredientes de tu platillo',
+        isRequired: false,
+        modifiers: [
+          { name: 'Sin Cebolla', priceAdd: 0, description: 'Sin cebolla' },
+          { name: 'Sin Tomate', priceAdd: 0, description: 'Sin tomate' },
+          { name: 'Sin Mayonesa', priceAdd: 0, description: 'Sin mayonesa' },
+          { name: 'Sin Mostaza', priceAdd: 0, description: 'Sin mostaza' },
+          { name: 'Sin Cilantro', priceAdd: 0, description: 'Sin cilantro' }
+        ]
+      },
+      {
+        name: 'Término de Carne',
+        description: 'Selecciona cómo quieres tu carne',
+        isRequired: false,
+        modifiers: [
+          { name: 'Término Medio', priceAdd: 0, description: 'Rosado en centro' },
+          { name: 'Tres Cuartos', priceAdd: 0, description: 'Ligeramente rosado' },
+          { name: 'Bien Cocida', priceAdd: 0, description: 'Sin rosa' }
+        ]
+      },
+      {
+        name: 'Salsas',
+        description: 'Selecciona tus salsas',
+        isRequired: false,
+        modifiers: [
+          { name: 'Salsa Roja', priceAdd: 0, description: 'Salsa picante roja' },
+          { name: 'Salsa Verde', priceAdd: 0, description: 'Salsa picante verde' },
+          { name: 'Salsa Habanero', priceAdd: 0, description: 'Salsa extra picante' },
+          { name: 'Aderezo Ranch', priceAdd: 10, description: 'Aderezo ranch' }
+        ]
+      }
+    ]
+
+    for (const mg of modifierGroups) {
+      const { modifiers, ...groupData } = mg
+      const group = await prisma.modifierGroup.upsert({
+        where: { name: groupData.name },
+        update: { description: groupData.description, isRequired: groupData.isRequired },
+        create: { name: groupData.name, description: groupData.description, isRequired: groupData.isRequired }
+      })
+
+      for (const mod of modifiers) {
+        await prisma.modifier.upsert({
+          where: { id: `${group.id}-${mod.name.replace(/\s+/g, '-').toLowerCase()}` },
+          update: { name: mod.name, description: mod.description, priceAdd: mod.priceAdd },
+          create: {
+            id: `${group.id}-${mod.name.replace(/\s+/g, '-').toLowerCase()}`,
+            modifierGroupId: group.id,
+            name: mod.name,
+            description: mod.description,
+            priceAdd: mod.priceAdd
+          }
+        })
+      }
+    }
+
+    // Conectar grupos de modificadores a productos de comida
+    const comidaProducts = await prisma.product.findMany({
+      where: { categoryId: 'cat-comida' },
+      select: { id: true, sku: true }
+    })
+    const allModifierGroups = await prisma.modifierGroup.findMany({ select: { id: true, name: true } })
+    
+    // Mapear qué grupos aplican a qué tipo de producto
+    for (const product of comidaProducts) {
+      const applicableGroups = allModifierGroups.filter(g => {
+        if (product.sku === 'COM-007') {
+          // Salmón: solo término de carne y salsas (no ingredientes extra ni quitar)
+          return g.name === 'Término de Carne' || g.name === 'Salsas'
+        }
+        if (product.sku === 'COM-003') {
+          // Ensalada: sin término de carne
+          return g.name !== 'Término de Carne'
+        }
+        // Hamburguesa, Club Sandwich, Tacos, Pizza, Alitas: todos los grupos
+        return true
+      })
+
+      for (const group of applicableGroups) {
+        await prisma.productModifierGroup.upsert({
+          where: { productId_modifierGroupId: { productId: product.id, modifierGroupId: group.id } },
+          update: {},
+          create: { productId: product.id, modifierGroupId: group.id }
+        })
+      }
+    }
+
+    // Conectar algunos modificadores a snacks (salsas)
+    const snackProducts = await prisma.product.findMany({
+      where: { categoryId: 'cat-snacks' },
+      select: { id: true, sku: true }
+    })
+    const salsasGroup = allModifierGroups.find(g => g.name === 'Salsas')
+    if (salsasGroup) {
+      for (const product of snackProducts) {
+        await prisma.productModifierGroup.upsert({
+          where: { productId_modifierGroupId: { productId: product.id, modifierGroupId: salsasGroup.id } },
+          update: {},
+          create: { productId: product.id, modifierGroupId: salsasGroup.id }
+        })
+      }
+    }
+
+    // Conectar modificadores a productos con variantes (Hamburguesa Especial ya tiene modifiers por cat-comida)
+    // Café Americano: solo salsas no aplica, pero podríamos agregar "Tamaño" como variante ya lo tiene
+    // No agregamos modifiers a bebidas simples
+
     const count = await prisma.product.count()
-    res.json({ success: true, message: 'Datos inicializados', productCount: count })
+    const variantCount = await prisma.productVariant.count()
+    const modifierGroupCount = await prisma.modifierGroup.count()
+    const modifierCount = await prisma.modifier.count()
+    const productModifierCount = await prisma.productModifierGroup.count()
+    res.json({ success: true, message: 'Datos inicializados con variantes y modificadores', productCount: count, variantCount, modifierGroupCount, modifierCount, productModifierCount })
   } catch (error: any) {
     console.error('Error initializing data:', error)
     res.status(500).json({ error: error.message })

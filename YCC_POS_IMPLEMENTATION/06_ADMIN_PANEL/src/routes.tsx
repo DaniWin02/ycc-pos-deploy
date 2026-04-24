@@ -17,6 +17,11 @@ import { RecipesPage } from './pages/RecipesPage';
 import { RecipeEditorPage } from './pages/RecipeEditorPage';
 import { RecipesFoodCostPage } from './pages/RecipesFoodCostPage';
 import { RecipesAVTPage } from './pages/RecipesAVTPage';
+import { StationsPage } from './pages/StationsPage';
+import { ModifierGroupsPage } from './pages/ModifierGroupsPage';
+import { ProductVariantsPage } from './pages/ProductVariantsPage';
+import { ProductModifierAssignmentsPage } from './pages/ProductModifierAssignmentsPage';
+import { ProductsPage } from './pages/ProductsPage';
 
 // Create router configuration
 const router = createBrowserRouter([
@@ -73,11 +78,27 @@ const router = createBrowserRouter([
       },
       {
         path: 'products',
-        element: <div className="p-6"><h1 className="text-2xl font-bold">Productos</h1><p>En construcción...</p></div>
+        element: <ProductsPage />
       },
       {
         path: 'categories',
         element: <div className="p-6"><h1 className="text-2xl font-bold">Categorías</h1><p>En construcción...</p></div>
+      },
+      {
+        path: 'stations',
+        element: <StationsPage />
+      },
+      {
+        path: 'modifier-groups',
+        element: <ModifierGroupsPage />
+      },
+      {
+        path: 'product-variants',
+        element: <ProductVariantsPage />
+      },
+      {
+        path: 'product-modifier-assignments',
+        element: <ProductModifierAssignmentsPage />
       },
       {
         path: 'orders',

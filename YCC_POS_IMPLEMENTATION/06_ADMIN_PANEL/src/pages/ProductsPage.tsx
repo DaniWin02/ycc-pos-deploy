@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Package, Plus, Edit2, Trash2, Search, X, Camera, Image as ImageIcon, Upload, Sparkles } from 'lucide-react';
 import { StationSelector } from '../components/StationSelector';
@@ -19,6 +20,7 @@ interface Product {
   station?: { id: string; name: string; displayName: string; color?: string };
   preparationTime?: number;
   isActive: boolean;
+  hasVariants: boolean;
   createdAt: string;
 }
 
@@ -36,7 +38,25 @@ interface Station {
   isActive: boolean;
 }
 
-export const ProductsPage: React.FC = () => {
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004/api';
+
+export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) => void }> = ({ onNavigate }) => {
+  let navigate: any = null;
+  try {
+    navigate = useNavigate();
+  } catch (e) {
+    // No estamos en un Router context
+  }
+
+  const handleManageVariants = (productId: string) => {
+    if (onNavigate) {
+      onNavigate('product-variants', { productId });
+    } else if (navigate) {
+      navigate(`/admin/product-variants?productId=${productId}`);
+    } else {
+      window.location.href = `/admin/product-variants?productId=${productId}`;
+    }
+  };
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
@@ -59,26 +79,24 @@ export const ProductsPage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string>('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-
+  
   // Cargar productos, categorías y estaciones desde el API
   useEffect(() => {
     loadProducts();
     loadCategories();
     loadStations();
   }, []);
-
+  
   const loadProducts = async () => {
     try {
-      const response = await fetch('http://localhost:3004/api/products');
+      const response = await fetch(`${API_URL}/products`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      // Validar que data sea un array
       if (Array.isArray(data)) {
         setProducts(data);
       } else {
-        console.error('La respuesta del API no es un array:', data);
         setProducts([]);
       }
     } catch (error) {
@@ -91,16 +109,14 @@ export const ProductsPage: React.FC = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('http://localhost:3004/api/categories');
+      const response = await fetch(`${API_URL}/categories`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      // Validar que data sea un array
       if (Array.isArray(data)) {
         setCategories(data);
       } else {
-        console.error('La respuesta del API no es un array:', data);
         setCategories([]);
       }
     } catch (error) {
@@ -111,7 +127,7 @@ export const ProductsPage: React.FC = () => {
 
   const loadStations = async () => {
     try {
-      const response = await fetch('http://localhost:3004/api/stations');
+      const response = await fetch(`${API_URL}/stations`);
       if (response.ok) {
         const data = await response.json();
         setStations(data.filter((s: Station) => s.isActive));
@@ -123,7 +139,7 @@ export const ProductsPage: React.FC = () => {
 
   const createCategory = async (name: string) => {
     try {
-      const response = await fetch('http://localhost:3004/api/categories', {
+      const response = await fetch(`${API_URL}/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description: '' })
@@ -143,51 +159,39 @@ export const ProductsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // VALIDACIÓN: stationId es obligatorio
     if (!formData.stationId) {
-      alert('⚠️ Debes seleccionar una estación para el producto.\n\nTodos los productos deben tener una estación asignada para el sistema KDS.');
+      alert('⚠️ Debes seleccionar una estación para el producto.');
       return;
     }
-    
     try {
       const url = editingProduct 
-        ? `http://localhost:3004/api/products/${editingProduct.id}`
-        : 'http://localhost:3004/api/products';
-      
+        ? `${API_URL}/products/${editingProduct.id}`
+        : `${API_URL}/products`;
       const method = editingProduct ? 'PUT' : 'POST';
-      
-      console.log(`${method} producto:`, formData);
-      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-
       if (response.ok) {
         alert(editingProduct ? '✅ Producto actualizado exitosamente' : '✅ Producto creado exitosamente');
         await loadProducts();
         closeModal();
       } else {
         const errorData = await response.json();
-        console.error('Error del servidor:', errorData);
-        alert(`❌ Error: ${errorData.error || 'Error desconocido'}\n${errorData.details || ''}`);
+        alert(`❌ Error: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
-      console.error('Error guardando producto:', error);
-      alert('❌ Error de conexión. Verifica que el servidor esté funcionando.');
+      alert('❌ Error de conexión.');
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return;
-    
     try {
-      const response = await fetch(`http://localhost:3004/api/products/${id}`, {
+      const response = await fetch(`${API_URL}/products/${id}`, {
         method: 'DELETE'
       });
-
       if (response.ok) {
         await loadProducts();
       }
@@ -332,6 +336,22 @@ export const ProductsPage: React.FC = () => {
         </button>
       </div>
 
+      {/* Stock Level Legend */}
+      <div className="mb-4 flex flex-wrap gap-4 text-xs">
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full bg-red-500"></span>
+          <span className="text-gray-600">Sin stock (0)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+          <span className="text-gray-600">Stock bajo (1-10)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full bg-green-500"></span>
+          <span className="text-gray-600">Stock normal (11+)</span>
+        </div>
+      </div>
+
       {/* Search */}
       <div className="mb-6">
         <div className="relative">
@@ -382,25 +402,51 @@ export const ProductsPage: React.FC = () => {
                 </div>
               </div>
               <div className="p-4">
-                <h3 className="font-bold text-lg text-gray-900 mb-2">{product.name}</h3>
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-lg text-gray-900 line-clamp-1">{product.name}</h3>
+                  {product.hasVariants && (
+                    <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                      Variantes
+                    </span>
+                  )}
+                </div>
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2 h-10">{product.description}</p>
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-2xl font-bold text-indigo-600">${Number(product.price).toFixed(2)}</span>
-                  <span className="text-sm text-gray-500">Stock: {product.stock}</span>
+                  <span className={`text-sm font-medium ${
+                    (product.stock || product.currentStock || 0) <= 0 
+                      ? 'text-red-600' 
+                      : (product.stock || product.currentStock || 0) <= 10 
+                        ? 'text-orange-500' 
+                        : 'text-green-600'
+                  }`}>
+                    Stock: {product.stock || product.currentStock || 0}
+                    {(product.stock || product.currentStock || 0) <= 0 && ' ⚠️'}
+                    {(product.stock || product.currentStock || 0) > 0 && (product.stock || product.currentStock || 0) <= 10 && ' ⚡'}
+                  </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openModal(product)}
+                      className="flex-1 flex items-center justify-center gap-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      className="flex items-center justify-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                   <button
-                    onClick={() => openModal(product)}
-                    className="flex-1 flex items-center justify-center gap-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    onClick={() => handleManageVariants(product.id)}
+                    className="w-full flex items-center justify-center gap-2 bg-purple-50 text-purple-700 border border-purple-200 px-3 py-2 rounded-lg hover:bg-purple-100 transition-colors text-sm font-medium"
                   >
-                    <Edit2 className="w-4 h-4" />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(product.id)}
-                    className="flex items-center justify-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
+                    <Sparkles className="w-4 h-4" />
+                    Gestionar Variantes
                   </button>
                 </div>
               </div>
@@ -531,7 +577,15 @@ export const ProductsPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Stock {editingProduct && (
+                        <span className="text-gray-500 font-normal">
+                          (Actual: <span className={(editingProduct.stock || editingProduct.currentStock || 0) <= 0 ? 'text-red-600 font-medium' : (editingProduct.stock || editingProduct.currentStock || 0) <= 10 ? 'text-orange-500 font-medium' : 'text-green-600 font-medium'}>
+                            {editingProduct.stock || editingProduct.currentStock || 0}
+                          </span>)
+                        </span>
+                      )}
+                    </label>
                     <input
                       type="number"
                       required
@@ -539,6 +593,12 @@ export const ProductsPage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, currentStock: parseInt(e.target.value) })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     />
+                    {editingProduct && formData.currentStock !== (editingProduct.stock || editingProduct.currentStock || 0) && (
+                      <p className="text-xs mt-1 text-blue-600">
+                        Cambio: {formData.currentStock > (editingProduct.stock || editingProduct.currentStock || 0) ? '+' : ''}
+                        {formData.currentStock - (editingProduct.stock || editingProduct.currentStock || 0)} unidades
+                      </p>
+                    )}
                   </div>
                 </div>
 

@@ -148,17 +148,23 @@ model CashMovement {
 // ========================================
 
 model Customer {
-  id           String   @id @default(cuid())
-  memberNumber String?  @unique
-  firstName    String
-  lastName     String
-  email        String?
-  phone        String?
-  address      String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  orders       Order[]
+  id              String       @id @default(cuid())
+  memberNumber    String?      @unique
+  firstName       String
+  lastName        String
+  email           String?      @unique
+  phone           String?
+  address         String?
+  rfc             String?      // RFC para facturación
+  type            CustomerType @default(CLIENTE)
+  balance         Decimal      @default(0) @db.Decimal(12, 2) // Saldo a favor / crédito
+  creditLimit     Decimal      @default(0) @db.Decimal(12, 2) // Límite de crédito para socios
+  notes           String?      // Notas sobre el cliente
+  birthDate       DateTime?    // Fecha de cumpleaños
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  orders          Order[]
 }
 
 // ========================================
@@ -200,7 +206,7 @@ model Product {
   description        String?
   categoryId         String
   stationId          String              // Estación de cocina asignada (OBLIGATORIO)
-  price              Decimal
+  price              Decimal             // Precio base (si no hay variantes) o precio de referencia
   cost               Decimal?
   taxRate            Decimal             @default(0.16)
   trackInventory     Boolean             @default(true)
@@ -211,6 +217,8 @@ model Product {
   unit               String              @default("unidad")
   image              String?
   preparationTime    Int?                // Tiempo de preparación en minutos
+  hasVariants        Boolean             @default(false) // Indica si el producto tiene variantes
+  variantLabel       String?             // Etiqueta para las variantes (ej: "Tamaño", "Presentación")
   isActive           Boolean             @default(true)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -219,6 +227,27 @@ model Product {
   inventoryMovements InventoryMovement[]
   recipe             Recipe?
   stockAlerts        StockAlert[]
+  variants           ProductVariant[]
+  modifierGroups     ProductModifierGroup[]
+}
+
+model ProductVariant {
+  id              String    @id @default(cuid())
+  productId       String
+  name            String    // Nombre de la variante (ej: "Chico", "Mediano", "Grande", "1L", "500ml", "Light", "Zero")
+  sku             String    @unique
+  price           Decimal   // Precio de esta variante (sobreescribe al del producto)
+  cost            Decimal?  // Costo de esta variante
+  currentStock    Decimal   @default(0)
+  image           String?   // Imagen específica de la variante (ej: lata de Coca Light)
+  description     String?   // Descripción corta de la variante
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0) // Orden de visualización
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, name]) // No duplicar nombre de variante en mismo producto
 }
 
 // ========================================
@@ -276,6 +305,7 @@ model Order {
   storeId         String
   createdByUserId String
   status          OrderStatus   @default(PENDING)
+  orderType       OrderType     @default(MESA)
   subtotal        Decimal
   taxAmount       Decimal       @default(0)
   discountAmount  Decimal       @default(0)
@@ -342,6 +372,7 @@ model ModifierGroup {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   modifiers   Modifier[]
+  products    ProductModifierGroup[]
 }
 
 model Modifier {
@@ -356,6 +387,18 @@ model Modifier {
   modifierGroup   ModifierGroup @relation(fields: [modifierGroupId], references: [id])
 }
 
+// Tabla de unión: qué grupos de modificadores aplican a qué productos
+model ProductModifierGroup {
+  id              String         @id @default(cuid())
+  productId       String
+  modifierGroupId String
+  createdAt       DateTime       @default(now())
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modifierGroup   ModifierGroup  @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, modifierGroupId]) // No duplicar relación
+}
+
 // ========================================
 // ENUMS DEL SISTEMA
 // ========================================
@@ -364,9 +407,17 @@ enum OrderStatus {
   PENDING      // Orden recibida, esperando preparación
   PREPARING    // En preparación en cocina
   READY        // Lista para entregar
-  DELIVERED    // Entregada al cliente (historial)
+  DELIVERED    // Entregada al cliente
+  PAID         // Pagada
   CANCELLED    // Cancelada
   REFUNDED     // Reembolsada
+}
+
+enum OrderType {
+  MESA         // Comida en mesa
+  DOMICILIO    // Pedido a domicilio
+  LLEVAR       // Para llevar
+  BARRA        // Consumo en barra
 }
 
 enum OrderItemStatus {
@@ -430,6 +481,13 @@ enum MovementType {
   TRANSFER
 }
 
+enum CustomerType {
+  SOCIO       // Miembro del club con crédito
+  CLIENTE     // Cliente regular
+  INVITADO    // Invitado de un socio
+  CORPORATIVO // Cliente corporativo/empresa
+}
+
 // ========================================
 // COMANDAS Y GESTIÓN DE COCINA
 // ========================================
@@ -485,6 +543,7 @@ enum ComandaTipo {
   MESA
   DOMICILIO
   LLEVAR
+  BARRA
 }
 
 enum ComandaEstado {

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Coffee, Flame, Snowflake, ChefHat, Beef, Cake, Filter, X, LayoutGrid } from 'lucide-react'
+import { Coffee, Flame, Snowflake, ChefHat, Beef, Cake, LayoutGrid } from 'lucide-react'
 
 interface Station {
   id: string
@@ -72,20 +72,7 @@ export function KdsStationFilter({ stations, selectedStationId, onSelectStation 
       <div className="max-w-7xl mx-auto">
         {/* Header del filtro */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex items-center gap-2 text-gray-700">
-            <Filter className="w-5 h-5" />
-            <span className="font-semibold">Filtrar por Estación:</span>
-          </div>
-          
-          {selectedStationId && (
-            <button
-              onClick={() => onSelectStation(null)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Limpiar filtro
-            </button>
-          )}
+          {/* Título opcional */}
         </div>
 
         {/* Estaciones en columna única */}
@@ -158,18 +145,6 @@ export function KdsStationFilter({ stations, selectedStationId, onSelectStation 
           })}
         </div>
 
-        {/* Info del filtro activo */}
-        {selectedStationId && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-            <p className="text-sm text-blue-800">
-              <strong>Mostrando:</strong> Pedidos de {' '}
-              <span className="font-semibold">
-                {stations.find(s => s.id === selectedStationId)?.displayName || 'Estación seleccionada'}
-              </span>
-              {' '}• Solo se muestran los items que pertenecen a esta estación
-            </p>
-          </div>
-        )}
       </div>
     </div>
   )

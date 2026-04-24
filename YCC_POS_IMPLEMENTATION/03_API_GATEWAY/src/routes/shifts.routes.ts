@@ -142,6 +142,19 @@ router.get('/current/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
+    // Verificar que el usuario existe
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      console.log(`⚠️ Usuario no encontrado: ${userId}`);
+      return res.status(404).json({ 
+        error: 'Usuario no encontrado',
+        message: `El usuario ${userId} no existe en la base de datos. Ejecute /api/init-data para crear los usuarios por defecto.`
+      });
+    }
+    
     const currentShift = await prisma.shift.findFirst({
       where: {
         userId,

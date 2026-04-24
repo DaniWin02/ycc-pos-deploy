@@ -103,6 +103,13 @@ export interface ProductResponse {
   imageUrl?: string;
   currentStock: number;
   isActive: boolean;
+  stationId?: string;
+  station?: {
+    id: string;
+    name: string;
+    displayName: string;
+    color?: string;
+  };
 }
 
 export interface CategoryResponse {

@@ -4,6 +4,19 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 const prisma = new PrismaClient();
 
+// Helper function para mapear métodos de pago del frontend a valores del enum Prisma
+function mapPaymentMethod(method: string): string {
+  const paymentMethodMap: Record<string, string> = {
+    'CASH': 'CASH',
+    'CREDIT_CARD': 'CARD',
+    'DEBIT_CARD': 'CARD',
+    'CARD': 'CARD',
+    'MEMBER_ACCOUNT': 'MEMBER_ACCOUNT',
+    'TRANSFER': 'CARD'
+  };
+  return paymentMethodMap[method] || 'CASH';
+}
+
 // Helper function para obtener el máximo número de folio del día - OPTIMIZED
 async function getNextFolioNumber(todayStart: Date, todayEnd: Date): Promise<number> {
   // Usar aggregate con count es más eficiente que traer todos los registros
@@ -72,12 +85,13 @@ async function createOrderWithUniqueFolio(orderData: any, todayStart: Date, toda
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
+    let folio: string;
     try {
       // Obtener el siguiente número de folio disponible
       const nextNumber = await getNextFolioNumber(todayStart, todayEnd);
       // Formato de folio: YYMMDD-NNN (ej: 260412-001)
       const shortDate = datePrefix.substring(2); // YYMMDD de YYYYMMDD
-      const folio = `${shortDate}-${String(nextNumber).padStart(3, '0')}`;
+      folio = `${shortDate}-${String(nextNumber).padStart(3, '0')}`;
 
       console.log(`📋 Intentando crear orden con folio: ${folio} (intento ${attempts + 1}/${maxAttempts})`);
       
@@ -309,10 +323,11 @@ router.post('/', async (req, res) => {
       terminalId, 
       userId,
       customerName,
-      notes
+      notes,
+      splitPayments
     } = req.body;
     
-    console.log('💰 Creando nueva venta:', { totalAmount, items: items?.length, paymentMethod });
+    console.log('💰 Creando nueva venta:', { totalAmount, items: items?.length, paymentMethod, splitPayments: splitPayments?.length || 0 });
     
     // Validaciones
     if (!items || items.length === 0) {
@@ -363,13 +378,21 @@ router.post('/', async (req, res) => {
           stationId: item.stationId
         }))
       },
-      payments: {
-        create: {
-          method: paymentMethod || 'CASH',
-          amount: String(totalAmount),
-          status: 'CAPTURED'
+      payments: splitPayments && splitPayments.length > 0
+        ? {
+          create: splitPayments.map((sp: any) => ({
+            method: mapPaymentMethod(sp.method),
+            amount: String(sp.amount),
+            status: 'CAPTURED'
+          }))
         }
-      }
+        : {
+          create: {
+            method: mapPaymentMethod(paymentMethod),
+            amount: String(totalAmount),
+            status: 'CAPTURED'
+          }
+        }
     };
 
     // Crear orden con folio único usando la función especializada
@@ -394,10 +417,47 @@ router.post('/', async (req, res) => {
     try {
       const io = req.app.get('io');
       if (io && items.length > 0) {
+        // Obtener información de estaciones para todos los productos
+        const productIds = items.map((i: any) => i.productId || i.id).filter(Boolean);
+        const productsWithStations = await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: {
+            id: true,
+            stationId: true,
+            station: {
+              select: {
+                id: true,
+                name: true,
+                displayName: true
+              }
+            }
+          }
+        });
+        
+        // Crear mapa de productId -> station info
+        const productStationMap = new Map();
+        productsWithStations.forEach((p: any) => {
+          productStationMap.set(p.id, {
+            stationId: p.stationId,
+            stationName: p.station?.displayName || p.station?.name || 'Sin Estación'
+          });
+        });
+        
+        // Enriquecer items con info de estación desde la BD
+        const itemsWithStationInfo = items.map((item: any) => {
+          const productId = item.productId || item.id;
+          const stationInfo = productStationMap.get(productId) || {};
+          return {
+            ...item,
+            stationId: item.stationId || stationInfo.stationId,
+            stationName: item.stationName || stationInfo.stationName || 'Sin Estación'
+          };
+        });
+        
         // Agrupar items por estación
         const itemsByStation = new Map<string, any[]>();
         
-        items.forEach((item: any) => {
+        itemsWithStationInfo.forEach((item: any) => {
           if (item.stationId) {
             if (!itemsByStation.has(item.stationId)) {
               itemsByStation.set(item.stationId, []);
@@ -407,6 +467,7 @@ router.post('/', async (req, res) => {
               name: item.name,
               quantity: item.quantity,
               unitPrice: item.price || item.unitPrice,
+              stationId: item.stationId,
               stationName: item.stationName
             });
           }
@@ -429,6 +490,25 @@ router.post('/', async (req, res) => {
           });
           
           console.log(`📡 Orden ${sale.folio} enviada a estación: ${stationName} (${stationItems.length} items)`);
+        });
+        
+        // Emitir evento general a TODAS las estaciones (para que cualquier KDS vea la orden)
+        io.emit('order:new', {
+          orderId: sale.id,
+          folio: sale.folio,
+          items: itemsWithStationInfo.map((item: any) => ({
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.price || item.unitPrice,
+            stationId: item.stationId,
+            stationName: item.stationName
+          })),
+          customerName: sale.customerName || 'Mostrador',
+          totalAmount: sale.totalAmount,
+          createdAt: sale.createdAt,
+          status: sale.status,
+          waiterName: sale.createdBy?.name
         });
         
         // También emitir evento general para monitoreo
@@ -459,13 +539,13 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /sales/:id - Actualizar venta (estado, notas, método de pago)
+// PUT /sales/:id - Actualizar venta (estado, notas, método de pago, tipo de orden)
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notes, paymentMethod } = req.body;
+    const { status, notes, paymentMethod, orderType } = req.body;
     
-    console.log('🔄 Actualizando venta:', { id, status, paymentMethod });
+    console.log('🔄 Actualizando venta:', { id, status, paymentMethod, orderType });
     
     // Verificar que la venta existe
     const existingSale = await prisma.order.findUnique({
@@ -545,6 +625,7 @@ router.put('/:id', async (req, res) => {
     
     if (status) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
+    if (orderType) updateData.orderType = orderType;
     
     // Solo actualizar la orden si hay cambios
     let updatedSale = existingSale;
@@ -577,6 +658,42 @@ router.put('/:id', async (req, res) => {
     }
     
     console.log('✅ Venta actualizada:', updatedSale.folio);
+    
+    // Emitir evento Socket.io para sincronización KDS y Admin Panel
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        // Emitir a la estación específica si hay items
+        updatedSale.items.forEach((item: any) => {
+          const stationId = item.stationId || item.product?.stationId || 'COCINA_PRINCIPAL';
+          io.to(`station-${stationId}`).emit('order:updated', {
+            orderId: updatedSale.id,
+            folio: updatedSale.folio,
+            status: updatedSale.status,
+            updatedAt: updatedSale.updatedAt,
+            items: updatedSale.items.map((i: any) => ({
+              id: i.id,
+              name: i.productName || i.name,
+              status: i.status,
+              stationId: i.stationId || i.product?.stationId
+            }))
+          });
+        });
+        
+        // Emitir evento general para Admin Panel
+        io.emit('sale:updated', {
+          orderId: updatedSale.id,
+          folio: updatedSale.folio,
+          status: updatedSale.status,
+          totalAmount: updatedSale.totalAmount,
+          updatedAt: updatedSale.updatedAt
+        });
+        
+        console.log('📡 Eventos Socket.io emitidos para venta:', updatedSale.folio);
+      }
+    } catch (socketError) {
+      console.warn('⚠️ Error emitiendo evento Socket.io:', socketError);
+    }
     
     res.json(updatedSale);
   } catch (error: any) {

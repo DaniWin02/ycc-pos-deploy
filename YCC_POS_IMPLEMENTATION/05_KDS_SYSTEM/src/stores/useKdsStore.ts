@@ -12,6 +12,7 @@ export interface KdsTicketItem {
   status: KdsItemStatus
   image?: string
   stationId?: string  // ID de la estación a la que pertenece este item
+  marked?: boolean     // Marca visual del item (subrayado)
 }
 
 export interface KdsTicket {
@@ -41,6 +42,7 @@ interface KdsState {
   updateTicket: (ticketId: string, updates: Partial<KdsTicket>) => void
   removeTicket: (ticketId: string) => void
   updateItemStatus: (ticketId: string, itemId: string, status: KdsItemStatus) => void
+  toggleItemMarked: (ticketId: string, itemId: string) => void
   bumpTicket: (ticketId: string) => void
   recallTicket: (ticketId: string) => void
   deleteTicket: (ticketId: string) => void
@@ -192,20 +194,23 @@ export const useKdsStore = create<KdsState>()(
                   name: item.name,
                   quantity: item.quantity,
                   status: 'PENDING' as KdsItemStatus,
-                  notes: ''
+                  notes: item.notes || '',
+                  stationId: item.stationId,
+                  stationName: item.stationName
                 })),
                 status: 'NEW' as KdsTicketStatus,
                 createdAt: new Date(data.createdAt),
-                table: data.customerName || 'Mostrador',
+                table: data.table || data.customerName || 'Mostrador',
                 priority: 'normal',
-                tipo: 'MESA'
+                tipo: data.orderType || 'MESA',
+                waiter: data.waiterName || data.createdBy?.name
               };
               
               // Agregar ticket a la lista
               get().addTicket(newTicket);
               get().saveToStorage();
               
-              console.log(`✅ Ticket agregado: ${newTicket.folio}`);
+              console.log(`✅ Ticket agregado: ${newTicket.folio} con ${newTicket.items.length} items`);
             });
             
             // Escuchar actualizaciones de órdenes
@@ -246,71 +251,63 @@ export const useKdsStore = create<KdsState>()(
         tickets: s.tickets.filter(t => t.id !== ticketId)
       })),
 
-      updateItemStatus: (ticketId, itemId, status) => set((s) => ({
-        tickets: s.tickets.map(t => {
-          if (t.id !== ticketId) return t
-          const items = t.items.map(i => i.id === itemId ? { ...i, status } : i)
-          const allReady = items.every(i => i.status === 'READY')
-          const anyPrep = items.some(i => i.status === 'PREPARING')
-          const newStatus: KdsTicketStatus = allReady ? 'READY' : anyPrep ? 'PREPARING' : t.status
-          return { ...t, items, status: newStatus }
-        })
-      })),
+      updateItemStatus: (ticketId, itemId, status) => {
+        set((s) => ({
+          tickets: s.tickets.map(t => {
+            if (t.id !== ticketId) return t
+            const items = t.items.map(i => i.id === itemId ? { ...i, status } : i)
+            return { ...t, items }
+          })
+        }))
+        get().saveToStorage()
+      },
+
+      toggleItemMarked: (ticketId, itemId) => {
+        set((s) => ({
+          tickets: s.tickets.map(t => {
+            if (t.id !== ticketId) return t
+            const items = t.items.map(i => i.id === itemId ? { ...i, marked: !i.marked } : i)
+            return { ...t, items }
+          })
+        }))
+        // Guardar en localStorage para persistir el estado marcado
+        get().saveToStorage()
+      },
+
 
       bumpTicket: async (ticketId) => {
         const ticket = get().tickets.find(t => t.id === ticketId)
         if (!ticket) return
-        
-        let newItemStatus: string = 'PENDING'
-        let newTicketStatus: KdsTicketStatus = ticket.status
-        
-        // Determinar nuevo estado para los items de ESTA estación
-        if (ticket.status === 'NEW') {
-          newItemStatus = 'PREPARING'
-          newTicketStatus = 'PREPARING'
-        } else if (ticket.status === 'PREPARING') {
-          newItemStatus = 'READY'
-          newTicketStatus = 'READY'
-        } else if (ticket.status === 'READY') {
-          newItemStatus = 'DELIVERED'
-          newTicketStatus = 'SERVED'
-        }
-        
-        // Actualizar estado localmente primero
+
+        // Marcar ticket como SERVED directamente (todos los items ya están marcados)
         set((s) => ({
           tickets: s.tickets.map(t => {
             if (t.id !== ticketId) return t
-            if (t.status === 'NEW') return { ...t, status: 'PREPARING' as KdsTicketStatus, items: t.items.map(i => ({ ...i, status: 'PREPARING' as KdsItemStatus })) }
-            if (t.status === 'PREPARING') return { ...t, status: 'READY' as KdsTicketStatus, items: t.items.map(i => ({ ...i, status: 'READY' as KdsItemStatus })) }
-            if (t.status === 'READY') return { ...t, status: 'SERVED' as KdsTicketStatus, completedAt: new Date() }
-            return t
+            return { ...t, status: 'SERVED' as KdsTicketStatus, completedAt: new Date(), items: t.items.map(i => ({ ...i, status: 'READY' as KdsItemStatus })) }
           })
         }))
-        
-        // SOLUCIÓN CLAVE: Si el ticket se marcó como SERVED, agregar a lista de completados
-        if (ticket.status === 'READY' && newTicketStatus === 'SERVED') {
-          get().addToCompletedList(ticketId)
-          console.log(`✅ Ticket ${ticket.folio} marcado como completado y agregado a lista negra`)
-        }
-        
+
+        // Agregar a lista de completados para que no reaparezca
+        get().addToCompletedList(ticketId)
+        console.log(`✅ Ticket ${ticket.folio} despachado y agregado a lista de completados`)
+
         get().saveToStorage()
-        
-        // Sincronizar con el backend - ACTUALIZAR ITEMS, NO LA ORDEN COMPLETA
+
+        // Sincronizar con el backend - marcar items como DELIVERED
         try {
           const API_BASE_URL = 'http://localhost:3004/api'
-          
-          // Actualizar el estado de cada item de esta estación
-          const updatePromises = ticket.items.map(item => 
+
+          const updatePromises = ticket.items.map(item =>
             fetch(`${API_BASE_URL}/order-items/${item.id}/status`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: newItemStatus })
+              body: JSON.stringify({ status: 'DELIVERED' })
             })
           )
-          
+
           await Promise.all(updatePromises)
-          console.log(`✅ Items de estación actualizados: ${ticket.items.length} items → ${newItemStatus}`)
-          
+          console.log(`✅ Items actualizados en backend: ${ticket.items.length} items → DELIVERED`)
+
         } catch (error) {
           console.error('❌ Error actualizando items en backend:', error)
         }
@@ -320,7 +317,7 @@ export const useKdsStore = create<KdsState>()(
         set((s) => ({
           tickets: s.tickets.map(t =>
             t.id === ticketId && t.status === 'SERVED'
-              ? { ...t, status: 'READY' as KdsTicketStatus, completedAt: undefined }
+              ? { ...t, status: 'NEW' as KdsTicketStatus, completedAt: undefined, items: t.items.map(i => ({ ...i, marked: false })) }
               : t
           )
         }))
@@ -393,13 +390,16 @@ export const useKdsStore = create<KdsState>()(
                 if (item.status === 'PREPARING') itemStatus = 'PREPARING'
                 else if (item.status === 'READY') itemStatus = 'READY'
                 
+                const resolvedStationId = item.stationId || item.product?.stationId
+                console.log(`🔍 Item "${item.productName}" - stationId directo: ${item.stationId}, product.stationId: ${item.product?.stationId}, resuelto: ${resolvedStationId}`)
+                
                 return {
                   id: item.id,
                   name: item.productName,
                   quantity: item.quantity,
                   notes: item.modifiers ? JSON.stringify(item.modifiers) : '',
                   status: itemStatus,
-                  stationId: item.stationId || item.product?.stationId  // Guardar el stationId del item
+                  stationId: resolvedStationId
                 }
               })
             
@@ -429,8 +429,20 @@ export const useKdsStore = create<KdsState>()(
                 return existing
               }
               
-              // Para otros estados, mantener el estado local (puede estar más avanzado)
-              return existing
+              // Para otros estados, mantener el estado local pero actualizar stationId desde el API
+              const mergedItems = existing.items.map(existingItem => {
+                const apiItem = newTicket.items.find(i => i.id === existingItem.id)
+                if (apiItem) {
+                  // Preservar estado local (marked, status) pero actualizar stationId desde API
+                  return { ...existingItem, stationId: apiItem.stationId || existingItem.stationId }
+                }
+                return existingItem
+              })
+              // Agregar items nuevos del API que no existan localmente
+              const newApiItems = newTicket.items.filter(apiItem => 
+                !existing.items.find(ei => ei.id === apiItem.id)
+              )
+              return { ...existing, items: [...mergedItems, ...newApiItems] }
             }
             // Es un ticket nuevo, agregarlo
             return newTicket
@@ -648,7 +660,21 @@ export const useKdsStore = create<KdsState>()(
           // Cargar tickets activos
           const stored = localStorage.getItem('kds-tickets')
           if (stored) {
-            const tickets = JSON.parse(stored).map((t: any) => ({
+            const rawTickets = JSON.parse(stored)
+            
+            // MIGRACIÓN: Si los items no tienen stationId, limpiar localStorage
+            // para forzar recarga desde API con stationId actualizado
+            const needsMigration = rawTickets.some((t: any) => 
+              t.items && t.items.some((i: any) => !i.stationId)
+            )
+            if (needsMigration) {
+              console.log('🔄 Migración: limpiando tickets sin stationId para recarga desde API')
+              localStorage.removeItem('kds-tickets')
+              set({ tickets: [] })
+              return
+            }
+            
+            const tickets = rawTickets.map((t: any) => ({
               ...t,
               createdAt: new Date(t.createdAt),
               completedAt: t.completedAt ? new Date(t.completedAt) : undefined,

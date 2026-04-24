@@ -2,6 +2,15 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { loadPrinterConfig, PrinterConfig } from '../config/printerConfig';
 
+const displayFolio = (folio: string) => {
+  if (!folio) return '#---';
+  if (folio.includes('-')) {
+    const num = folio.split('-')[1];
+    return `#${num}`;
+  }
+  return `#${folio}`;
+};
+
 export interface TicketData {
   folio: string;
   items: Array<{
@@ -44,7 +53,7 @@ export class TicketPrinter {
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Ticket - ${ticket.folio}</title>
+          <title>Ticket - ${displayFolio(ticket.folio)}</title>
           <style>
             @page {
               size: ${printerConfig.paperWidth}mm auto;
@@ -204,7 +213,7 @@ export class TicketPrinter {
           <div class="info">
             <div class="info-row">
               <span class="label">FOLIO:</span>
-              <span class="value">${ticket.folio}</span>
+              <span class="value">${displayFolio(ticket.folio)}</span>
             </div>
             <div class="info-row">
               <span class="label">FECHA:</span>
@@ -294,11 +303,46 @@ export class TicketPrinter {
       // Generar HTML del ticket
       const ticketHTML = this.generateTicketHTML(ticket);
 
-      // Crear ventana de impresión
+      // Intentar abrir ventana de impresión
       const printWindow = window.open('', '_blank', 'width=400,height=600');
       
-      if (!printWindow) {
-        throw new Error('No se pudo abrir la ventana de impresión. Asegúrate de permitir ventanas emergentes.');
+      // Si el navegador bloqueó la ventana, usar iframe oculto como fallback
+      if (!printWindow || printWindow.closed || typeof printWindow.closed === 'undefined') {
+        console.warn('Ventana de impresión bloqueada. Usando método alternativo (iframe)...');
+        
+        // Crear iframe oculto para imprimir
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
+        document.body.appendChild(iframe);
+        
+        const iframeDoc = iframe.contentWindow?.document;
+        if (!iframeDoc) {
+          throw new Error('No se pudo crear el iframe de impresión');
+        }
+        
+        iframeDoc.open();
+        iframeDoc.write(ticketHTML);
+        iframeDoc.close();
+        
+        // Esperar y luego imprimir
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.print();
+            // Limpiar después de imprimir
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+            }, 1000);
+          } catch (e) {
+            console.error('Error imprimiendo desde iframe:', e);
+            document.body.removeChild(iframe);
+          }
+        }, 500);
+        
+        return; // Salir del método, ya se imprimió por iframe
       }
 
       // Escribir contenido en la ventana

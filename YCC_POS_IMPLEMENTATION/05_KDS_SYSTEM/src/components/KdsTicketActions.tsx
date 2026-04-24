@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react'
+import { CheckCircle, XCircle, AlertTriangle, Clock, ChefHat, RotateCcw, Package } from 'lucide-react'
 import type { KdsTicket as KdsTicketType } from '@ycc/types'
 import { useKdsStore } from '../stores/useKdsStore'
 
@@ -11,31 +11,35 @@ interface KdsTicketActionsProps {
 }
 
 export function KdsTicketActions({ ticket, completedItems, totalItems }: KdsTicketActionsProps) {
-  const { updateTicket } = useKdsStore()
+  const { updateTicket, moveToHistory, bumpTicket, returnToActive } = useKdsStore()
 
   const isComplete = completedItems === totalItems && totalItems > 0
-  const canComplete = isComplete && ticket.status !== 'COMPLETED'
+  const canComplete = isComplete && ticket.status !== 'SERVED'
 
-  const handleCompleteTicket = () => {
-    updateTicket(ticket.id, {
-      status: 'COMPLETED',
-      completedAt: new Date().toISOString()
-    })
+  // Enviar al historial (empezar a preparar)
+  const handleStartPreparing = () => {
+    moveToHistory(ticket.id)
+  }
+
+  // Completar/Despachar ticket (marcar como SERVED)
+  const handleBumpTicket = () => {
+    if (window.confirm(`¿Despachar ticket ${ticket.folio}?`)) {
+      bumpTicket(ticket.id)
+    }
+  }
+
+  // Regresar a comandas activas
+  const handleReturnToActive = () => {
+    returnToActive(ticket.id)
   }
 
   const handleCancelTicket = () => {
     if (window.confirm(`¿Cancelar ticket ${ticket.folio}? Esta acción no se puede deshacer.`)) {
       updateTicket(ticket.id, {
         status: 'CANCELLED',
-        cancelledAt: new Date().toISOString()
+        completedAt: new Date()
       })
     }
-  }
-
-  const handlePauseTicket = () => {
-    updateTicket(ticket.id, {
-      status: ticket.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED'
-    })
   }
 
   return (
@@ -59,65 +63,105 @@ export function KdsTicketActions({ ticket, completedItems, totalItems }: KdsTick
           </div>
         </div>
 
-        {/* Acciones */}
-        <div className="flex items-center space-x-2">
-          {/* Botón de pausar/reanudar */}
-          {ticket.status !== 'COMPLETED' && ticket.status !== 'CANCELLED' && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handlePauseTicket}
-              className={`
-                kds-button flex items-center space-x-1
-                ${ticket.status === 'PAUSED' 
-                  ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
-                  : 'bg-gray-600 hover:bg-gray-700 text-white'
-                }
-              `}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              <span>{ticket.status === 'PAUSED' ? 'Reanudar' : 'Pausar'}</span>
-            </motion.button>
+        {/* Acciones según el estado */}
+        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+          {/* Estado NEW: Botón Preparar y Cancelar */}
+          {ticket.status === 'NEW' && (
+            <>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleStartPreparing}
+                className="kds-button bg-amber-600 hover:bg-amber-700 text-white flex items-center space-x-1"
+              >
+                <ChefHat className="w-4 h-4" />
+                <span>Preparar</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCancelTicket}
+                className="kds-button bg-red-600 hover:bg-red-700 text-white flex items-center space-x-1"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Cancelar</span>
+              </motion.button>
+            </>
           )}
 
-          {/* Botón de completar */}
-          {canComplete && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleCompleteTicket}
-              className="kds-button kds-button-primary flex items-center space-x-1"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>Completar</span>
-            </motion.button>
+          {/* Estado PREPARING: Botón Completar y Regresar */}
+          {ticket.status === 'PREPARING' && (
+            <>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleBumpTicket}
+                className="kds-button kds-button-primary flex items-center space-x-1"
+              >
+                <Package className="w-4 h-4" />
+                <span>Completar</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleReturnToActive}
+                className="kds-button bg-gray-600 hover:bg-gray-700 text-white flex items-center space-x-1"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Regresar</span>
+              </motion.button>
+            </>
           )}
 
-          {/* Botón de cancelar */}
-          {ticket.status !== 'COMPLETED' && ticket.status !== 'CANCELLED' && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleCancelTicket}
-              className="kds-button bg-red-600 hover:bg-red-700 text-white flex items-center space-x-1"
-            >
-              <XCircle className="w-4 h-4" />
-              <span>Cancelar</span>
-            </motion.button>
+          {/* Estado READY: Botón Despachar y Regresar */}
+          {ticket.status === 'READY' && (
+            <>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleBumpTicket}
+                className="kds-button bg-green-600 hover:bg-green-700 text-white flex items-center space-x-1"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>Despachar</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleReturnToActive}
+                className="kds-button bg-gray-600 hover:bg-gray-700 text-white flex items-center space-x-1"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Regresar</span>
+              </motion.button>
+            </>
           )}
         </div>
       </div>
 
       {/* Indicador de estado especial */}
-      {ticket.status === 'PAUSED' && (
+      {ticket.status === 'PREPARING' && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-2"
+          className="mt-3 bg-amber-500/20 border border-amber-500/50 rounded-lg p-2"
         >
-          <div className="flex items-center space-x-2 text-yellow-600 text-sm">
-            <AlertTriangle className="w-4 h-4" />
-            <span>Ticket pausado - No se está trabajando en este pedido</span>
+          <div className="flex items-center space-x-2 text-amber-600 text-sm">
+            <ChefHat className="w-4 h-4" />
+            <span>En preparación - Ticket en el historial</span>
+          </div>
+        </motion.div>
+      )}
+
+      {ticket.status === 'READY' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-3 bg-green-500/20 border border-green-500/50 rounded-lg p-2"
+        >
+          <div className="flex items-center space-x-2 text-green-600 text-sm">
+            <CheckCircle className="w-4 h-4" />
+            <span>Listo para despachar</span>
           </div>
         </motion.div>
       )}

@@ -4,14 +4,17 @@ export interface SaleListItem {
   id: string;
   folio: string;
   totalAmount: number;
+  total?: number;
   subtotal: number;
   taxAmount: number;
+  tax?: number;
   discountAmount: number;
   paymentMethod: string;
   customerName?: string;
   status: string;
   createdAt: string;
   items?: SaleItem[];
+  saleItems?: SaleItem[];
 }
 
 export interface SaleItem {

@@ -25,7 +25,7 @@ interface User {
 }
 
 function AppNew() {
-  const { tickets, loadTickets, clearHistory, clearHistoryByStation, completedTicketIds } = useKdsStore()
+  const { tickets, loadTickets, clearHistory, clearHistoryByStation, deleteTicket } = useKdsStore()
   
   // Estados del flujo
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -143,6 +143,30 @@ function AppNew() {
       } else {
         clearHistory()
       }
+    }
+  }
+
+  // Manejar limpieza de comandas activas (NEW)
+  const handleClearActive = () => {
+    const count = activeTickets.length
+    if (count === 0) {
+      alert('No hay comandas activas para limpiar')
+      return
+    }
+    
+    const scope = selectedStationId 
+      ? `de ESTA ESTACIÓN (${count} comandas)` 
+      : `de TODAS LAS ESTACIONES (${count} comandas)`
+    
+    const warning = selectedStationId
+      ? `¿Cancelar todas las comandas activas ${scope}?\n\n⚠️ Solo se cancelarán las comandas visibles en esta estación.`
+      : `¿Cancelar todas las comandas activas ${scope}?\n\n⚠️ ATENCIÓN: Esto afecta TODAS las estaciones (Cocina, Bar, Parrilla, etc.).\n\nTodas las comandas nuevas serán canceladas.`
+    
+    if (window.confirm(warning)) {
+      // Cancelar todas las comandas activas
+      activeTickets.forEach(ticket => {
+        deleteTicket(ticket.id)
+      })
     }
   }
 
@@ -356,6 +380,23 @@ function AppNew() {
               </span>
             </div>
           </button>
+
+          {/* Botón Limpiar Comandas - solo visible en vista comandas */}
+          {currentView === 'comandas' && (
+            <button
+              onClick={handleClearActive}
+              className={`
+                ml-2 px-3 sm:px-4 py-2 sm:py-3 font-bold text-fluid-sm sm:text-fluid-base transition-all rounded-lg flex items-center gap-1 sm:gap-2
+                ${selectedStationId 
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300' 
+                  : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'}
+              `}
+              title={selectedStationId ? 'Cancelar todas las comandas de esta estación' : 'Cancelar todas las comandas'}
+            >
+              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Limpiar</span>
+            </button>
+          )}
 
           {/* Botón Limpiar Historial - solo visible en vista historial */}
           {currentView === 'historial' && (

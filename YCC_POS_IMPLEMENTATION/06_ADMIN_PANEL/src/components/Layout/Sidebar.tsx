@@ -20,14 +20,17 @@ import {
   Building2,
   Clock,
   ChefHat,
-  DollarSign
+  DollarSign,
+  Monitor,
+  Layers,
+  Link2
 } from 'lucide-react';
 
 interface SidebarItem {
   id: string;
   label: string;
   icon: React.ComponentType<any>;
-  path: string;
+  path?: string;
   children?: SidebarItem[];
   permission?: string;
 }
@@ -73,6 +76,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
           label: 'Categorías',
           icon: Package,
           path: '/admin/categories'
+        },
+        {
+          id: 'stations',
+          label: 'Estaciones KDS',
+          icon: Monitor,
+          path: '/admin/stations'
+        },
+        {
+          id: 'modifier-groups',
+          label: 'Modificadores',
+          icon: Settings,
+          path: '/admin/modifier-groups'
+        },
+        {
+          id: 'product-variants',
+          label: 'Variantes',
+          icon: Layers,
+          path: '/admin/product-variants'
+        },
+        {
+          id: 'product-modifier-assignments',
+          label: 'Asignaciones',
+          icon: Link2,
+          path: '/admin/product-modifier-assignments'
         }
       ]
     },
@@ -221,9 +248,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
 
   const isItemActive = (item: SidebarItem): boolean => {
     if (item.children) {
-      return item.children.some(child => location.pathname.startsWith(child.path));
+      return item.children.some(child => child.path && location.pathname.startsWith(child.path));
     }
-    return location.pathname === item.path;
+    return item.path ? location.pathname.startsWith(item.path) : false;
   };
 
   const isChildActive = (path: string): boolean => {
@@ -253,7 +280,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
               toggleExpanded(item.id);
             } else {
               // Navigate to item.path
-              window.location.href = item.path;
+              if (item.path) window.location.href = item.path;
             }
           }}
         >
@@ -283,14 +310,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
               className="overflow-hidden"
             >
               <div className="ml-4 mt-1 space-y-1">
-                {item.children.map(child => (
+                {item.children?.map(child => (
                   <Link
                     key={child.id}
-                    to={child.path}
+                    to={child.path || '#'}
                     className={`
                       flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer
                       transition-all duration-200
-                      ${isChildActive(child.path)
+                      ${child.path && isChildActive(child.path)
                         ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                       }

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, CheckCircle, RotateCcw, AlertCircle } from 'lucide-react'
+import { Clock, CheckCircle, RotateCcw, AlertCircle, Trash2, X } from 'lucide-react'
 import { useKdsStore, KdsTicket } from '../stores/useKdsStore'
 
 interface KdsHistoryProps {
@@ -8,7 +8,7 @@ interface KdsHistoryProps {
 }
 
 export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
-  const { tickets, markAsReady, returnToActive } = useKdsStore()
+  const { tickets, markAsReady, returnToActive, bumpTicket, deleteTicket, permanentDeleteTicket } = useKdsStore()
 
   // Filtrar tickets en historial (PREPARING y READY)
   const historyTickets = useMemo(() => {
@@ -147,6 +147,18 @@ export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
               >
                 <RotateCcw className="w-5 h-5" />
                 Regresar a Comandas
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (window.confirm(`¿Eliminar comanda ${ticket.folio} permanentemente?`)) {
+                    permanentDeleteTicket(ticket.id)
+                  }
+                }}
+                className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                title="Eliminar comanda"
+              >
+                <Trash2 className="w-5 h-5" />
               </button>
             </div>
           </motion.div>

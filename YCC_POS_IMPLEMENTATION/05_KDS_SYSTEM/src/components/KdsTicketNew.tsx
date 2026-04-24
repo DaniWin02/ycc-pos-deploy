@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, Users, AlertTriangle, Check, X, ArrowDown } from 'lucide-react'
+import { Clock, Users, AlertTriangle, Check, X, ArrowDown, Trash2 } from 'lucide-react'
 import { useKdsStore, KdsTicket as KdsTicketType, KdsItemStatus } from '../stores/useKdsStore'
 import { useResponsive } from '../hooks/useResponsive'
 
@@ -10,7 +10,7 @@ interface KdsTicketProps {
 }
 
 export function KdsTicketNew({ ticket, selectedStationId }: KdsTicketProps) {
-  const { bumpTicket, deleteTicket, moveToHistory, updateItemStatus } = useKdsStore()
+  const { bumpTicket, deleteTicket, moveToHistory, updateItemStatus, permanentDeleteTicket } = useKdsStore()
   const { isMobile } = useResponsive()
 
   // FILTRAR ITEMS: Si hay estación seleccionada, mostrar SOLO items de esa estación
@@ -119,7 +119,7 @@ export function KdsTicketNew({ ticket, selectedStationId }: KdsTicketProps) {
           </div>
         </div>
 
-        {/* Folio y Mesa */}
+        {/* Folio y Mesa + Botón Cerrar */}
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-fluid-lg sm:text-fluid-xl font-bold text-gray-900">
@@ -135,12 +135,27 @@ export function KdsTicketNew({ ticket, selectedStationId }: KdsTicketProps) {
             )}
           </div>
 
-          {/* Indicador de urgencia */}
-          {isUrgent && (
-            <div className="bg-red-500 text-white p-1.5 sm:p-2 rounded-full">
-              <AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6" />
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Indicador de urgencia */}
+            {isUrgent && (
+              <div className="bg-red-500 text-white p-1.5 sm:p-2 rounded-full">
+                <AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6" />
+              </div>
+            )}
+            
+            {/* Botón Cerrar/Cancelar comanda individual */}
+            <button
+              onClick={() => {
+                if (window.confirm(`¿Cancelar comanda ${ticket.folio}?`)) {
+                  deleteTicket(ticket.id)
+                }
+              }}
+              className="bg-red-100 hover:bg-red-200 text-red-600 p-1.5 sm:p-2 rounded-full transition-colors active:scale-95"
+              title="Cancelar comanda"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Cliente/Mesero */}
@@ -297,10 +312,23 @@ export function KdsTicketNew({ ticket, selectedStationId }: KdsTicketProps) {
         )}
 
         {(ticket.status === 'SERVED' || ticket.status === 'CANCELLED') && (
-          <div className="text-center py-2 sm:py-3">
-            <span className="text-gray-500 font-medium text-fluid-sm">
-              {ticket.status === 'SERVED' ? '✓ Completado' : '✕ Cancelado'}
-            </span>
+          <div className="space-y-2">
+            <div className="text-center py-1">
+              <span className="text-gray-500 font-medium text-fluid-sm">
+                {ticket.status === 'SERVED' ? '✓ Completado' : '✕ Cancelado'}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                if (window.confirm(`¿Eliminar comanda ${ticket.folio} permanentemente?`)) {
+                  permanentDeleteTicket(ticket.id)
+                }
+              }}
+              className="kds-touch-comfortable bg-red-600 hover:bg-red-700 text-white w-full flex items-center justify-center gap-2 rounded-xl font-bold text-fluid-base active:scale-95 transition-all"
+            >
+              <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span>Eliminar</span>
+            </button>
           </div>
         )}
       </div>

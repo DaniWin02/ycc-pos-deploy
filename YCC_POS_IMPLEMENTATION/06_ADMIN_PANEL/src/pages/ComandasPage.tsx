@@ -13,7 +13,7 @@ interface Comanda {
   mesa?: string;
   domicilio?: string;
   telefono?: string;
-  tipo: 'MESA' | 'DOMICILIO' | 'LLEVAR';
+  tipo: 'MESA' | 'DOMICILIO' | 'LLEVAR' | 'BARRA';
   estado: 'PENDIENTE' | 'PREPARANDO' | 'LISTO' | 'ENTREGADO' | 'CANCELADO';
   items: ComandaItem[];
   total: number;
@@ -63,7 +63,7 @@ const ComandasPage: React.FC = () => {
       setLoading(true);
       try {
         const timestamp = Date.now();
-        const response = await fetch(`http://localhost:3004/comandas?t=${timestamp}`);
+        const response = await fetch(`http://localhost:3004/api/comandas?t=${timestamp}`);
         
         if (!response.ok) {
           throw new Error('Error cargando comandas');
@@ -100,7 +100,7 @@ const ComandasPage: React.FC = () => {
     setLoading(true);
     try {
       const timestamp = Date.now();
-      const response = await fetch(`http://localhost:3004/comandas?t=${timestamp}`);
+      const response = await fetch(`http://localhost:3004/api/comandas?t=${timestamp}`);
       
       if (!response.ok) {
         throw new Error('Error cargando comandas');
@@ -125,7 +125,7 @@ const ComandasPage: React.FC = () => {
   // Función para actualizar estado de comanda
   const updateEstado = async (comandaId: string, nuevoEstado: string) => {
     try {
-      const response = await fetch(`http://localhost:3004/comandas/${comandaId}/estado`, {
+      const response = await fetch(`http://localhost:3004/api/comandas/${comandaId}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: nuevoEstado })
@@ -145,7 +145,7 @@ const ComandasPage: React.FC = () => {
     if (!editingComanda) return;
 
     try {
-      const response = await fetch(`http://localhost:3004/comandas/${editingComanda.id}`, {
+      const response = await fetch(`http://localhost:3004/api/comandas/${editingComanda.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -208,6 +208,7 @@ const ComandasPage: React.FC = () => {
       case 'MESA': return <Store className="w-4 h-4" />;
       case 'DOMICILIO': return <Home className="w-4 h-4" />;
       case 'LLEVAR': return <Truck className="w-4 h-4" />;
+      case 'BARRA': return <ChefHat className="w-4 h-4" />;
       default: return <Utensils className="w-4 h-4" />;
     }
   };
@@ -394,6 +395,7 @@ const ComandasPage: React.FC = () => {
             <option value="MESA">Mesa</option>
             <option value="DOMICILIO">Domicilio</option>
             <option value="LLEVAR">Para llevar</option>
+            <option value="BARRA">Barra</option>
           </select>
 
           <button 
@@ -435,7 +437,7 @@ const ComandasPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-900">{comanda.folio}</span>
                         {comanda.notas && (
-                          <AlertCircle className="w-4 h-4 text-amber-500" title={comanda.notas} />
+                          <span title={comanda.notas}><AlertCircle className="w-4 h-4 text-amber-500" /></span>
                         )}
                       </div>
                     </td>

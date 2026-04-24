@@ -291,6 +291,139 @@ router.post('/', async (req, res) => {
 });
 
 // ========================================
+// PUT /comandas/:id - Editar comanda
+// ========================================
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cliente, mesa, domicilio, telefono, tipo, notas, mesero } = req.body;
+
+    const comanda = await prisma.comanda.findUnique({
+      where: { id }
+    });
+
+    if (!comanda) {
+      return res.status(404).json({ error: 'Comanda no encontrada' });
+    }
+
+    if (comanda.estado === 'ENTREGADO' || comanda.estado === 'CANCELADO') {
+      return res.status(400).json({ error: 'No se puede editar una comanda entregada o cancelada' });
+    }
+
+    const updatedComanda = await prisma.comanda.update({
+      where: { id },
+      data: {
+        cliente: cliente || comanda.cliente,
+        mesa: mesa !== undefined ? mesa : comanda.mesa,
+        domicilio: domicilio !== undefined ? domicilio : comanda.domicilio,
+        telefono: telefono !== undefined ? telefono : comanda.telefono,
+        tipo: tipo || comanda.tipo,
+        notas: notas !== undefined ? notas : comanda.notas,
+        mesero: mesero !== undefined ? mesero : comanda.mesero
+      },
+      include: {
+        items: true,
+        asignadoA: {
+          select: { id: true, firstName: true, lastName: true, role: true }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Comanda actualizada exitosamente',
+      comanda: {
+        id: updatedComanda.id,
+        folio: updatedComanda.folio,
+        cliente: updatedComanda.cliente,
+        mesa: updatedComanda.mesa,
+        domicilio: updatedComanda.domicilio,
+        telefono: updatedComanda.telefono,
+        tipo: updatedComanda.tipo,
+        estado: updatedComanda.estado,
+        notas: updatedComanda.notas,
+        mesero: updatedComanda.mesero
+      }
+    });
+  } catch (error) {
+    console.error('Error editando comanda:', error);
+    res.status(500).json({
+      error: 'Error editando comanda',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ========================================
+// PUT /comandas/:id/estado - Cambiar estado de comanda
+// ========================================
+router.put('/:id/estado', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    if (!estado) {
+      return res.status(400).json({ error: 'Estado requerido' });
+    }
+
+    const validEstados = ['PENDIENTE', 'PREPARANDO', 'LISTO', 'ENTREGANDO', 'ENTREGADO', 'CANCELADO'];
+    if (!validEstados.includes(estado)) {
+      return res.status(400).json({ error: 'Estado inválido', validEstados });
+    }
+
+    const comanda = await prisma.comanda.findUnique({
+      where: { id }
+    });
+
+    if (!comanda) {
+      return res.status(404).json({ error: 'Comanda no encontrada' });
+    }
+
+    const updateData: any = { estado };
+    if (estado === 'ENTREGADO' || estado === 'CANCELADO') {
+      updateData.completedAt = new Date();
+    }
+
+    const updatedComanda = await prisma.comanda.update({
+      where: { id },
+      data: updateData,
+      include: {
+        items: true,
+        asignadoA: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      }
+    });
+
+    // Emitir evento Socket.io
+    const io = req.app?.get('io');
+    if (io) {
+      io.emit('comanda:updated', {
+        id: updatedComanda.id,
+        folio: updatedComanda.folio,
+        estado: updatedComanda.estado,
+        updatedAt: updatedComanda.updatedAt
+      });
+    }
+
+    res.json({
+      message: 'Estado actualizado exitosamente',
+      comanda: {
+        id: updatedComanda.id,
+        folio: updatedComanda.folio,
+        estado: updatedComanda.estado,
+        completedAt: updatedComanda.completedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error actualizando estado de comanda:', error);
+    res.status(500).json({
+      error: 'Error actualizando estado',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ========================================
 // PUT /comandas/:id/items/:itemId/marcar-listo
 // ========================================
 router.put('/:id/items/:itemId/marcar-listo', async (req, res) => {

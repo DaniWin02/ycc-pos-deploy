@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
-  DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
-  ChevronRight, Bell, Search, Menu, X, LogOut, Clock, AlertTriangle,
+  DollarSign, TrendingUp,
+  ChevronRight, Bell, Search, Menu, Clock, AlertTriangle,
   Store, FolderOpen, Utensils, Warehouse, Hash
 } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 import { ProductsPage } from './pages/ProductsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { SalesPage } from './pages/SalesPage';
@@ -15,11 +16,30 @@ import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import InventoryPage from './pages/InventoryPage';
 import { FoliosPage } from './pages/FoliosPage';
-import { SaleListItem, ProductListItem, TopProduct } from './types/api.types';
+import { CustomersPage } from './pages/CustomersPage';
+import { ProductVariantsPage } from './pages/ProductVariantsPage';
+import { SaleListItem, SaleItem, ProductListItem, TopProduct } from './types/api.types';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
-type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'comandas' | 'users' | 'reports' | 'settings' | 'inventory' | 'folios';
+class ErrorBoundary extends Component<{children: React.ReactNode}, {hasError: boolean, error: string}> {
+  state = { hasError: false, error: '' };
+  static getDerivedStateFromError(error: any) { return { hasError: true, error: error?.message || 'Error desconocido' }; }
+  render() {
+    if (this.state.hasError) return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
+        <div className="bg-white rounded-xl border border-red-200 p-8 max-w-lg">
+          <h2 className="text-xl font-bold text-red-600 mb-2">Error en Admin Panel</h2>
+          <p className="text-sm text-gray-600 mb-4">{this.state.error}</p>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Recargar</button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'comandas' | 'customers' | 'users' | 'reports' | 'settings' | 'inventory' | 'folios' | 'product-variants';
 
 const SIDEBAR_ITEMS: { id: Page; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -29,7 +49,7 @@ const SIDEBAR_ITEMS: { id: Page; label: string; icon: React.ComponentType<{ clas
   { id: 'categories', label: 'Categorías', icon: FolderOpen },
   { id: 'inventory', label: 'Inventario', icon: Warehouse },
   { id: 'comandas', label: 'Comandas', icon: Utensils },
-  { id: 'users', label: 'Usuarios', icon: Users },
+  { id: 'customers', label: 'Clientes', icon: Users },
   { id: 'reports', label: 'Reportes', icon: BarChart3 },
   { id: 'settings', label: 'Configuracion', icon: Settings },
 ];
@@ -40,6 +60,9 @@ export const App: React.FC = () => {
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedProductIdForVariants, setSelectedProductIdForVariants] = useState<string>('');
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
+  const socketRef = useRef<Socket | null>(null);
 
   // Cargar datos desde el API
   useEffect(() => {
@@ -55,11 +78,12 @@ export const App: React.FC = () => {
         const productsData = await productsRes.json();
         
         // Mapear datos de ventas
-        const mappedSales = salesData.map((sale: SaleListItem) => ({
+        const mappedSales = (salesData || []).map((sale: any) => ({
           ...sale,
           total: Number(sale.totalAmount || sale.total || 0) || 0,
           subtotal: Number(sale.subtotal || 0) || 0,
-          tax: Number(sale.taxAmount || sale.tax || 0) || 0
+          tax: Number(sale.taxAmount || sale.tax || 0) || 0,
+          paymentMethod: sale.paymentMethod || sale.payments?.[0]?.method || 'N/A'
         }));
         
         setSales(mappedSales);
@@ -74,11 +98,80 @@ export const App: React.FC = () => {
     loadData();
   }, []);
 
+  // Conectar a Socket.io para sincronización en tiempo real
+  useEffect(() => {
+    const socket = io('http://localhost:3004', {
+      transports: ['websocket', 'polling']
+    });
+    
+    socketRef.current = socket;
+    
+    socket.on('connect', () => {
+      console.log('🔌 Admin Panel conectado a Socket.io');
+      setConnectionStatus('connected');
+    });
+    
+    socket.on('disconnect', () => {
+      console.log('🔌 Admin Panel desconectado de Socket.io');
+      setConnectionStatus('disconnected');
+    });
+    
+    socket.on('reconnecting', () => {
+      console.log('🔄 Admin Panel reconectando...');
+      setConnectionStatus('reconnecting');
+    });
+    
+    // Escuchar nuevas ventas creadas
+    socket.on('sale:created', (data: any) => {
+      console.log('📥 Nueva venta recibida:', data);
+      // Recargar ventas para obtener la nueva
+      fetch('http://localhost:3004/api/sales?t=' + Date.now())
+        .then(res => res.json())
+        .then(salesData => {
+          const mappedSales = (salesData || []).map((sale: any) => ({
+            ...sale,
+            total: Number(sale.totalAmount || sale.total || 0) || 0,
+            subtotal: Number(sale.subtotal || 0) || 0,
+            tax: Number(sale.taxAmount || sale.tax || 0) || 0,
+            paymentMethod: sale.paymentMethod || sale.payments?.[0]?.method || 'N/A'
+          }));
+          setSales(mappedSales);
+          console.log('✅ Ventas actualizadas tras nueva venta');
+        })
+        .catch(err => console.error('Error recargando ventas:', err));
+    });
+    
+    // Escuchar actualizaciones de ventas
+    socket.on('sale:updated', (data: any) => {
+      console.log('🔄 Venta actualizada recibida:', data);
+      // Actualizar la venta específica en el estado
+      setSales(prevSales => {
+        const updatedSales = prevSales.map(sale => {
+          if (sale.id === data.orderId) {
+            return {
+              ...sale,
+              status: data.status,
+              total: Number(data.totalAmount || sale.total || 0),
+              updatedAt: data.updatedAt
+            };
+          }
+          return sale;
+        });
+        return updatedSales;
+      });
+      console.log('✅ Estado de ventas actualizado');
+    });
+    
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   // Calcular estadísticas desde datos reales
   const stats = {
-    totalSales: sales.reduce((sum, s) => sum + (parseFloat(s.total || 0) || 0), 0),
+    totalSales: sales.reduce((sum, s) => sum + (Number(s.total || s.totalAmount || 0)), 0),
     salesCount: sales.length,
-    avgTicket: sales.length > 0 ? (sales.reduce((sum, s) => sum + (parseFloat(s.total || 0) || 0), 0) / sales.length) : 0,
+    avgTicket: sales.length > 0 ? (sales.reduce((sum, s) => sum + (Number(s.total || s.totalAmount || 0)), 0) / sales.length) : 0,
     productsCount: products.length
   };
 
@@ -87,11 +180,10 @@ export const App: React.FC = () => {
     .flatMap(sale => {
       // Manejar diferentes estructuras de datos de items
       const items = sale.items || sale.saleItems || [];
-      console.log('🔍 Debug - Sale items:', items);
-      return items.map((item: SaleItem) => ({
+      return (items || []).map((item: any) => ({
         name: item.productName || item.name || 'Producto desconocido',
         quantity: parseInt(String(item.quantity)) || 0,
-        price: parseFloat(String(item.price || item.unitPrice)) || 0
+        price: parseFloat(String(item.price || item.unitPrice || item.totalPrice)) || 0
       }));
     })
     .filter(item => item.quantity > 0 && item.price > 0) // Filtrar items inválidos
@@ -119,13 +211,14 @@ export const App: React.FC = () => {
     .map((sale: SaleListItem) => ({
       folio: sale.folio,
       customer: sale.customerName || 'Cliente',
-      total: parseFloat(sale.total),
+      total: Number(sale.total || sale.totalAmount || 0),
       method: sale.paymentMethod === 'CASH' ? 'Efectivo' : sale.paymentMethod === 'CARD' ? 'Tarjeta' : 'Cuenta Socio',
       time: new Date(sale.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
       status: sale.status
     }));
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0`}>
@@ -178,6 +271,19 @@ export const App: React.FC = () => {
             <h2 className="text-xl font-bold text-gray-900 capitalize">{page === 'dashboard' ? 'Dashboard' : SIDEBAR_ITEMS.find(i => i.id === page)?.label}</h2>
           </div>
           <div className="flex items-center gap-3">
+            {/* Socket.io Connection Status */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100" title={`Socket.io: ${connectionStatus}`}>
+              <div className={`w-2 h-2 rounded-full ${
+                connectionStatus === 'connected' ? 'bg-green-500' :
+                connectionStatus === 'reconnecting' ? 'bg-yellow-500 animate-pulse' :
+                'bg-red-500'
+              }`} />
+              <span className="text-xs text-gray-500 hidden sm:inline">
+                {connectionStatus === 'connected' ? 'En vivo' :
+                 connectionStatus === 'reconnecting' ? 'Reconectando...' :
+                 'Desconectado'}
+              </span>
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input type="text" placeholder="Buscar..." className="pl-9 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64" />
@@ -375,15 +481,34 @@ export const App: React.FC = () => {
 
           {page === 'sales' && <SalesPage />}
           {page === 'folios' && <FoliosPage />}
-          {page === 'products' && <ProductsPage />}
+          {page === 'products' && (
+            <ProductsPage 
+              onNavigate={(targetPage, params) => {
+                if (targetPage === 'product-variants' && params?.productId) {
+                  setSelectedProductIdForVariants(params.productId);
+                  setPage('product-variants');
+                } else {
+                  setPage(targetPage as Page);
+                }
+              }} 
+            />
+          )}
+          {page === 'product-variants' && (
+            <ProductVariantsPage 
+              productId={selectedProductIdForVariants} 
+              onBack={() => setPage('products')}
+            />
+          )}
           {page === 'categories' && <CategoriesPage />}
           {page === 'inventory' && <InventoryPage />}
           {page === 'comandas' && <ComandasPage />}
+          {page === 'customers' && <CustomersPage />}
           {page === 'users' && <UsersPage />}
           {page === 'reports' && <ReportsPage />}
           {page === 'settings' && <SettingsPage />}
         </main>
       </div>
     </div>
+    </ErrorBoundary>
   );
 };

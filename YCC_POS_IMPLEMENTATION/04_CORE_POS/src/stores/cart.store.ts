@@ -21,7 +21,7 @@ interface CartState {
   toggleCart: () => void
   getTotals: () => CartTotals
   getItemCount: () => number
-  completeSale: () => Promise<any>
+  completeSale: (splitPaymentsData?: { method: PaymentMethod; amount: number }[]) => Promise<any>
 }
 
 export const useCartStore = create<CartState>()(
@@ -98,7 +98,7 @@ export const useCartStore = create<CartState>()(
 
         getItemCount: () => get().items.reduce((s, i) => s + i.quantity, 0),
 
-        completeSale: async () => {
+        completeSale: async (splitPaymentsData?: { method: PaymentMethod; amount: number }[]) => {
           const { items, paymentMethod, customerName, notes } = get()
           const totals = get().getTotals()
 
@@ -123,7 +123,10 @@ export const useCartStore = create<CartState>()(
               customerName: customerName || 'Guest',
               totalAmount: totals.total,
               paymentMethod: paymentMethod,
-              notes: notes
+              notes: notes,
+              splitPayments: splitPaymentsData && splitPaymentsData.length > 0
+                ? splitPaymentsData.map(sp => ({ method: sp.method, amount: sp.amount }))
+                : undefined
             }
 
             console.log('📤 Sending request to:', `${apiUrl}/api/sales`)

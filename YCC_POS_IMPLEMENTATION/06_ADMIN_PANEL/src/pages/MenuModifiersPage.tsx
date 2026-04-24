@@ -1,234 +1,134 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus,
   Edit2,
   Trash2,
   Search,
-  Filter,
   ChevronDown,
   ChevronRight,
-  Settings
+  Settings,
+  X,
+  DollarSign
 } from 'lucide-react'
-import { 
-  ModifierGroup, 
-  ModifierOption,
-  ModifierGroupCreateRequest,
-  ModifierGroupUpdateRequest,
-  ModifierOptionCreateRequest,
-  ModifierOptionUpdateRequest
-} from '@ycc/types'
-import { useAdminStore } from '../stores/useAdminStore'
 
-// Mock API functions
-const fetchModifierGroups = async (): Promise<ModifierGroup[]> => {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  return [
-    {
-      id: 'group-1',
-      name: 'Extras de Hamburguesa',
-      description: 'Ingredientes adicionales para hamburguesas',
-      sortOrder: 1,
-      isActive: true,
-      options: [
-        {
-          id: 'opt-1',
-          modifierGroupId: 'group-1',
-          name: 'Queso Extra',
-          description: 'Porción adicional de queso cheddar',
-          price: 15.00,
-          cost: 6.00,
-          sortOrder: 1,
-          isActive: true,
-          isAvailable: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: 'opt-2',
-          modifierGroupId: 'group-1',
-          name: 'Tocino',
-          description: 'Tocino crujiente extra',
-          price: 20.00,
-          cost: 8.00,
-          sortOrder: 2,
-          isActive: true,
-          isAvailable: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    {
-      id: 'group-2',
-      name: 'Salsas',
-      description: 'Selección de salsas',
-      sortOrder: 2,
-      isActive: true,
-      options: [
-        {
-          id: 'opt-3',
-          modifierGroupId: 'group-2',
-          name: 'Mayonesa',
-          description: 'Mayonesa tradicional',
-          price: 0,
-          cost: 0,
-          sortOrder: 1,
-          isActive: true,
-          isAvailable: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: 'opt-4',
-          modifierGroupId: 'group-2',
-          name: 'Mostaza',
-          description: 'Mostaza dijon',
-          price: 0,
-          cost: 0,
-          sortOrder: 2,
-          isActive: true,
-          isAvailable: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    {
-      id: 'group-3',
-      name: 'Bebidas',
-      description: 'Opciones de bebidas',
-      sortOrder: 3,
-      isActive: false,
-      options: [],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-  ]
+// Types
+interface Modifier {
+  id: string
+  modifierGroupId: string
+  name: string
+  description: string | null
+  priceAdd: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }
 
-const createModifierGroup = async (data: ModifierGroupCreateRequest): Promise<ModifierGroup> => {
-  await new Promise(resolve => setTimeout(resolve, 800))
-  return {
-    id: `group-${Date.now()}`,
-    ...data,
-    options: [],
-    createdAt: new Date(),
-    updatedAt: new Date()
+interface ModifierGroup {
+  id: string
+  name: string
+  description: string | null
+  isRequired: boolean
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  modifiers: Modifier[]
+  _count?: {
+    modifiers: number
+    products: number
   }
 }
 
-const updateModifierGroup = async (id: string, data: ModifierGroupUpdateRequest): Promise<ModifierGroup> => {
-  await new Promise(resolve => setTimeout(resolve, 800))
-  return {
-    id,
-    ...data,
-    options: [],
-    createdAt: new Date(),
-    updatedAt: new Date()
-  } as ModifierGroup
+// Real API functions
+const fetchModifierGroups = async (): Promise<ModifierGroup[]> => {
+  const response = await fetch('http://localhost:3004/api/modifier-groups?includeInactive=true')
+  if (!response.ok) throw new Error('Error cargando grupos')
+  return response.json()
+}
+
+const createModifierGroup = async (data: Partial<ModifierGroup>): Promise<ModifierGroup> => {
+  const response = await fetch('http://localhost:3004/api/modifier-groups', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error('Error creando grupo')
+  return response.json()
+}
+
+const updateModifierGroup = async (id: string, data: Partial<ModifierGroup>): Promise<ModifierGroup> => {
+  const response = await fetch(`http://localhost:3004/api/modifier-groups/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error('Error actualizando grupo')
+  return response.json()
 }
 
 const deleteModifierGroup = async (id: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
+  const response = await fetch(`http://localhost:3004/api/modifier-groups/${id}`, {
+    method: 'DELETE'
+  })
+  if (!response.ok) throw new Error('Error eliminando grupo')
 }
 
-const createModifierOption = async (data: ModifierOptionCreateRequest): Promise<ModifierOption> => {
-  await new Promise(resolve => setTimeout(resolve, 800))
-  return {
-    id: `opt-${Date.now()}`,
-    ...data,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
+const createModifier = async (data: Partial<Modifier>): Promise<Modifier> => {
+  const response = await fetch('http://localhost:3004/api/modifiers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error('Error creando modificador')
+  return response.json()
 }
 
-const updateModifierOption = async (id: string, data: ModifierOptionUpdateRequest): Promise<ModifierOption> => {
-  await new Promise(resolve => setTimeout(resolve, 800))
-  return {
-    id,
-    ...data,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  } as ModifierOption
+const updateModifier = async (id: string, data: Partial<Modifier>): Promise<Modifier> => {
+  const response = await fetch(`http://localhost:3004/api/modifiers/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error('Error actualizando modificador')
+  return response.json()
 }
 
-const deleteModifierOption = async (id: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
+const deleteModifier = async (id: string): Promise<void> => {
+  const response = await fetch(`http://localhost:3004/api/modifiers/${id}`, {
+    method: 'DELETE'
+  })
+  if (!response.ok) throw new Error('Error eliminando modificador')
 }
 
 export function MenuModifiersPage() {
-  const { currentStore } = useAdminStore()
-  const queryClient = useQueryClient()
+  const [groups, setGroups] = useState<ModifierGroup[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [editingGroup, setEditingGroup] = useState<ModifierGroup | null>(null)
-  const [editingOption, setEditingOption] = useState<ModifierOption | null>(null)
+  const [editingModifier, setEditingModifier] = useState<Modifier | null>(null)
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false)
-  const [isCreateOptionModalOpen, setIsCreateOptionModalOpen] = useState(false)
+  const [isCreateModifierModalOpen, setIsCreateModifierModalOpen] = useState(false)
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
 
-  // Queries
-  const { data: groups, isLoading } = useQuery({
-    queryKey: ['modifier-groups', currentStore],
-    queryFn: fetchModifierGroups,
-    refetchInterval: 30000
-  })
+  // Load groups
+  useEffect(() => {
+    loadGroups()
+  }, [])
 
-  // Mutations
-  const createGroupMutation = useMutation({
-    mutationFn: createModifierGroup,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modifier-groups'] })
-      setIsCreateGroupModalOpen(false)
+  const loadGroups = async () => {
+    try {
+      setLoading(true)
+      const data = await fetchModifierGroups()
+      setGroups(Array.isArray(data) ? data : [])
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-  })
-
-  const updateGroupMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ModifierGroupUpdateRequest }) =>
-      updateModifierGroup(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modifier-groups'] })
-      setEditingGroup(null)
-    }
-  })
-
-  const deleteGroupMutation = useMutation({
-    mutationFn: deleteModifierGroup,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modifier-groups'] })
-    }
-  })
-
-  const createOptionMutation = useMutation({
-    mutationFn: createModifierOption,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modifier-groups'] })
-      setIsCreateOptionModalOpen(false)
-    }
-  })
-
-  const updateOptionMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ModifierOptionUpdateRequest }) =>
-      updateModifierOption(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modifier-groups'] })
-      setEditingOption(null)
-    }
-  })
-
-  const deleteOptionMutation = useMutation({
-    mutationFn: deleteModifierOption,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modifier-groups'] })
-    }
-  })
+  }
 
   // Handlers
   const toggleGroup = (groupId: string) => {
@@ -243,50 +143,78 @@ export function MenuModifiersPage() {
     })
   }
 
-  const handleCreateGroup = (data: ModifierGroupCreateRequest) => {
-    createGroupMutation.mutate(data)
-  }
-
-  const handleUpdateGroup = (data: ModifierGroupUpdateRequest) => {
-    if (editingGroup) {
-      updateGroupMutation.mutate({ id: editingGroup.id, data })
+  const handleCreateGroup = async (data: Partial<ModifierGroup>) => {
+    try {
+      await createModifierGroup(data)
+      await loadGroups()
+      setIsCreateGroupModalOpen(false)
+    } catch (err: any) {
+      alert(err.message)
     }
   }
 
-  const handleDeleteGroup = (id: string) => {
-    if (confirm('¿Estás seguro de eliminar este grupo de modificadores?')) {
-      deleteGroupMutation.mutate(id)
+  const handleUpdateGroup = async (id: string, data: Partial<ModifierGroup>) => {
+    try {
+      await updateModifierGroup(id, data)
+      await loadGroups()
+      setEditingGroup(null)
+    } catch (err: any) {
+      alert(err.message)
     }
   }
 
-  const handleCreateOption = (data: ModifierOptionCreateRequest) => {
-    createOptionMutation.mutate(data)
-  }
-
-  const handleUpdateOption = (data: ModifierOptionUpdateRequest) => {
-    if (editingOption) {
-      updateOptionMutation.mutate({ id: editingOption.id, data })
+  const handleDeleteGroup = async (id: string) => {
+    if (!confirm('¿Estás seguro de desactivar este grupo?')) return
+    try {
+      await deleteModifierGroup(id)
+      await loadGroups()
+    } catch (err: any) {
+      alert(err.message)
     }
   }
 
-  const handleDeleteOption = (id: string) => {
-    if (confirm('¿Estás seguro de eliminar esta opción?')) {
-      deleteOptionMutation.mutate(id)
+  const handleCreateModifier = async (data: Partial<Modifier>) => {
+    try {
+      await createModifier(data)
+      await loadGroups()
+      setIsCreateModifierModalOpen(false)
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  const handleUpdateModifier = async (id: string, data: Partial<Modifier>) => {
+    try {
+      await updateModifier(id, data)
+      await loadGroups()
+      setEditingModifier(null)
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  const handleDeleteModifier = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este modificador?')) return
+    try {
+      await deleteModifier(id)
+      await loadGroups()
+    } catch (err: any) {
+      alert(err.message)
     }
   }
 
   // Filter groups
-  const filteredGroups = groups?.filter(group => {
+  const filteredGroups = groups.filter(group => {
     const matchesSearch = group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         group.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                         (group.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     const matchesActive = showInactive || group.isActive
     return matchesSearch && matchesActive
-  }) || []
+  })
 
   // Group component
-  const ModifierGroupItem = ({ group, level = 0 }: { group: ModifierGroup; level?: number }) => {
+  const ModifierGroupItem = ({ group }: { group: ModifierGroup }) => {
     const isExpanded = expandedGroups.has(group.id)
-    const hasOptions = group.options && group.options.length > 0
+    const hasModifiers = group.modifiers && group.modifiers.length > 0
 
     return (
       <motion.div

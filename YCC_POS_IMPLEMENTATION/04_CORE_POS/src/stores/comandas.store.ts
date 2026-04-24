@@ -1,32 +1,63 @@
 import { create } from 'zustand';
 import { persist, devtools } from 'zustand/middleware';
-import { Comanda, ComandaTotals, CartItem, Product, ComandaType } from '../types';
+import { Comanda, ComandaTotals, CartItem, Product, ComandaType, SelectedModifier } from '../types';
+
+interface ComandaAlert {
+  id: string;
+  message: string;
+  type: 'warning' | 'info';
+  comandaId: string;
+}
 
 interface ComandasState {
   comandas: Comanda[];
   activeComandaId: string | null;
+  alerts: ComandaAlert[];
+  lastAddedToComanda: string | null;
   
   // Acciones de comandas
   createComanda: (nombre: string, tipo: ComandaType) => string;
   deleteComanda: (comandaId: string) => void;
+  duplicateComanda: (comandaId: string) => string | null;
   setActiveComanda: (comandaId: string) => void;
+  setActiveComandaByIndex: (index: number) => void;
   getActiveComanda: () => Comanda | null;
+  findComandasByName: (search: string) => Comanda[];
   
   // Acciones de items
-  addItemToComanda: (comandaId: string, product: Product, quantity?: number) => void;
+  addItemToComanda: (comandaId: string, product: Product, quantity?: number, variantId?: string, variantName?: string, variantLabel?: string, variantPrice?: number, modifiers?: SelectedModifier[], notes?: string) => void;
   removeItemFromComanda: (comandaId: string, productId: string) => void;
   updateItemQuantity: (comandaId: string, productId: string, quantity: number) => void;
   
   // Acciones de configuración
   setComandaCustomerName: (comandaId: string, name: string) => void;
+  setComandaCustomerId: (comandaId: string, customerId: string | undefined) => void;
   setComandaDiscount: (comandaId: string, discount: number, type: 'percentage' | 'amount') => void;
   setComandaNotes: (comandaId: string, notes: string) => void;
+  setComandaPriority: (comandaId: string, priority: 'normal' | 'high' | 'urgent') => void;
   
   // Cálculos
   getComandaTotals: (comandaId: string) => ComandaTotals;
+  getGlobalTotals: () => { totalComandas: number; totalItems: number; totalAmount: number };
+  getComandaElapsedTime: (comandaId: string) => number;
+  getComandaTimeDisplay: (comandaId: string) => string;
+  
+  // Alertas
+  checkTimeAlerts: () => void;
+  dismissAlert: (alertId: string) => void;
+  clearLastAdded: () => void;
   
   // Cerrar comanda
   closeComanda: (comandaId: string) => void;
+  
+  // Reordenar
+  reorderComandas: (comandaIds: string[]) => void;
+
+  // Limpiar todas las comandas (al iniciar sesión)
+  clearAllComandas: () => void;
+  
+  // Resetear estado de orden completamente
+  resetOrderState: (comandaId: string) => void;
 }
 
 export const useComandasStore = create<ComandasState>()(
@@ -35,6 +66,12 @@ export const useComandasStore = create<ComandasState>()(
       (set, get) => ({
         comandas: [],
         activeComandaId: null,
+        alerts: [],
+        lastAddedToComanda: null,
+
+        clearAllComandas: () => {
+          set({ comandas: [], activeComandaId: null, alerts: [], lastAddedToComanda: null });
+        },
 
         createComanda: (nombre: string, tipo: ComandaType) => {
           const newComanda: Comanda = {
@@ -46,6 +83,7 @@ export const useComandasStore = create<ComandasState>()(
             discount: 0,
             discountType: 'percentage',
             notes: '',
+            priority: 'normal',
             createdAt: new Date(),
             updatedAt: new Date()
           };
@@ -68,10 +106,34 @@ export const useComandasStore = create<ComandasState>()(
             
             return {
               comandas: newComandas,
-              activeComandaId: newActiveId
+              activeComandaId: newActiveId,
+              alerts: state.alerts.filter(a => a.comandaId !== comandaId)
             };
           });
           console.log('🗑️ Comanda eliminada:', comandaId);
+        },
+
+        duplicateComanda: (comandaId: string) => {
+          const original = get().comandas.find(c => c.id === comandaId);
+          if (!original) return null;
+          
+          const duplicated: Comanda = {
+            ...original,
+            id: `comanda-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            nombre: `${original.nombre} (Copia)`,
+            items: original.items.map(item => ({ ...item })),
+            status: 'ACTIVE',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+          
+          set((state) => ({
+            comandas: [...state.comandas, duplicated],
+            activeComandaId: duplicated.id
+          }));
+          
+          console.log('📋 Comanda duplicada:', duplicated.nombre);
+          return duplicated.id;
         },
 
         setActiveComanda: (comandaId: string) => {
@@ -82,17 +144,48 @@ export const useComandasStore = create<ComandasState>()(
           }
         },
 
+        setActiveComandaByIndex: (index: number) => {
+          const activeComandas = get().comandas.filter(c => c.status === 'ACTIVE');
+          if (index >= 0 && index < activeComandas.length) {
+            const comandaId = activeComandas[index].id;
+            set({ activeComandaId: comandaId });
+            console.log(`📌 Comanda activa (índice ${index}):`, activeComandas[index].nombre);
+          }
+        },
+
         getActiveComanda: () => {
           const { comandas, activeComandaId } = get();
           return comandas.find(c => c.id === activeComandaId) || null;
         },
 
-        addItemToComanda: (comandaId: string, product: Product, quantity = 1) => {
+        findComandasByName: (search: string) => {
+          const searchLower = search.toLowerCase();
+          return get().comandas.filter(c => 
+            c.status === 'ACTIVE' && 
+            (c.nombre.toLowerCase().includes(searchLower) || 
+             c.customerName?.toLowerCase().includes(searchLower))
+          );
+        },
+
+        addItemToComanda: (comandaId: string, product: Product, quantity = 1, variantId?: string, variantName?: string, variantLabel?: string, variantPrice?: number, modifiers?: SelectedModifier[], notes?: string) => {
+          const basePrice = variantPrice ?? product.price;
+          const modifiersTotal = modifiers?.reduce((sum, m) => sum + m.priceAdd, 0) || 0;
+          const unitPrice = basePrice + modifiersTotal;
+          const displayName = variantName ? `${product.name} (${variantName})` : product.name;
+          const effectiveSku = variantId ? `${product.sku}-${variantId}` : product.sku;
+          
           set((state) => ({
             comandas: state.comandas.map(comanda => {
               if (comanda.id !== comandaId) return comanda;
               
-              const existingIndex = comanda.items.findIndex(i => i.productId === product.id);
+              // Buscar item existente por productId + variantId + modifiers (mismo combo = incrementar qty)
+              const modifiersKey = modifiers ? modifiers.map(m => m.modifierId).sort().join(',') : '';
+              const existingIndex = comanda.items.findIndex(i => {
+                const itemModifiersKey = i.modifiers ? i.modifiers.map(m => m.modifierId).sort().join(',') : '';
+                return i.productId === product.id 
+                  && (i.variantId || '') === (variantId || '')
+                  && itemModifiersKey === modifiersKey;
+              });
               const newItems = [...comanda.items];
               
               if (existingIndex >= 0) {
@@ -106,14 +199,19 @@ export const useComandasStore = create<ComandasState>()(
               } else {
                 newItems.push({
                   productId: product.id,
-                  name: product.name,
-                  sku: product.sku,
-                  unitPrice: product.price,
+                  name: displayName,
+                  sku: effectiveSku,
+                  unitPrice,
                   quantity,
-                  totalPrice: product.price * quantity,
+                  totalPrice: unitPrice * quantity,
                   categoryName: product.categoryName,
                   stationId: product.stationId || product.station?.id,
-                  stationName: product.station?.displayName || product.station?.name
+                  stationName: product.station?.displayName || product.station?.name,
+                  variantId: variantId || undefined,
+                  variantName: variantName || undefined,
+                  variantLabel: variantLabel || undefined,
+                  modifiers: modifiers && modifiers.length > 0 ? modifiers : undefined,
+                  notes: notes || undefined
                 });
               }
               
@@ -122,7 +220,8 @@ export const useComandasStore = create<ComandasState>()(
                 items: newItems,
                 updatedAt: new Date()
               };
-            })
+            }),
+            lastAddedToComanda: comandaId
           }));
         },
 
@@ -176,6 +275,16 @@ export const useComandasStore = create<ComandasState>()(
           }));
         },
 
+        setComandaCustomerId: (comandaId: string, customerId: string | undefined) => {
+          set((state) => ({
+            comandas: state.comandas.map(comanda =>
+              comanda.id === comandaId
+                ? { ...comanda, customerId, updatedAt: new Date() }
+                : comanda
+            )
+          }));
+        },
+
         setComandaDiscount: (comandaId: string, discount: number, type: 'percentage' | 'amount') => {
           set((state) => ({
             comandas: state.comandas.map(comanda =>
@@ -191,6 +300,16 @@ export const useComandasStore = create<ComandasState>()(
             comandas: state.comandas.map(comanda =>
               comanda.id === comandaId
                 ? { ...comanda, notes, updatedAt: new Date() }
+                : comanda
+            )
+          }));
+        },
+
+        setComandaPriority: (comandaId: string, priority: 'normal' | 'high' | 'urgent') => {
+          set((state) => ({
+            comandas: state.comandas.map(comanda =>
+              comanda.id === comandaId
+                ? { ...comanda, priority, updatedAt: new Date() }
                 : comanda
             )
           }));
@@ -222,11 +341,134 @@ export const useComandasStore = create<ComandasState>()(
           };
         },
 
+        getGlobalTotals: () => {
+          const activeComandas = get().comandas.filter(c => c.status === 'ACTIVE');
+          let totalItems = 0;
+          let totalAmount = 0;
+          
+          activeComandas.forEach(comanda => {
+            const totals = get().getComandaTotals(comanda.id);
+            totalItems += totals.itemCount;
+            totalAmount += totals.total;
+          });
+          
+          return {
+            totalComandas: activeComandas.length,
+            totalItems,
+            totalAmount
+          };
+        },
+
+        getComandaElapsedTime: (comandaId: string) => {
+          const comanda = get().comandas.find(c => c.id === comandaId);
+          if (!comanda) return 0;
+          return Date.now() - new Date(comanda.createdAt).getTime();
+        },
+
+        getComandaTimeDisplay: (comandaId: string) => {
+          const elapsed = get().getComandaElapsedTime(comandaId);
+          const minutes = Math.floor(elapsed / 60000);
+          const hours = Math.floor(minutes / 60);
+          
+          if (hours > 0) {
+            return `${hours}h ${minutes % 60}m`;
+          }
+          return `${minutes}m`;
+        },
+
+        checkTimeAlerts: () => {
+          const { comandas } = get();
+          const alerts: ComandaAlert[] = [];
+          
+          comandas.filter(c => c.status === 'ACTIVE').forEach(comanda => {
+            const elapsed = get().getComandaElapsedTime(comanda.id);
+            const minutes = Math.floor(elapsed / 60000);
+            
+            if (minutes > 60) {
+              alerts.push({
+                id: `alert-${comanda.id}-${Date.now()}`,
+                message: `${comanda.nombre}: ${minutes} minutos`,
+                type: 'warning',
+                comandaId: comanda.id
+              });
+            } else if (minutes > 30 && comanda.priority === 'urgent') {
+              alerts.push({
+                id: `alert-${comanda.id}-${Date.now()}`,
+                message: `${comanda.nombre}: Urgente - ${minutes} min`,
+                type: 'warning',
+                comandaId: comanda.id
+              });
+            }
+          });
+          
+          set({ alerts });
+        },
+
+        dismissAlert: (alertId: string) => {
+          set((state) => ({
+            alerts: state.alerts.filter(a => a.id !== alertId)
+          }));
+        },
+
+        clearLastAdded: () => {
+          set({ lastAddedToComanda: null });
+        },
+
+        reorderComandas: (comandaIds: string[]) => {
+          set((state) => ({
+            comandas: comandaIds
+              .map(id => state.comandas.find(c => c.id === id))
+              .filter((c): c is Comanda => c !== undefined)
+              .concat(state.comandas.filter(c => !comandaIds.includes(c.id)))
+          }));
+        },
+
         closeComanda: (comandaId: string) => {
+          set((state) => {
+            // Cerrar la comanda actual y limpiar completamente sus items y datos
+            const updatedComandas = state.comandas.map(comanda =>
+              comanda.id === comandaId
+                ? { 
+                    ...comanda, 
+                    status: 'CLOSED' as const, 
+                    items: [], 
+                    customerId: undefined,
+                    customerName: '',
+                    notes: '',
+                    discount: 0,
+                    discountType: 'percentage' as const,
+                    updatedAt: new Date() 
+                  }
+                : comanda
+            );
+            
+            // Buscar otra comanda activa para hacerla la activa
+            const activeComandas = updatedComandas.filter(c => c.status === 'ACTIVE');
+            const newActiveComandaId = activeComandas.length > 0 
+              ? activeComandas[0].id 
+              : null;
+            
+            return {
+              comandas: updatedComandas,
+              activeComandaId: newActiveComandaId
+            };
+          });
+        },
+
+        resetOrderState: (comandaId: string) => {
           set((state) => ({
             comandas: state.comandas.map(comanda =>
               comanda.id === comandaId
-                ? { ...comanda, status: 'CLOSED', updatedAt: new Date() }
+                ? {
+                    ...comanda,
+                    items: [],
+                    customerId: undefined,
+                    customerName: '',
+                    notes: '',
+                    discount: 0,
+                    discountType: 'percentage',
+                    updatedAt: new Date()
+                  }
                 : comanda
             )
           }));
