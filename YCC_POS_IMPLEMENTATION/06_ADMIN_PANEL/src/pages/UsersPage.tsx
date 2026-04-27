@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Plus, Edit2, Trash2, Search, X, Shield, Mail, Phone } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Search, X, Shield, Mail, Phone, Lock, Monitor, Utensils, LayoutDashboard } from 'lucide-react';
 
 interface User {
   id: string;
@@ -9,8 +9,13 @@ interface User {
   firstName: string;
   lastName: string;
   role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
-  phone?: string;
+  pin: string;
+  password: string;
   isActive: boolean;
+  canAccessPos: boolean;
+  canAccessKds: boolean;
+  canAccessAdmin: boolean;
+  phone?: string;
   createdAt: string;
 }
 
@@ -27,8 +32,12 @@ export const UsersPage: React.FC = () => {
     lastName: '',
     role: 'CASHIER' as User['role'],
     phone: '',
+    pin: '',
     password: '',
-    isActive: true
+    isActive: true,
+    canAccessPos: true,
+    canAccessKds: false,
+    canAccessAdmin: false
   });
 
   useEffect(() => {
@@ -110,8 +119,12 @@ export const UsersPage: React.FC = () => {
         lastName: user.lastName,
         role: user.role,
         phone: user.phone || '',
+        pin: user.pin || '',
         password: '',
-        isActive: user.isActive
+        isActive: user.isActive,
+        canAccessPos: user.canAccessPos ?? true,
+        canAccessKds: user.canAccessKds ?? false,
+        canAccessAdmin: user.canAccessAdmin ?? false
       });
     } else {
       setEditingUser(null);
@@ -122,8 +135,12 @@ export const UsersPage: React.FC = () => {
         lastName: '',
         role: 'CASHIER',
         phone: '',
+        pin: '',
         password: '',
-        isActive: true
+        isActive: true,
+        canAccessPos: true,
+        canAccessKds: false,
+        canAccessAdmin: false
       });
     }
     setIsModalOpen(true);
@@ -237,8 +254,9 @@ export const UsersPage: React.FC = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PIN</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acceso</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
@@ -253,15 +271,28 @@ export const UsersPage: React.FC = () => {
                     <span className="text-sm text-gray-900">{user.firstName} {user.lastName}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Mail className="w-4 h-4 mr-2" />
-                      {user.email}
+                    <div className="flex items-center text-sm text-gray-600 font-mono">
+                      <Lock className="w-4 h-4 mr-2" />
+                      {user.pin ? '••••' : '—'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${roleColors[user.role]}`}>
                       {roleLabels[user.role]}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex gap-2">
+                      {user.canAccessPos && (
+                        <span title="POS" className="text-blue-600"><Monitor className="w-4 h-4" /></span>
+                      )}
+                      {user.canAccessKds && (
+                        <span title="KDS" className="text-orange-600"><Utensils className="w-4 h-4" /></span>
+                      )}
+                      {user.canAccessAdmin && (
+                        <span title="Admin" className="text-purple-600"><LayoutDashboard className="w-4 h-4" /></span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -393,6 +424,62 @@ export const UsersPage: React.FC = () => {
                     />
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PIN (4-6 dígitos)</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="1234"
+                    value={formData.pin}
+                    onChange={(e) => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">PIN numérico para acceso rápido en POS y KDS</p>
+                </div>
+
+                {/* Permisos de Acceso */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Permisos de Acceso</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="canAccessPos"
+                        checked={formData.canAccessPos}
+                        onChange={(e) => setFormData({ ...formData, canAccessPos: e.target.checked })}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <label htmlFor="canAccessPos" className="ml-2 text-sm text-gray-700">
+                        Acceso al POS (Punto de Venta)
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="canAccessKds"
+                        checked={formData.canAccessKds}
+                        onChange={(e) => setFormData({ ...formData, canAccessKds: e.target.checked })}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <label htmlFor="canAccessKds" className="ml-2 text-sm text-gray-700">
+                        Acceso al KDS (Cocina)
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="canAccessAdmin"
+                        checked={formData.canAccessAdmin}
+                        onChange={(e) => setFormData({ ...formData, canAccessAdmin: e.target.checked })}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <label htmlFor="canAccessAdmin" className="ml-2 text-sm text-gray-700">
+                        Acceso al Admin Panel
+                      </label>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="flex items-center">
                   <input

@@ -5,6 +5,9 @@
 /* Importar sistema responsive completo */
 @import './styles/responsive.css';
 
+/* Importar sistema de temas dinámicos */
+@import './styles/theme.css';
+
 /* Estilos base adicionales */
 @layer base {
   * {

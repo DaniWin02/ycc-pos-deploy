@@ -22,6 +22,7 @@ import { TicketPrinter, TicketData } from './components/TicketPrinter';
 import { PrinterConfigModal } from './components/PrinterConfigModal';
 import { ProductCustomizationModal } from './components/ProductCustomizationModal';
 import { api, endpoints } from './lib/apiClient';
+import { Logo, useBranding } from './hooks/useBranding.tsx';
 
 // ===================== HELPERS =====================
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
@@ -1822,9 +1823,10 @@ export const App: React.FC = () => {
       {/* HEADER */}
       <header className="bg-white shadow-sm border-b border-gray-200 px-3 md:px-6 h-14 md:h-16 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2 md:gap-4">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-600 rounded-lg md:rounded-xl flex items-center justify-center">
-            <Package className="w-4 h-4 md:w-5 md:h-5 text-white" />
-          </div>
+          <Logo width={40} height={40} className="rounded-lg overflow-hidden" />
+          <h1 className="font-bold text-gray-900 text-lg md:text-xl">
+            {useBranding().companyName || 'YCC Country Club'}
+          </h1>
           <div className="hidden md:block">
             <h1 className="text-base md:text-lg font-bold text-gray-900 leading-tight">YCC POS</h1>
             <div className="flex items-center gap-2">

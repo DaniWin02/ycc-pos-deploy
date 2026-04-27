@@ -4,7 +4,8 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
   DollarSign, TrendingUp,
   ChevronRight, Bell, Search, Menu, Clock, AlertTriangle,
-  Store, FolderOpen, Utensils, Warehouse, Hash
+  Store, FolderOpen, Utensils, Warehouse, Hash, Palette, Monitor,
+  Shield
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { ProductsPage } from './pages/ProductsPage';
@@ -17,7 +18,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import InventoryPage from './pages/InventoryPage';
 import { FoliosPage } from './pages/FoliosPage';
 import { CustomersPage } from './pages/CustomersPage';
-import { ProductVariantsPage } from './pages/ProductVariantsPage';
+import { AppearancePage } from './pages/AppearancePage';
+import { KDSConfigPage } from './pages/KDSConfigPage';
 import { SaleListItem, SaleItem, ProductListItem, TopProduct } from './types/api.types';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
@@ -39,19 +41,32 @@ class ErrorBoundary extends Component<{children: React.ReactNode}, {hasError: bo
   }
 }
 
-type Page = 'dashboard' | 'sales' | 'products' | 'categories' | 'comandas' | 'customers' | 'users' | 'reports' | 'settings' | 'inventory' | 'folios' | 'product-variants';
+type Page = 'dashboard' | 'sales' | 'comandas' | 'folios' | 'products' | 'categories' | 'inventory' | 'customers' | 'users' | 'reports' | 'settings' | 'appearance';
 
-const SIDEBAR_ITEMS: { id: Page; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'sales', label: 'Ventas', icon: ShoppingCart },
-  { id: 'folios', label: 'Folios', icon: Hash },
-  { id: 'products', label: 'Productos', icon: Package },
-  { id: 'categories', label: 'Categorías', icon: FolderOpen },
-  { id: 'inventory', label: 'Inventario', icon: Warehouse },
-  { id: 'comandas', label: 'Comandas', icon: Utensils },
-  { id: 'customers', label: 'Clientes', icon: Users },
-  { id: 'reports', label: 'Reportes', icon: BarChart3 },
-  { id: 'settings', label: 'Configuracion', icon: Settings },
+const SIDEBAR_ITEMS: { id: Page; label: string; icon: React.ComponentType<{ className?: string }>; section?: string }[] = [
+  // 📊 OPERACIONES
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Operaciones' },
+  { id: 'sales', label: 'Ventas', icon: ShoppingCart, section: 'Operaciones' },
+  { id: 'comandas', label: 'Comandas', icon: Utensils, section: 'Operaciones' },
+  { id: 'folios', label: 'Folios', icon: Hash, section: 'Operaciones' },
+  
+  // 📦 CATÁLOGO
+  { id: 'products', label: 'Productos', icon: Package, section: 'Catálogo' },
+  { id: 'categories', label: 'Categorías', icon: FolderOpen, section: 'Catálogo' },
+  { id: 'inventory', label: 'Inventario', icon: Warehouse, section: 'Catálogo' },
+  
+  // 👥 CLIENTES
+  { id: 'customers', label: 'Clientes', icon: Users, section: 'Clientes' },
+  
+  // � USUARIOS
+  { id: 'users', label: 'Usuarios', icon: Shield, section: 'Usuarios' },
+  
+  // �📈 REPORTES
+  { id: 'reports', label: 'Reportes', icon: BarChart3, section: 'Reportes' },
+  
+  // ⚙️ CONFIGURACIÓN
+  { id: 'settings', label: 'Configuración', icon: Settings, section: 'Configuración' },
+  { id: 'appearance', label: 'Apariencia', icon: Palette, section: 'Configuración' },
 ];
 
 export const App: React.FC = () => {
@@ -60,7 +75,6 @@ export const App: React.FC = () => {
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedProductIdForVariants, setSelectedProductIdForVariants] = useState<string>('');
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
   const socketRef = useRef<Socket | null>(null);
 
@@ -221,7 +235,7 @@ export const App: React.FC = () => {
     <ErrorBoundary>
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0`}>
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0 sticky top-0 h-screen overflow-hidden`}>
         <div className="h-16 border-b border-gray-200 flex items-center px-4 gap-3">
           {sidebarOpen && (
             <div className="flex items-center gap-3 flex-1">
@@ -238,17 +252,39 @@ export const App: React.FC = () => {
             <Menu className="w-5 h-5" />
           </button>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
-          {SIDEBAR_ITEMS.map(item => {
-            const Icon = item.icon;
-            const active = page === item.id;
-            return (
-              <button key={item.id} onClick={() => setPage(item.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
-                <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
-                {sidebarOpen && <span>{item.label}</span>}
-              </button>
-            );
-          })}
+        <nav className="flex-1 p-3 overflow-y-auto">
+          {(() => {
+            const sections = [...new Set(SIDEBAR_ITEMS.map(i => i.section))];
+            return sections.map((section, sectionIndex) => (
+              <div key={section} className={`${sectionIndex > 0 ? 'mt-4 pt-3 border-t border-gray-200' : ''}`}>
+                {sidebarOpen && (
+                  <h3 className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    {section}
+                  </h3>
+                )}
+                <div className="space-y-1">
+                  {SIDEBAR_ITEMS.filter(item => item.section === section).map(item => {
+                    const Icon = item.icon;
+                    const active = page === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setPage(item.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          active
+                            ? 'bg-indigo-50 text-indigo-700'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
+                        {sidebarOpen && <span>{item.label}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ));
+          })()}
         </nav>
         <div className="p-3 border-t border-gray-200">
           <div className={`flex items-center gap-3 px-3 py-2 ${sidebarOpen ? '' : 'justify-center'}`}>
@@ -299,6 +335,51 @@ export const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-6">
           {page === 'dashboard' && (
             <div className="space-y-6">
+              {/* PRIORITY 1: Alerts - At the top */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-xl border border-gray-200 p-6 md:col-span-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-900">Alertas</h3>
+                    <span className="text-xs font-medium text-red-600 bg-red-100 px-2 py-1 rounded-full">2 pendientes</span>
+                  </div>
+                  <div className="space-y-3">
+                    {/* CRITICAL - Stock Bajo */}
+                    <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-red-800">Stock Bajo</p>
+                          <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">CRÍTICO</span>
+                        </div>
+                        <p className="text-xs text-red-600 mt-1">12 productos por debajo del mínimo de inventario</p>
+                      </div>
+                    </div>
+                    {/* MEDIUM - Cierre Pendiente */}
+                    <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                      <Clock className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-amber-800">Cierre Pendiente</p>
+                          <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded">MEDIO</span>
+                        </div>
+                        <p className="text-xs text-amber-600 mt-1">Terminal 3 sin cierre de caja</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* System Status - Secondary */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="font-semibold text-gray-900 mb-4">Estado del Sistema</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">API Gateway</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Online</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Base de Datos</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Online</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">POS Terminal 1</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Activo</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">KDS Cocina</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Activo</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Usuarios Online</span><span className="text-sm font-bold text-gray-900">8</span></div>
+                  </div>
+                </div>
+              </div>
+
               {/* Stats */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl border border-gray-200 p-5">
@@ -448,57 +529,12 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* System status + Quick actions */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Estado del Sistema</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">API Gateway</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Online</span></div>
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Base de Datos</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Online</span></div>
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">POS Terminal 1</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Activo</span></div>
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">KDS Cocina</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Activo</span></div>
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Usuarios Online</span><span className="text-sm font-bold text-gray-900">8</span></div>
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Alertas</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg"><AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" /><div><p className="text-sm font-medium text-amber-800">Stock Bajo</p><p className="text-xs text-amber-600">12 productos por debajo del minimo</p></div></div>
-                    <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg"><Clock className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" /><div><p className="text-sm font-medium text-blue-800">Cierre Pendiente</p><p className="text-xs text-blue-600">Terminal 3 sin cierre de caja</p></div></div>
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Acciones Rapidas</h3>
-                  <div className="space-y-2">
-                    <button className="w-full flex items-center gap-3 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"><Package className="w-4 h-4" /> Nuevo Producto</button>
-                    <button className="w-full flex items-center gap-3 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium"><Users className="w-4 h-4" /> Nuevo Usuario</button>
-                    <button className="w-full flex items-center gap-3 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"><BarChart3 className="w-4 h-4" /> Generar Reporte</button>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
           {page === 'sales' && <SalesPage />}
           {page === 'folios' && <FoliosPage />}
-          {page === 'products' && (
-            <ProductsPage 
-              onNavigate={(targetPage, params) => {
-                if (targetPage === 'product-variants' && params?.productId) {
-                  setSelectedProductIdForVariants(params.productId);
-                  setPage('product-variants');
-                } else {
-                  setPage(targetPage as Page);
-                }
-              }} 
-            />
-          )}
-          {page === 'product-variants' && (
-            <ProductVariantsPage 
-              productId={selectedProductIdForVariants} 
-              onBack={() => setPage('products')}
-            />
-          )}
+          {page === 'products' && <ProductsPage />}
           {page === 'categories' && <CategoriesPage />}
           {page === 'inventory' && <InventoryPage />}
           {page === 'comandas' && <ComandasPage />}
@@ -506,6 +542,7 @@ export const App: React.FC = () => {
           {page === 'users' && <UsersPage />}
           {page === 'reports' && <ReportsPage />}
           {page === 'settings' && <SettingsPage />}
+          {page === 'appearance' && <AppearancePage />}
         </main>
       </div>
     </div>

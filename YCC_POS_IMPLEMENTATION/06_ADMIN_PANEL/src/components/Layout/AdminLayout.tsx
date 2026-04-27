@@ -1,79 +1,90 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Footer } from './Footer';
 
-interface AdminLayoutProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-// Componente principal de layout del Admin Panel
-export const AdminLayout: React.FC<AdminLayoutProps> = ({
-  children,
-  className = ''
-}) => {
+// Admin Layout with sticky sidebar and independent scroll
+export const AdminLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+      if (window.innerWidth < 1024) {
+        setSidebarOpen(false);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${className}`}>
-      <div className="flex">
-        {/* Sidebar */}
-        <AnimatePresence>
-          <motion.div
-            initial={{ x: -300 }}
-            animate={{ x: sidebarOpen ? 0 : -300 }}
-            exit={{ x: -300 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className={`
-              fixed lg:relative lg:translate-x-0 z-30
-              ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-              lg:block w-64 h-screen bg-white shadow-lg
-              border-r border-gray-200
-            `}
-          >
-            <Sidebar onClose={() => setSidebarOpen(false)} />
-          </motion.div>
+    <div className="h-screen bg-gray-50 overflow-hidden">
+      <div className="flex h-full">
+        {/* Sidebar - Fixed/Sticky with independent scroll */}
+        <AnimatePresence mode="wait">
+          {(sidebarOpen || !isMobile) && (
+            <motion.aside
+              initial={{ x: -256, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -256, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className={`
+                ${isMobile ? 'fixed inset-y-0 left-0 z-40' : 'relative'}
+                w-64 h-full bg-white shadow-lg border-r border-gray-200
+                flex flex-col flex-shrink-0
+              `}
+            >
+              {/* Sidebar with independent scroll */}
+              <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+                <Sidebar onClose={() => setSidebarOpen(false)} />
+              </div>
+            </motion.aside>
+          )}
         </AnimatePresence>
 
-        {/* Overlay para móvil */}
+        {/* Mobile Overlay */}
         <AnimatePresence>
-          {sidebarOpen && (
+          {sidebarOpen && isMobile && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
               onClick={() => setSidebarOpen(false)}
             />
           )}
         </AnimatePresence>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-h-screen">
-          {/* Header */}
-          <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col h-full min-w-0">
+          {/* Sticky Header */}
+          <div className="flex-shrink-0 z-20">
+            <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
+          </div>
 
-          {/* Page Content */}
-          <main className="flex-1 p-6 overflow-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="max-w-7xl mx-auto"
-            >
-              {children}
-            </motion.div>
+          {/* Scrollable Main Content */}
+          <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+            <div className="min-h-full p-4 md:p-6 lg:p-8">
+              <Outlet />
+            </div>
           </main>
 
           {/* Footer */}
-          <Footer />
+          <div className="flex-shrink-0">
+            <Footer />
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Package, Plus, Edit2, Trash2, Search, X, Camera, Image as ImageIcon, Upload, Sparkles } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, Search, X, Camera, Image as ImageIcon, Upload, Sparkles, GitBranch } from 'lucide-react';
 import { StationSelector } from '../components/StationSelector';
 import { detectStation, getSuggestedStationName } from '../utils/stationAutoAssign';
 
@@ -21,7 +21,19 @@ interface Product {
   preparationTime?: number;
   isActive: boolean;
   hasVariants: boolean;
+  variants?: ProductVariant[];
+  variantOptions?: { name: string; values: string[] }[];
   createdAt: string;
+}
+
+interface ProductVariant {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  stock: number;
+  options: Record<string, string>;
+  isActive: boolean;
 }
 
 interface Category {
@@ -49,12 +61,10 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
   }
 
   const handleManageVariants = (productId: string) => {
-    if (onNavigate) {
-      onNavigate('product-variants', { productId });
-    } else if (navigate) {
-      navigate(`/admin/product-variants?productId=${productId}`);
-    } else {
-      window.location.href = `/admin/product-variants?productId=${productId}`;
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      openModal(product);
+      setActiveTab('variants');
     }
   };
   const [products, setProducts] = useState<Product[]>([]);
@@ -74,12 +84,22 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
     image: '',
     sku: '',
     stationId: '',
-    preparationTime: 0
+    preparationTime: 0,
+    hasVariants: false
   });
   const [imagePreview, setImagePreview] = useState<string>('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   
+  // Variant management states
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variantOptions, setVariantOptions] = useState<{ name: string; values: string[] }[]>([]);
+  const [activeTab, setActiveTab] = useState<'general' | 'variants'>('general');
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
+  const [newOptionName, setNewOptionName] = useState('');
+  const [newOptionValues, setNewOptionValues] = useState('');
+
   // Cargar productos, categorías y estaciones desde el API
   useEffect(() => {
     loadProducts();
@@ -168,10 +188,19 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
         ? `${API_URL}/products/${editingProduct.id}`
         : `${API_URL}/products`;
       const method = editingProduct ? 'PUT' : 'POST';
+      
+      // Build complete product data including variants
+      const productData = {
+        ...formData,
+        hasVariants: formData.hasVariants || false,
+        variants: formData.hasVariants ? variants : [],
+        variantOptions: formData.hasVariants ? variantOptions : []
+      };
+      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(productData)
       });
       if (response.ok) {
         alert(editingProduct ? '✅ Producto actualizado exitosamente' : '✅ Producto creado exitosamente');
@@ -213,9 +242,12 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
         image: product.image || '',
         sku: product.sku,
         stationId: product.stationId || product.station?.id || '',
-        preparationTime: product.preparationTime || 0
+        preparationTime: product.preparationTime || 0,
+        hasVariants: product.hasVariants || false
       });
       setImagePreview(product.image || '');
+      setVariants(product.variants || []);
+      setVariantOptions(product.variantOptions || []);
     } else {
       setEditingProduct(null);
       setFormData({
@@ -228,12 +260,16 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
         image: '',
         sku: '',
         stationId: '',
-        preparationTime: 0
+        preparationTime: 0,
+        hasVariants: false
       });
       setImagePreview('');
+      setVariants([]);
+      setVariantOptions([]);
     }
     setShowNewCategoryInput(false);
     setNewCategoryName('');
+    setActiveTab('general');
     setIsModalOpen(true);
   };
 
@@ -251,8 +287,14 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
       image: '',
       sku: '',
       stationId: '',
-      preparationTime: 0
+      preparationTime: 0,
+      hasVariants: false
     });
+    setVariants([]);
+    setVariantOptions([]);
+    setActiveTab('general');
+    setEditingVariant(null);
+    setShowVariantModal(false);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -294,6 +336,110 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // ===== VARIANT MANAGEMENT FUNCTIONS =====
+  
+  // Generate all possible combinations from variant options
+  const generateVariantCombinations = (options: { name: string; values: string[] }[]): Record<string, string>[] => {
+    if (options.length === 0) return [];
+    
+    const combinations: Record<string, string>[] = [];
+    const generate = (index: number, current: Record<string, string>) => {
+      if (index === options.length) {
+        combinations.push({ ...current });
+        return;
+      }
+      const option = options[index];
+      for (const value of option.values) {
+        current[option.name] = value;
+        generate(index + 1, current);
+      }
+    };
+    generate(0, {});
+    return combinations;
+  };
+
+  // Add a new variant option (e.g., Talla, Color)
+  const handleAddOption = () => {
+    if (!newOptionName.trim()) return;
+    const values = newOptionValues.split(',').map(v => v.trim()).filter(Boolean);
+    if (values.length === 0) {
+      alert('Ingresa al menos un valor para la opción');
+      return;
+    }
+    setVariantOptions([...variantOptions, { name: newOptionName.trim(), values }]);
+    setNewOptionName('');
+    setNewOptionValues('');
+  };
+
+  // Remove a variant option
+  const handleRemoveOption = (index: number) => {
+    const optionName = variantOptions[index].name;
+    setVariantOptions(variantOptions.filter((_, i) => i !== index));
+    // Remove variants that use this option
+    setVariants(variants.filter(v => !v.options[optionName]));
+  };
+
+  // Add a variant manually
+  const handleAddVariant = () => {
+    const newVariant: ProductVariant = {
+      id: Date.now().toString(),
+      name: '',
+      sku: `${formData.sku || 'VAR'}-${(variants.length + 1).toString().padStart(3, '0')}`,
+      price: formData.price,
+      stock: 0,
+      options: {},
+      isActive: true
+    };
+    setVariants([...variants, newVariant]);
+    setEditingVariant(newVariant);
+    setShowVariantModal(true);
+  };
+
+  // Edit a variant
+  const handleEditVariant = (variant: ProductVariant) => {
+    setEditingVariant(variant);
+    setShowVariantModal(true);
+  };
+
+  // Delete a variant
+  const handleDeleteVariant = (variantId: string) => {
+    if (confirm('¿Eliminar esta variante?')) {
+      setVariants(variants.filter(v => v.id !== variantId));
+    }
+  };
+
+  // Save variant changes
+  const handleSaveVariant = (updatedVariant: ProductVariant) => {
+    setVariants(variants.map(v => v.id === updatedVariant.id ? updatedVariant : v));
+    setEditingVariant(null);
+    setShowVariantModal(false);
+  };
+
+  // Generate all variant combinations automatically
+  const handleGenerateVariants = () => {
+    if (variantOptions.length === 0) {
+      alert('Agrega al menos una opción (ej: Talla, Color) antes de generar variantes');
+      return;
+    }
+    
+    const combinations = generateVariantCombinations(variantOptions);
+    const newVariants: ProductVariant[] = combinations.map((options, index) => {
+      const variantName = Object.entries(options).map(([key, val]) => `${key}: ${val}`).join(', ');
+      return {
+        id: Date.now().toString() + index,
+        name: variantName,
+        sku: `${formData.sku || 'VAR'}-${(index + 1).toString().padStart(3, '0')}`,
+        price: formData.price,
+        stock: 0,
+        options,
+        isActive: true
+      };
+    });
+    
+    setVariants(newVariants);
+    alert(`${newVariants.length} variantes generadas automáticamente`);
   };
 
   const handleImageRemove = () => {
@@ -443,10 +589,14 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
                   </div>
                   <button
                     onClick={() => handleManageVariants(product.id)}
-                    className="w-full flex items-center justify-center gap-2 bg-purple-50 text-purple-700 border border-purple-200 px-3 py-2 rounded-lg hover:bg-purple-100 transition-colors text-sm font-medium"
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+                      product.hasVariants
+                        ? 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
+                        : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                    }`}
                   >
-                    <Sparkles className="w-4 h-4" />
-                    Gestionar Variantes
+                    <Sparkles className={`w-4 h-4 ${product.hasVariants ? 'text-purple-600' : 'text-gray-400'}`} />
+                    {product.hasVariants ? `Variantes (${product.variants?.length || 0})` : 'Agregar Variantes'}
                   </button>
                 </div>
               </div>
@@ -473,6 +623,38 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
                 </button>
               </div>
 
+              {/* Tabs */}
+              <div className="flex border-b border-gray-200 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('general')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'general'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  General
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('variants')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                    activeTab === 'variants'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Variantes
+                  {formData.hasVariants && (
+                    <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs">
+                      {variants.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {activeTab === 'general' && (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
@@ -701,6 +883,283 @@ export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) 
                   </button>
                 </div>
               </form>
+              )}
+
+              {/* VARIANTS TAB */}
+              {activeTab === 'variants' && (
+                <div className="space-y-6">
+                  {/* Enable Variants Toggle */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h3 className="font-medium text-gray-900">Activar Variantes</h3>
+                      <p className="text-sm text-gray-500">Permite crear múltiples versiones de este producto (tallas, colores, etc.)</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.hasVariants}
+                        onChange={(e) => setFormData({ ...formData, hasVariants: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+
+                  {formData.hasVariants && (
+                    <>
+                      {/* Variant Options Configuration */}
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3">Opciones de Variante</h4>
+                        <p className="text-sm text-gray-500 mb-4">Define las características que varían (ej: Talla, Color)</p>
+                        
+                        {/* Add Option Form */}
+                        <div className="flex gap-2 mb-4">
+                          <input
+                            type="text"
+                            placeholder="Nombre (ej: Talla)"
+                            value={newOptionName}
+                            onChange={(e) => setNewOptionName(e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Valores separados por coma (ej: S, M, L, XL)"
+                            value={newOptionValues}
+                            onChange={(e) => setNewOptionValues(e.target.value)}
+                            className="flex-2 px-3 py-2 border border-gray-300 rounded-lg text-sm w-64"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddOption}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 flex items-center gap-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Agregar
+                          </button>
+                        </div>
+
+                        {/* Options List */}
+                        {variantOptions.length > 0 && (
+                          <div className="space-y-2 mb-4">
+                            {variantOptions.map((option, index) => (
+                              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div>
+                                  <span className="font-medium text-gray-900">{option.name}</span>
+                                  <span className="text-gray-500 ml-2">: {option.values.join(', ')}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveOption(index)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Generate Variants Button */}
+                        {variantOptions.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleGenerateVariants}
+                            className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 flex items-center justify-center gap-2"
+                          >
+                            <GitBranch className="w-4 h-4" />
+                            Generar Variantes ({variantOptions.map(o => o.values.length).reduce((a, b) => a * b, 1)} combinaciones)
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Variants List */}
+                      {variants.length > 0 && (
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                            <h4 className="font-medium text-gray-900">Variantes ({variants.length})</h4>
+                            <button
+                              type="button"
+                              onClick={handleAddVariant}
+                              className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Agregar Manual
+                            </button>
+                          </div>
+                          <div className="max-h-64 overflow-y-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-4 py-2 text-left text-gray-600">Variante</th>
+                                  <th className="px-4 py-2 text-left text-gray-600">SKU</th>
+                                  <th className="px-4 py-2 text-right text-gray-600">Precio</th>
+                                  <th className="px-4 py-2 text-right text-gray-600">Stock</th>
+                                  <th className="px-4 py-2 text-center text-gray-600">Activo</th>
+                                  <th className="px-4 py-2 text-center text-gray-600">Acciones</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200">
+                                {variants.map((variant) => (
+                                  <tr key={variant.id} className={!variant.isActive ? 'bg-gray-50' : ''}>
+                                    <td className="px-4 py-2 font-medium text-gray-900">
+                                      {variant.name || Object.entries(variant.options).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                                    </td>
+                                    <td className="px-4 py-2 text-gray-600 font-mono text-xs">{variant.sku}</td>
+                                    <td className="px-4 py-2 text-right text-gray-900">${Number(variant.price || 0).toFixed(2)}</td>
+                                    <td className="px-4 py-2 text-right text-gray-900">{variant.stock}</td>
+                                    <td className="px-4 py-2 text-center">
+                                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs ${variant.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                        {variant.isActive ? 'Sí' : 'No'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-2 text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleEditVariant(variant)}
+                                          className="text-indigo-600 hover:text-indigo-700"
+                                        >
+                                          <Edit2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteVariant(variant.id)}
+                                          className="text-red-500 hover:text-red-700"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* No Variants Message */}
+                      {variants.length === 0 && variantOptions.length > 0 && (
+                        <div className="text-center py-8 bg-gray-50 rounded-lg">
+                          <Package className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                          <p className="text-gray-500">Haz clic en "Generar Variantes" para crear automáticamente todas las combinaciones</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Save Button */}
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      {editingProduct ? 'Actualizar Producto' : 'Crear Producto'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Variant Edit Modal */}
+      {showVariantModal && editingVariant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl shadow-xl max-w-md w-full"
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Editar Variante</h3>
+                <button
+                  onClick={() => setShowVariantModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                  <input
+                    type="text"
+                    value={editingVariant.name}
+                    onChange={(e) => setEditingVariant({ ...editingVariant, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="ej: Talla M - Color Rojo"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                  <input
+                    type="text"
+                    value={editingVariant.sku}
+                    onChange={(e) => setEditingVariant({ ...editingVariant, sku: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editingVariant.price}
+                      onChange={(e) => setEditingVariant({ ...editingVariant, price: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                    <input
+                      type="number"
+                      value={editingVariant.stock}
+                      onChange={(e) => setEditingVariant({ ...editingVariant, stock: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="variantActive"
+                    checked={editingVariant.isActive}
+                    onChange={(e) => setEditingVariant({ ...editingVariant, isActive: e.target.checked })}
+                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded"
+                  />
+                  <label htmlFor="variantActive" className="ml-2 text-sm text-gray-700">
+                    Variante activa
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowVariantModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleSaveVariant(editingVariant)}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                >
+                  Guardar
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

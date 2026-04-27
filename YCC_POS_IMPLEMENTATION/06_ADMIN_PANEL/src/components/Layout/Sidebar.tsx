@@ -10,9 +10,7 @@ import {
   Settings,
   BarChart3,
   LogOut,
-  Menu,
   X,
-  ChevronDown,
   ChevronRight,
   Warehouse,
   TrendingUp,
@@ -23,8 +21,10 @@ import {
   DollarSign,
   Monitor,
   Layers,
-  Link2
+  Link2,
+  Palette
 } from 'lucide-react';
+import { useThemeStore } from '../../stores/theme.store';
 
 interface SidebarItem {
   id: string;
@@ -44,6 +44,25 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>(['dashboard']);
   const location = useLocation();
+  const { currentTheme } = useThemeStore();
+
+  // Dynamic styles based on theme
+  const sidebarStyles = {
+    backgroundColor: currentTheme.colors.sidebarBackground,
+    color: currentTheme.colors.sidebarText,
+  };
+
+  const getItemStyles = (isActive: boolean) => ({
+    backgroundColor: isActive ? currentTheme.colors.sidebarActive : 'transparent',
+    color: isActive ? currentTheme.colors.sidebarActiveText : currentTheme.colors.sidebarText,
+    borderLeft: isActive ? `4px solid ${currentTheme.colors.primary}` : '4px solid transparent',
+  });
+
+  const getChildItemStyles = (isActive: boolean) => ({
+    backgroundColor: isActive ? currentTheme.colors.sidebarActive : 'transparent',
+    color: isActive ? currentTheme.colors.sidebarActiveText : currentTheme.colors.sidebarText,
+    borderLeft: isActive ? `4px solid ${currentTheme.colors.primary}` : '4px solid transparent',
+  });
 
   const menuItems: SidebarItem[] = [
     {
@@ -233,6 +252,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
           label: 'Seguridad',
           icon: Settings,
           path: '/admin/settings/security'
+        },
+        {
+          id: 'appearance-settings',
+          label: 'Apariencia',
+          icon: Palette,
+          path: '/admin/settings/appearance'
         }
       ]
     }
@@ -257,7 +282,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
     return location.pathname.startsWith(path);
   };
 
-  const renderMenuItem = (item: SidebarItem, level: number = 0) => {
+  const renderMenuItem = (item: SidebarItem) => {
     const isActive = isItemActive(item);
     const isExpanded = expandedItems.includes(item.id);
     const hasChildren = item.children && item.children.length > 0;
@@ -265,14 +290,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
     return (
       <div key={item.id}>
         <motion.div
-          className={`
-            flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer
-            transition-all duration-200 mb-1
-            ${isActive 
-              ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600' 
-              : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-            }
-          `}
+          className="flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 mb-1 hover:opacity-80"
+          style={getItemStyles(isActive)}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => {
@@ -310,23 +329,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
               className="overflow-hidden"
             >
               <div className="ml-4 mt-1 space-y-1">
-                {item.children?.map(child => (
-                  <Link
-                    key={child.id}
-                    to={child.path || '#'}
-                    className={`
-                      flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer
-                      transition-all duration-200
-                      ${child.path && isChildActive(child.path)
-                        ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                      }
-                    `}
-                  >
-                    <child.icon className="w-4 h-4" />
-                    <span className="text-sm font-medium">{child.label}</span>
-                  </Link>
-                ))}
+                {item.children?.map(child => {
+                  const childIsActive = child.path && isChildActive(child.path);
+                  return (
+                    <Link
+                      key={child.id}
+                      to={child.path || '#'}
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer transition-all duration-200 hover:opacity-80"
+                      style={getChildItemStyles(!!childIsActive)}
+                    >
+                      <child.icon className="w-4 h-4" />
+                      <span className="text-sm font-medium">{child.label}</span>
+                    </Link>
+                  );
+                })}
               </div>
             </motion.div>
           )}
@@ -336,26 +352,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
   };
 
   return (
-    <div className={`h-full flex flex-col ${className}`}>
+    <div className={`h-full flex flex-col ${className}`} style={sidebarStyles}>
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b" style={{ borderColor: currentTheme.colors.border }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div 
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: currentTheme.colors.primary }}
+            >
               <span className="text-white font-bold text-sm">YCC</span>
             </div>
             <div>
-              <div className="font-bold text-gray-900">Admin Panel</div>
-              <div className="text-xs text-gray-500">Country Club POS</div>
+              <div className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>
+                Admin Panel
+              </div>
+              <div className="text-xs" style={{ color: currentTheme.colors.textMuted }}>
+                Country Club POS
+              </div>
             </div>
           </div>
           
           {/* Close button for mobile */}
           <button
             onClick={onClose}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+            className="lg:hidden p-2 rounded-lg hover:opacity-80 transition-colors duration-200"
+            style={{ color: currentTheme.colors.textSecondary }}
           >
-            <X className="w-5 h-5 text-gray-600" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -368,10 +392,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, className = '' }) => 
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t" style={{ borderColor: currentTheme.colors.border }}>
         <motion.button
-          className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer
-                     text-red-600 hover:bg-red-50 transition-all duration-200 w-full"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 w-full hover:opacity-80"
+          style={{ 
+            color: currentTheme.colors.error,
+            backgroundColor: 'transparent'
+          }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => {

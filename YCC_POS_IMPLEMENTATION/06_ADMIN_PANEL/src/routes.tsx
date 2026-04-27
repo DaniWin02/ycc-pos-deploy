@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { AdminApp } from './App';
+import { App as AdminApp } from './App';
 import { AdminLayout } from './components/Layout/AdminLayout';
 
 // Import inventory pages
@@ -22,6 +22,7 @@ import { ModifierGroupsPage } from './pages/ModifierGroupsPage';
 import { ProductVariantsPage } from './pages/ProductVariantsPage';
 import { ProductModifierAssignmentsPage } from './pages/ProductModifierAssignmentsPage';
 import { ProductsPage } from './pages/ProductsPage';
+import { AppearancePage } from './pages/AppearancePage';
 
 // Create router configuration
 const router = createBrowserRouter([
@@ -143,6 +144,10 @@ const router = createBrowserRouter([
           {
             path: 'security',
             element: <div className="p-6"><h1 className="text-2xl font-bold">Configuración de Seguridad</h1><p>En construcción...</p></div>
+          },
+          {
+            path: 'appearance',
+            element: <AppearancePage />
           }
         ]
       },

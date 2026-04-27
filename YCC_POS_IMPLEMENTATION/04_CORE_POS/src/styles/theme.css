@@ -1,0 +1,235 @@
+/* YCC POS Theme System - CSS Variables */
+/* These variables are set dynamically by the useTheme hook */
+
+:root {
+  /* Primary Brand Colors */
+  --color-primary: #3B82F6;
+  --color-primary-light: #60A5FA;
+  --color-primary-dark: #2563EB;
+  
+  /* Secondary Colors */
+  --color-secondary: #8B5CF6;
+  --color-secondary-light: #A78BFA;
+  
+  /* Background Colors */
+  --color-background: #F3F4F6;
+  --color-surface: #FFFFFF;
+  --color-card: #FFFFFF;
+  
+  /* Text Colors */
+  --color-text-primary: #111827;
+  --color-text-secondary: #4B5563;
+  --color-text-muted: #6B7280;
+  
+  /* Border Colors */
+  --color-border: #E5E7EB;
+  --color-border-light: #F3F4F6;
+  
+  /* State Colors */
+  --color-success: #10B981;
+  --color-success-light: #D1FAE5;
+  --color-warning: #F59E0B;
+  --color-warning-light: #FEF3C7;
+  --color-error: #EF4444;
+  --color-error-light: #FEE2E2;
+  --color-info: #3B82F6;
+  --color-info-light: #DBEAFE;
+  
+  /* Sidebar Colors */
+  --color-sidebar-background: #FFFFFF;
+  --color-sidebar-text: #374151;
+  --color-sidebar-active: #EFF6FF;
+  --color-sidebar-active-text: #2563EB;
+  
+  /* POS Specific Colors */
+  --color-pos-header: #F9FAFB;
+  --color-pos-cart-background: #FFFFFF;
+  --color-pos-product-card: #FFFFFF;
+  --color-pos-product-card-hover: #F0FDF4;
+  --color-pos-button-primary: #10B981;
+  --color-pos-button-secondary: #6B7280;
+  
+  /* Theme Flags */
+  --theme-shadows: 1;
+  --theme-animations: 1;
+  --theme-is-dark: 0;
+}
+
+/* Dark Mode Overrides */
+[data-theme="dark"],
+.dark {
+  --color-background: #111827;
+  --color-surface: #1F2937;
+  --color-card: #374151;
+  --color-text-primary: #F9FAFB;
+  --color-text-secondary: #D1D5DB;
+  --color-text-muted: #9CA3AF;
+  --color-border: #374151;
+  --color-border-light: #4B5563;
+  --color-sidebar-background: #1F2937;
+  --color-sidebar-text: #D1D5DB;
+  --color-sidebar-active: #2563EB;
+  --color-sidebar-active-text: #FFFFFF;
+  --color-pos-cart-background: #1F2937;
+  --color-pos-product-card: #374151;
+  --color-pos-product-card-hover: #4B5563;
+  --theme-is-dark: 1;
+}
+
+/* Theme Utility Classes - Static classes that reference CSS variables */
+
+/* Background Colors */
+.bg-theme-primary { background-color: var(--color-primary); }
+.bg-theme-primary-light { background-color: var(--color-primary-light); }
+.bg-theme-primary-dark { background-color: var(--color-primary-dark); }
+.bg-theme-secondary { background-color: var(--color-secondary); }
+.bg-theme-success { background-color: var(--color-success); }
+.bg-theme-success-light { background-color: var(--color-success-light); }
+.bg-theme-warning { background-color: var(--color-warning); }
+.bg-theme-warning-light { background-color: var(--color-warning-light); }
+.bg-theme-error { background-color: var(--color-error); }
+.bg-theme-error-light { background-color: var(--color-error-light); }
+.bg-theme-info { background-color: var(--color-info); }
+.bg-theme-info-light { background-color: var(--color-info-light); }
+.bg-theme-background { background-color: var(--color-background); }
+.bg-theme-surface { background-color: var(--color-surface); }
+.bg-theme-card { background-color: var(--color-card); }
+.bg-theme-pos-header { background-color: var(--color-pos-header); }
+.bg-theme-pos-cart { background-color: var(--color-pos-cart-background); }
+.bg-theme-pos-product { background-color: var(--color-pos-product-card); }
+.bg-theme-pos-product-hover:hover { background-color: var(--color-pos-product-card-hover); }
+.bg-theme-sidebar { background-color: var(--color-sidebar-background); }
+.bg-theme-sidebar-active { background-color: var(--color-sidebar-active); }
+
+/* Text Colors */
+.text-theme-primary { color: var(--color-primary); }
+.text-theme-secondary { color: var(--color-secondary); }
+.text-theme-success { color: var(--color-success); }
+.text-theme-warning { color: var(--color-warning); }
+.text-theme-error { color: var(--color-error); }
+.text-theme-info { color: var(--color-info); }
+.text-theme-text { color: var(--color-text-primary); }
+.text-theme-text-secondary { color: var(--color-text-secondary); }
+.text-theme-text-muted { color: var(--color-text-muted); }
+.text-theme-sidebar { color: var(--color-sidebar-text); }
+.text-theme-sidebar-active { color: var(--color-sidebar-active-text); }
+
+/* Border Colors */
+.border-theme { border-color: var(--color-border); }
+.border-theme-light { border-color: var(--color-border-light); }
+.border-theme-primary { border-color: var(--color-primary); }
+.border-theme-success { border-color: var(--color-success); }
+.border-theme-warning { border-color: var(--color-warning); }
+.border-theme-error { border-color: var(--color-error); }
+
+/* Interactive States */
+.hover\:bg-theme-primary:hover { background-color: var(--color-primary-dark); }
+.hover\:bg-theme-success:hover { background-color: #059669; }
+.hover\:bg-theme-surface:hover { background-color: var(--color-border-light); }
+.focus\:border-theme-primary:focus { border-color: var(--color-primary); }
+
+/* POS Specific Button Classes */
+.btn-theme-primary {
+  background-color: var(--color-pos-button-primary);
+  color: white;
+  transition: all 0.2s ease;
+}
+.btn-theme-primary:hover {
+  filter: brightness(0.9);
+  transform: translateY(-1px);
+}
+.btn-theme-primary:active {
+  transform: translateY(0);
+}
+
+.btn-theme-secondary {
+  background-color: var(--color-pos-button-secondary);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+/* POS Gradient Header */
+.bg-theme-gradient {
+  background: linear-gradient(135deg, 
+    var(--color-primary) 0%, 
+    var(--color-primary-dark) 100%
+  );
+}
+
+/* Shadows (conditional based on theme settings) */
+.theme-shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.theme-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Animations (conditional based on theme settings) */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-animate {
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .theme-animate-transform {
+    transition-property: transform;
+  }
+  
+  .theme-animate-colors {
+    transition-property: background-color, border-color, color, fill, stroke;
+  }
+}
+
+/* Scrollbar Styling */
+.scrollbar-theme::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-theme::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-theme::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 3px;
+}
+
+.scrollbar-theme::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-muted);
+}
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .touch-target-sm {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* Badge/Pill Classes */
+.badge-success {
+  background-color: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.badge-warning {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.badge-error {
+  background-color: var(--color-error-light);
+  color: var(--color-error);
+}
+
+.badge-info {
+  background-color: var(--color-info-light);
+  color: var(--color-info);
+}
