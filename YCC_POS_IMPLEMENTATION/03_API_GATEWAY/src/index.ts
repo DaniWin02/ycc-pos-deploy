@@ -525,6 +525,9 @@ httpServer.listen(PORT, () => {
   console.log(`⚡ Socket.io ready for real-time communication`)
 })
 
+// Export app for integration tests
+export { app }
+
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...')

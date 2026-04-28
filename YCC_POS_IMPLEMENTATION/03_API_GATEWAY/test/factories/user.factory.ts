@@ -7,7 +7,7 @@ export class UserFactory {
   async create(overrides: Partial<any> = {}) {
     const defaultUser = {
       email: 'test@example.com',
-      password: await bcrypt.hash('password123', 10),
+      passwordHash: await bcrypt.hash('password123', 10),
       firstName: 'Test',
       lastName: 'User',
       role: 'CASHIER',

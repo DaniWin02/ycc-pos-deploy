@@ -1,5 +1,5 @@
 import { AuthService } from '../../src/services/auth.service'
-import { prisma } from '../factories'
+import { prisma } from '../setup'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
@@ -20,8 +20,9 @@ describe('AuthService', () => {
       const hashedPassword = await bcrypt.hash('password123', 10)
       const user = await prisma.user.create({
         data: {
+          username: 'testuser',
           email: 'test@example.com',
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           firstName: 'Test',
           lastName: 'User',
           role: 'CASHIER',
@@ -63,8 +64,9 @@ describe('AuthService', () => {
       const hashedPassword = await bcrypt.hash('password123', 10)
       await prisma.user.create({
         data: {
+          username: 'testuser2',
           email: 'test@example.com',
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           firstName: 'Test',
           lastName: 'User',
           role: 'CASHIER',
@@ -81,8 +83,9 @@ describe('AuthService', () => {
       const hashedPassword = await bcrypt.hash('password123', 10)
       await prisma.user.create({
         data: {
+          username: 'inactive',
           email: 'inactive@example.com',
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           firstName: 'Inactive',
           lastName: 'User',
           role: 'CASHIER',
@@ -99,8 +102,9 @@ describe('AuthService', () => {
       const hashedPassword = await bcrypt.hash('password123', 10)
       const user = await prisma.user.create({
         data: {
+          username: 'testuser3',
           email: 'test@example.com',
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           firstName: 'Test',
           lastName: 'User',
           role: 'CASHIER',
@@ -114,10 +118,10 @@ describe('AuthService', () => {
       // Check last login was updated
       const updatedUser = await prisma.user.findUnique({
         where: { id: user.id },
-        select: { lastLoginAt: true }
+        select: { lastLogin: true }
       })
 
-      expect(updatedUser?.lastLoginAt).toBeInstanceOf(Date)
+      expect(updatedUser?.lastLogin).toBeInstanceOf(Date)
     })
   })
 
@@ -149,11 +153,11 @@ describe('AuthService', () => {
       // Verify password was hashed
       const savedUser = await prisma.user.findUnique({
         where: { email: userData.email },
-        select: { password: true }
+        select: { passwordHash: true }
       })
 
-      expect(savedUser?.password).not.toBe(userData.password)
-      expect(savedUser?.password.length).toBeGreaterThan(50) // bcrypt hash length
+      expect(savedUser?.passwordHash).not.toBe(userData.password)
+      expect(savedUser?.passwordHash.length).toBeGreaterThan(50) // bcrypt hash length
     })
 
     it('should use default role when not specified', async () => {
@@ -174,8 +178,9 @@ describe('AuthService', () => {
       const hashedPassword = await bcrypt.hash('password123', 10)
       await prisma.user.create({
         data: {
+          username: 'existing',
           email: 'existing@example.com',
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           firstName: 'Existing',
           lastName: 'User',
           role: 'CASHIER',
@@ -200,8 +205,9 @@ describe('AuthService', () => {
       // Create test user
       const user = await prisma.user.create({
         data: {
+          username: 'refresh',
           email: 'refresh@example.com',
-          password: 'hashedpassword',
+          passwordHash: 'hashedpassword',
           firstName: 'Refresh',
           lastName: 'User',
           role: 'MANAGER',
@@ -252,8 +258,9 @@ describe('AuthService', () => {
       // Create inactive user
       const user = await prisma.user.create({
         data: {
+          username: 'inactive2',
           email: 'inactive@example.com',
-          password: 'hashedpassword',
+          passwordHash: 'hashedpassword',
           firstName: 'Inactive',
           lastName: 'User',
           role: 'CASHIER',
@@ -278,8 +285,9 @@ describe('AuthService', () => {
       const hashedPassword = await bcrypt.hash('oldpassword', 10)
       const user = await prisma.user.create({
         data: {
+          username: 'changepass',
           email: 'changepass@example.com',
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           firstName: 'Change',
           lastName: 'Pass',
           role: 'CASHIER',
@@ -292,15 +300,14 @@ describe('AuthService', () => {
       // Verify password was changed
       const updatedUser = await prisma.user.findUnique({
         where: { id: user.id },
-        select: { password: true, passwordChangedAt: true }
+        select: { passwordHash: true }
       })
 
-      expect(updatedUser?.password).not.toBe(hashedPassword)
-      expect(updatedUser?.passwordChangedAt).toBeInstanceOf(Date)
+      expect(updatedUser?.passwordHash).not.toBe(hashedPassword)
 
       // Verify new password works
-      const isOldPasswordValid = await bcrypt.compare('oldpassword', updatedUser!.password)
-      const isNewPasswordValid = await bcrypt.compare('newpassword123', updatedUser!.password)
+      const isOldPasswordValid = await bcrypt.compare('oldpassword', updatedUser!.passwordHash)
+      const isNewPasswordValid = await bcrypt.compare('newpassword123', updatedUser!.passwordHash)
 
       expect(isOldPasswordValid).toBe(false)
       expect(isNewPasswordValid).toBe(true)
@@ -310,8 +317,9 @@ describe('AuthService', () => {
       const hashedPassword = await bcrypt.hash('correctpassword', 10)
       const user = await prisma.user.create({
         data: {
+          username: 'wrongpass',
           email: 'wrongpass@example.com',
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           firstName: 'Wrong',
           lastName: 'Pass',
           role: 'CASHIER',
@@ -335,8 +343,9 @@ describe('AuthService', () => {
       const hashedPassword = await bcrypt.hash('oldpassword', 10)
       const user = await prisma.user.create({
         data: {
+          username: 'reset',
           email: 'reset@example.com',
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           firstName: 'Reset',
           lastName: 'Pass',
           role: 'CASHIER',
@@ -349,14 +358,13 @@ describe('AuthService', () => {
       // Verify password was changed
       const updatedUser = await prisma.user.findUnique({
         where: { id: user.id },
-        select: { password: true, passwordChangedAt: true }
+        select: { passwordHash: true }
       })
 
-      expect(updatedUser?.password).not.toBe(hashedPassword)
-      expect(updatedUser?.passwordChangedAt).toBeInstanceOf(Date)
+      expect(updatedUser?.passwordHash).not.toBe(hashedPassword)
 
       // Verify new password works
-      const isNewPasswordValid = await bcrypt.compare('newpassword123', updatedUser!.password)
+      const isNewPasswordValid = await bcrypt.compare('newpassword123', updatedUser!.passwordHash)
       expect(isNewPasswordValid).toBe(true)
     })
 
@@ -371,8 +379,9 @@ describe('AuthService', () => {
       // Create test user
       const user = await prisma.user.create({
         data: {
+          username: 'verify',
           email: 'verify@example.com',
-          password: 'hashedpassword',
+          passwordHash: 'hashedpassword',
           firstName: 'Verify',
           lastName: 'Token',
           role: 'ADMIN',
@@ -407,8 +416,9 @@ describe('AuthService', () => {
       // Create inactive user
       const user = await prisma.user.create({
         data: {
+          username: 'inactive3',
           email: 'inactive@example.com',
-          password: 'hashedpassword',
+          passwordHash: 'hashedpassword',
           firstName: 'Inactive',
           lastName: 'User',
           role: 'CASHIER',
@@ -431,8 +441,9 @@ describe('AuthService', () => {
     it('should return user data', async () => {
       const user = await prisma.user.create({
         data: {
+          username: 'getuser',
           email: 'getuser@example.com',
-          password: 'hashedpassword',
+          passwordHash: 'hashedpassword',
           firstName: 'Get',
           lastName: 'User',
           role: 'CASHIER',
@@ -451,7 +462,7 @@ describe('AuthService', () => {
         isActive: true
       })
       expect(result.createdAt).toBeInstanceOf(Date)
-      expect(result.lastLoginAt).toBeNull()
+      expect(result.lastLogin).toBeNull()
     })
 
     it('should throw error for non-existent user', async () => {
@@ -464,8 +475,9 @@ describe('AuthService', () => {
     it('should return true for user with sufficient role', async () => {
       const admin = await prisma.user.create({
         data: {
+          username: 'admin',
           email: 'admin@example.com',
-          password: 'hashedpassword',
+          passwordHash: 'hashedpassword',
           firstName: 'Admin',
           lastName: 'User',
           role: 'ADMIN',
@@ -485,8 +497,9 @@ describe('AuthService', () => {
     it('should return false for user with insufficient role', async () => {
       const cashier = await prisma.user.create({
         data: {
+          username: 'cashier',
           email: 'cashier@example.com',
-          password: 'hashedpassword',
+          passwordHash: 'hashedpassword',
           firstName: 'Cashier',
           lastName: 'User',
           role: 'CASHIER',
@@ -506,8 +519,9 @@ describe('AuthService', () => {
     it('should return false for inactive user', async () => {
       const inactiveUser = await prisma.user.create({
         data: {
+          username: 'inactive4',
           email: 'inactive@example.com',
-          password: 'hashedpassword',
+          passwordHash: 'hashedpassword',
           firstName: 'Inactive',
           lastName: 'User',
           role: 'ADMIN',

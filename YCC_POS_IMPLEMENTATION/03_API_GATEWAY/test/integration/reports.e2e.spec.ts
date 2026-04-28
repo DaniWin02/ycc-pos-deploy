@@ -1,6 +1,7 @@
 import request from 'supertest'
 import { app } from '../../src/index'
-import { prisma, userFactory, productFactory } from '../factories'
+import { prisma } from '../setup'
+import { userFactory, productFactory } from '../factories'
 
 describe('Reports Integration Tests', () => {
   let authToken: string

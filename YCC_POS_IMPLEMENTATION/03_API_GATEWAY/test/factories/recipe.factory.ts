@@ -1,29 +1,34 @@
 import { PrismaClient } from '@prisma/client'
+import { ProductFactory } from './product.factory'
 
 export class RecipeFactory {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient, private productFactory: ProductFactory) {}
 
   async create(overrides: Partial<any> = {}) {
+    // Recipe requires a product (productId is unique and required)
+    const product = overrides.productId
+      ? undefined
+      : await this.productFactory.create({ name: overrides.name || 'Test Recipe Product' })
+
     const defaultRecipe = {
       name: 'Test Recipe',
       description: 'Test Recipe Description',
       instructions: 'Mix ingredients and cook',
-      prepTime: 15,
-      cookTime: 30,
+      preparationTime: 15,
       servings: 4,
       isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      productId: overrides.productId || product.id
     }
 
-    const recipeData = { ...defaultRecipe, ...overrides }
+    const { ...restOverrides } = overrides
+    const recipeData = { ...defaultRecipe, ...restOverrides, productId: defaultRecipe.productId }
 
     return await this.prisma.recipe.create({
       data: recipeData
     })
   }
 
-  async createWithIngredients(ingredients: Array<{productId: string, quantity: number}>, overrides: Partial<any> = {}) {
+  async createWithIngredients(ingredients: Array<{ingredientId: string, quantity: number, unit?: string}>, overrides: Partial<any> = {}) {
     const recipe = await this.create(overrides)
 
     // Create recipe ingredients
@@ -31,9 +36,9 @@ export class RecipeFactory {
       await this.prisma.recipeIngredient.create({
         data: {
           recipeId: recipe.id,
-          productId: ingredient.productId,
+          ingredientId: ingredient.ingredientId,
           quantity: ingredient.quantity,
-          unit: 'PIECE'
+          unit: ingredient.unit || 'unidad'
         }
       })
     }
@@ -45,8 +50,7 @@ export class RecipeFactory {
     return await this.create({
       ...overrides,
       name: 'Simple Recipe',
-      prepTime: 10,
-      cookTime: 20
+      preparationTime: 10
     })
   }
 
@@ -54,8 +58,7 @@ export class RecipeFactory {
     return await this.create({
       ...overrides,
       name: 'Complex Recipe',
-      prepTime: 30,
-      cookTime: 60,
+      preparationTime: 30,
       servings: 6
     })
   }

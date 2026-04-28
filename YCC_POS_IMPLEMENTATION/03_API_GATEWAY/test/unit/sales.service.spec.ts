@@ -1,5 +1,6 @@
 import { SalesService } from '../../src/services/sales.service'
-import { prisma, userFactory, productFactory } from '../factories'
+import { prisma } from '../setup'
+import { userFactory, productFactory } from '../factories'
 
 describe('SalesService', () => {
   let salesService: SalesService

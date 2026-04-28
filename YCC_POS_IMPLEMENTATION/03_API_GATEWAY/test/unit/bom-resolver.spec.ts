@@ -1,5 +1,6 @@
 import { BomResolverService } from '../../src/services/bom-resolver.service'
-import { prisma, userFactory, productFactory, recipeFactory } from '../factories'
+import { prisma } from '../setup'
+import { userFactory, productFactory, recipeFactory } from '../factories'
 
 describe('BomResolverService', () => {
   let bomService: BomResolverService

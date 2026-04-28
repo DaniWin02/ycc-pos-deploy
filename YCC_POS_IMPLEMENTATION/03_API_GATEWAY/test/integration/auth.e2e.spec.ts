@@ -1,6 +1,7 @@
 import request from 'supertest'
 import { app } from '../../src/index'
-import { prisma, userFactory } from '../factories'
+import { prisma } from '../setup'
+import { userFactory } from '../factories'
 
 describe('Auth Integration Tests', () => {
   beforeEach(async () => {
@@ -13,7 +14,7 @@ describe('Auth Integration Tests', () => {
       // Create test user
       const user = await userFactory.create({
         email: 'test@example.com',
-        password: 'password123'
+        passwordHash: await (await import('bcryptjs')).hash('password123', 10)
       })
 
       const response = await request(app)

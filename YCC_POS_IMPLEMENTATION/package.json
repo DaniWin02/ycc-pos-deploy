@@ -4,21 +4,27 @@
   "description": "Sistema POS completo para Country Club",
   "private": true,
   "workspaces": [
-    "packages/*",
-    "apps/*"
+    "01_SETUP_INICIAL/*",
+    "03_API_GATEWAY",
+    "04_CORE_POS",
+    "05_KDS_SYSTEM",
+    "06_ADMIN_PANEL",
+    "07_MOBILE_APP"
   ],
   "scripts": {
-    "dev": "concurrently \"pnpm --filter api dev\" \"pnpm --filter pos dev\" \"pnpm --filter kds dev\" \"pnpm --filter admin dev\"",
-    "build": "pnpm --filter api build && pnpm --filter pos build && pnpm --filter kds build && pnpm --filter admin build",
-    "typecheck": "pnpm --filter api typecheck && pnpm --filter pos typecheck && pnpm --filter kds typecheck && pnpm --filter admin typecheck",
-    "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write ./**/*.{ts,tsx,json,md}\"",
-    "test": "pnpm --filter api test && pnpm --filter pos test && pnpm --filter kds test && pnpm --filter admin test",
-    "clean": "rm -rf packages/*/dist apps/*/dist",
+    "dev": "concurrently \"pnpm --filter @ycc-pos/api-gateway dev\" \"pnpm --filter @ycc/core-pos dev\" \"pnpm --filter @ycc/kds dev\" \"pnpm --filter @ycc/admin-panel dev\"",
+    "build": "cd 03_API_GATEWAY && npx prisma generate && pnpm build && cd ../04_CORE_POS && pnpm build && cd ../05_KDS_SYSTEM && pnpm build && cd ../06_ADMIN_PANEL && pnpm build",
+    "typecheck": "cd 03_API_GATEWAY && pnpm typecheck && cd ../04_CORE_POS && pnpm typecheck && cd ../05_KDS_SYSTEM && pnpm typecheck && cd ../06_ADMIN_PANEL && pnpm typecheck",
+    "lint": "eslint . --ext .ts,.tsx --ignore-pattern node_modules --ignore-pattern dist",
+    "format": "prettier --write ./**/*.{ts,tsx,json,md}",
+    "test": "cd 03_API_GATEWAY && pnpm test && cd ../04_CORE_POS && pnpm test && cd ../05_KDS_SYSTEM && pnpm test && cd ../06_ADMIN_PANEL && pnpm test",
+    "clean": "rm -rf 03_API_GATEWAY/dist 04_CORE_POS/dist 05_KDS_SYSTEM/dist 06_ADMIN_PANEL/dist",
     "setup": "pnpm install && pnpm build"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
     "concurrently": "^8.0.0",
     "eslint": "^8.0.0",
     "prettier": "^3.0.0",

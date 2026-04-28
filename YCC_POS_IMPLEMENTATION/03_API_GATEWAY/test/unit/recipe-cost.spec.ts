@@ -1,5 +1,6 @@
 import { RecipeCostService } from '../../src/services/recipe-cost.service'
-import { prisma, productFactory, recipeFactory } from '../factories'
+import { prisma } from '../setup'
+import { productFactory, recipeFactory } from '../factories'
 
 describe('RecipeCostService', () => {
   let recipeCostService: RecipeCostService
