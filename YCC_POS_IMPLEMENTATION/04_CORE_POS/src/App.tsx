@@ -703,16 +703,24 @@ export const App: React.FC = () => {
           name: item.name,
           quantity: item.quantity,
           unitPrice: item.totalPrice / item.quantity,
-          totalPrice: item.totalPrice
+          totalPrice: item.totalPrice,
+          stationName: item.stationName,
+          stationId: item.stationId
         })),
         subtotal: sale.subtotal,
         taxAmount: sale.taxAmount,
+        discountAmount: sale.discountAmount,
         total: sale.total,
         paymentMethod: sale.paymentMethod,
         amountPaid: sale.amountPaid,
         changeAmount: sale.changeAmount,
+        splitPayments: sale.splitPayments,
+        customerName: sale.customerName,
+        tableNumber: sale.tableNumber,
+        orderType: sale.orderType,
         date: sale.createdAt,
-        cashier: user
+        cashier: user,
+        terminalName: terminalId
       };
 
       await TicketPrinter.printTicket(ticketData);
