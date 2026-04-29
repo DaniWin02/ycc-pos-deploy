@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Debug info
+        run: |
+          node -v || true
+          npm -v || true
+          pwd
+          ls -la
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "ref_name=${{ github.ref_name }}"
+
+      - name: Deployment summary
+        run: |
+          echo "Deploy workflow reached deployment stage."
+          echo "CI must pass before automatic deployments from main."
+          echo "No remote deployment command is configured in this repository yet."
+          echo "Add SSH/cloud provider steps here when production credentials are available."
