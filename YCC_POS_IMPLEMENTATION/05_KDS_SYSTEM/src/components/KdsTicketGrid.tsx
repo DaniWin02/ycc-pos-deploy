@@ -4,7 +4,7 @@ import type { KdsTicket as KdsTicketType } from '@ycc/types'
 import { KdsTicket } from './KdsTicket'
 
 interface KdsTicketGridProps {
-  tickets: KdsTicket[]
+  tickets: KdsTicketType[]
 }
 
 export function KdsTicketGrid({ tickets }: KdsTicketGridProps) {
@@ -12,7 +12,9 @@ export function KdsTicketGrid({ tickets }: KdsTicketGridProps) {
   const sortedTickets = tickets.sort((a, b) => {
     // Primero por prioridad
     const priorityOrder = { HIGH: 0, NORMAL: 1, LOW: 2 }
-    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+    const priorityDiff =
+      priorityOrder[(a.priority === 'normal' || a.priority === 'rush' ? 'NORMAL' : a.priority) as 'HIGH' | 'NORMAL' | 'LOW'] -
+      priorityOrder[(b.priority === 'normal' || b.priority === 'rush' ? 'NORMAL' : b.priority) as 'HIGH' | 'NORMAL' | 'LOW']
     
     if (priorityDiff !== 0) return priorityDiff
     

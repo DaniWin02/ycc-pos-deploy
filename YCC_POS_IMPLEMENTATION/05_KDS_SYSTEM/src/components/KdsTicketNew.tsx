@@ -96,7 +96,7 @@ export function KdsTicketNew({ ticket, selectedStationId }: KdsTicketProps) {
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.95, opacity: 0 }}
       className={`
-        bg-white rounded-2xl shadow-lg overflow-hidden border-2
+        bg-white rounded-2xl shadow-lg overflow-hidden border-2 flex flex-col h-full
         ${isUrgent ? 'border-red-500 ring-4 ring-red-200 animate-pulse' : 'border-gray-200'}
       `}
     >
@@ -168,7 +168,7 @@ export function KdsTicketNew({ ticket, selectedStationId }: KdsTicketProps) {
       </div>
 
       {/* Lista de items - CLICKEABLES para subrayar individualmente */}
-      <div className="p-fluid-sm sm:p-fluid-md bg-white max-h-48 sm:max-h-64 overflow-y-auto kds-scrollbar">
+      <div className="p-fluid-sm sm:p-fluid-md bg-white flex-1 min-h-0 overflow-y-auto kds-scrollbar">
         <div className="space-y-2 sm:space-y-3">
           {visibleItems.map((item, index) => (
             <div 
@@ -237,8 +237,8 @@ export function KdsTicketNew({ ticket, selectedStationId }: KdsTicketProps) {
         </div>
       </div>
 
-      {/* Botones de acción grandes */}
-      <div className="p-fluid-sm sm:p-fluid-md bg-gray-50 border-t-2 border-gray-200">
+      {/* Botones de acción grandes - SIEMPRE VISIBLES */}
+      <div className="p-fluid-sm sm:p-fluid-md bg-gray-50 border-t-2 border-gray-200 flex-shrink-0">
         {ticket.status === 'NEW' && (
           <div className="space-y-2">
             {/* Indicador de estado - no es botón, solo informativo */}

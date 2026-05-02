@@ -192,7 +192,7 @@ export const CashDrawer: React.FC<CashDrawerProps> = ({
                     <input
                       type="number"
                       value={count}
-                      onChange={(e) => handleBillChange(denomination as keyof CashCount['bills'], parseInt(e.target.value) || 0)}
+                      onChange={(e) => handleBillChange(denomination as unknown as keyof CashCount['bills'], parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
                       min="0"
                     />
@@ -219,7 +219,7 @@ export const CashDrawer: React.FC<CashDrawerProps> = ({
                     <input
                       type="number"
                       value={count}
-                      onChange={(e) => handleCoinChange(denomination as keyof CashCount['coins'], parseInt(e.target.value) || 0)}
+                      onChange={(e) => handleCoinChange(denomination as unknown as keyof CashCount['coins'], parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
                       min="0"
                     />

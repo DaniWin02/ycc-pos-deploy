@@ -10,7 +10,7 @@ export function KdsExpediter() {
 
   // Filtrar tickets para vista de expediter (todos los tickets activos)
   const activeTickets = tickets.filter(ticket => 
-    ticket.status !== 'COMPLETED' && ticket.status !== 'CANCELLED'
+    ticket.status !== 'SERVED' && ticket.status !== 'CANCELLED'
   )
 
   // Agrupar tickets por estación

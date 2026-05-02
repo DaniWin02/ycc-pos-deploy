@@ -11,6 +11,8 @@ export interface KdsTicketItem {
   notes?: string
   status: KdsItemStatus
   image?: string
+  modifiers?: Array<{ name: string; quantity: number }>
+  estimatedTime?: number
   stationId?: string  // ID de la estación a la que pertenece este item
   marked?: boolean     // Marca visual del item (subrayado)
 }
@@ -23,10 +25,13 @@ export interface KdsTicket {
   createdAt: Date
   completedAt?: Date
   deletedAt?: Date
+  stationId?: string
   table?: string
+  tableNumber?: string
   waiter?: string
-  priority: 'normal' | 'rush'
+  priority: 'normal' | 'rush' | 'HIGH' | 'NORMAL' | 'LOW'
   tipo?: 'MESA' | 'DOMICILIO' | 'LLEVAR'
+  customerName?: string
   cliente?: string
   telefono?: string
   domicilio?: string
@@ -37,6 +42,8 @@ interface KdsState {
   completedTicketIds: string[] // Lista de IDs de tickets ya completados/cancelados (lista negra)
   stationId: string | null
   connectionStatus: 'connected' | 'reconnecting' | 'disconnected'
+  socket: any
+  connect: () => void
   setStationId: (stationId: string) => void
   addTicket: (ticket: KdsTicket) => void
   updateTicket: (ticketId: string, updates: Partial<KdsTicket>) => void
@@ -145,6 +152,15 @@ export const useKdsStore = create<KdsState>()(
       completedTicketIds: loadCompletedTicketIds(), // Lista negra de tickets completados
       stationId: null,
       connectionStatus: 'connected',
+      socket: null,
+      connect: () => {
+        const currentStationId = get().stationId
+        if (currentStationId) {
+          get().setStationId(currentStationId)
+        } else {
+          set({ connectionStatus: 'reconnecting' })
+        }
+      },
 
       setStationId: (stationId) => {
         set({ stationId });
@@ -161,6 +177,7 @@ export const useKdsStore = create<KdsState>()(
             socket = io('http://localhost:3004', {
               transports: ['websocket', 'polling']
             });
+            set({ socket })
             
             socket.on('connect', () => {
               console.log('🔌 Conectado a Socket.io');
@@ -173,7 +190,7 @@ export const useKdsStore = create<KdsState>()(
             
             socket.on('disconnect', () => {
               console.log('🔌 Desconectado de Socket.io');
-              set({ connectionStatus: 'disconnected' });
+              set({ connectionStatus: 'disconnected', socket: null });
             });
             
             socket.on('reconnecting', () => {

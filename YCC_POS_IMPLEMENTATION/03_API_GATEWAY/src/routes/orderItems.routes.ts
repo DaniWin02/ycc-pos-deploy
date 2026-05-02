@@ -38,7 +38,7 @@ router.patch('/:id/status', async (req, res) => {
     });
     
     if (order) {
-      const allDelivered = order.items.every(item => item.status === 'DELIVERED');
+      const allDelivered = order.items.every(item => item.status === 'COMPLETED');
       const anyReady = order.items.some(item => item.status === 'READY');
       const anyPreparing = order.items.some(item => item.status === 'PREPARING');
       

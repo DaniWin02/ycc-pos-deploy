@@ -438,7 +438,7 @@ function AppNew() {
               <div className="flex gap-2 sm:gap-4 pb-2 sm:pb-4 h-full" style={{ minWidth: 'max-content' }}>
                 <AnimatePresence mode="popLayout">
                   {orderedActiveTickets.map((ticket: KdsTicket) => (
-                    <div key={ticket.id} className="flex-shrink-0" style={{ width: 'min(320px, 90vw)' }}>
+                    <div key={ticket.id} className="flex-shrink-0 h-full" style={{ width: 'min(320px, 90vw)', minHeight: '500px' }}>
                       <KdsTicketNew 
                         ticket={ticket}
                         selectedStationId={selectedStationId}

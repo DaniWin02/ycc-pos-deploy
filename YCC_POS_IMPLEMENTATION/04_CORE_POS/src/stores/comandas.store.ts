@@ -58,6 +58,9 @@ interface ComandasState {
   
   // Resetear estado de orden completamente
   resetOrderState: (comandaId: string) => void;
+
+  // Validar y sincronizar estado (fuente única de verdad)
+  validateAndSyncState: () => void;
 }
 
 export const useComandasStore = create<ComandasState>()(
@@ -155,7 +158,12 @@ export const useComandasStore = create<ComandasState>()(
 
         getActiveComanda: () => {
           const { comandas, activeComandaId } = get();
-          return comandas.find(c => c.id === activeComandaId) || null;
+          if (!activeComandaId) return null;
+          const comanda = comandas.find(c => c.id === activeComandaId);
+          // CRITICAL: Solo retornar si la comanda está ACTIVE
+          // Una comanda CLOSED/CANCELLED no debe ser considerada activa
+          if (!comanda || comanda.status !== 'ACTIVE') return null;
+          return comanda;
         },
 
         findComandasByName: (search: string) => {
@@ -168,6 +176,13 @@ export const useComandasStore = create<ComandasState>()(
         },
 
         addItemToComanda: (comandaId: string, product: Product, quantity = 1, variantId?: string, variantName?: string, variantLabel?: string, variantPrice?: number, modifiers?: SelectedModifier[], notes?: string) => {
+          // CRITICAL: No agregar items a comandas que no estén ACTIVE
+          const comanda = get().comandas.find(c => c.id === comandaId);
+          if (!comanda || comanda.status !== 'ACTIVE') {
+            console.error('❌ No se puede agregar item a comanda inactiva/cerrada:', comandaId, comanda?.status);
+            return;
+          }
+          
           const basePrice = variantPrice ?? product.price;
           const modifiersTotal = modifiers?.reduce((sum, m) => sum + m.priceAdd, 0) || 0;
           const unitPrice = basePrice + modifiersTotal;
@@ -472,6 +487,48 @@ export const useComandasStore = create<ComandasState>()(
                 : comanda
             )
           }));
+        },
+
+        // CRITICAL: Validar y sincronizar estado al iniciar/rehidratar
+        // Garantiza que nunca exista un carrito sin comanda activa válida
+        validateAndSyncState: () => {
+          const { comandas, activeComandaId } = get();
+          let needsFix = false;
+          let newActiveId = activeComandaId;
+
+          // 1. Verificar que activeComandaId apunta a una comanda ACTIVE válida
+          if (activeComandaId) {
+            const activeComanda = comandas.find(c => c.id === activeComandaId);
+            if (!activeComanda || activeComanda.status !== 'ACTIVE') {
+              console.warn('⚠️ activeComandaId apunta a comanda inválida/cerrada, corrigiendo...');
+              newActiveId = null;
+              needsFix = true;
+            }
+          }
+
+          // 2. Si no hay comanda activa, buscar la primera ACTIVE disponible
+          if (!newActiveId) {
+            const firstActive = comandas.find(c => c.status === 'ACTIVE');
+            if (firstActive) {
+              newActiveId = firstActive.id;
+              needsFix = true;
+            }
+          }
+
+          // 3. Limpiar items de comandas CLOSED/CANCELLED (seguridad extra)
+          const cleanedComandas = comandas.map(c => {
+            if (c.status !== 'ACTIVE' && c.items.length > 0) {
+              console.warn(`⚠️ Comanda ${c.nombre} (${c.status}) tenía items, limpiando...`);
+              needsFix = true;
+              return { ...c, items: [] };
+            }
+            return c;
+          });
+
+          if (needsFix) {
+            console.log('🔧 Estado corregido: activeComandaId=', newActiveId);
+            set({ comandas: cleanedComandas, activeComandaId: newActiveId });
+          }
         }
       }),
       { name: 'ycc-comandas-storage' }

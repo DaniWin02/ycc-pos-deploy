@@ -66,7 +66,7 @@ export const FoliosPage: React.FC = () => {
         confirm: true
       })
 
-      alert(`✅ ${result.deletedCount} ventas eliminadas exitosamente`)
+      alert(`✅ ${(result as { deletedCount: number }).deletedCount} ventas eliminadas exitosamente`)
       setShowDeleteConfirm(false)
       setDeleteStartDate('')
       setDeleteEndDate('')

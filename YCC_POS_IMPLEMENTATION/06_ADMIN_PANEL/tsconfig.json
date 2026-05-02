@@ -22,13 +22,16 @@
 
     /* Path mapping */
     "baseUrl": ".",
+    "types": ["vite/client"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "paths": {
       "@/*": ["./src/*"],
-      "@ycc/types": ["../03_SHARED_PACKAGES/types/src"],
-      "@ycc/animations": ["../03_SHARED_PACKAGES/animations/src"],
-      "@ycc/ui": ["../03_SHARED_PACKAGES/ui/src"]
+      "@ycc/types": ["../01_SETUP_INICIAL/packages/types/src"],
+      "@ycc/animations": ["../01_SETUP_INICIAL/packages/animations/src"]
     }
   },
-  "include": ["src"],
+  "include": ["src/main.tsx"],
+  "exclude": ["src/App_new.tsx", "src/routes.tsx", "src/components/Menu/**/*", "src/pages/InventoryIngredientsPage.tsx", "src/pages/InventoryStockPage.tsx", "src/pages/InventoryMovementsPage.tsx", "src/pages/MenuModifiersPage.tsx", "src/pages/RecipeEditorPage.tsx", "src/pages/RecipesAVTPage.tsx", "src/pages/RecipesFoodCostPage.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

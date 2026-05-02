@@ -250,7 +250,7 @@ router.post('/', async (req, res) => {
             notas: item.notas || null,
             estado: 'PENDIENTE',
             image: item.image || null,
-            station: product?.station || 'COCINA_PRINCIPAL',
+            station: product?.station?.name || 'COCINA_PRINCIPAL',
             comandaId: comanda.id
           }
         });

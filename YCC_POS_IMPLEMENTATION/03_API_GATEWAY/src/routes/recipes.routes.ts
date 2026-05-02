@@ -192,7 +192,7 @@ router.put('/:id', async (req, res) => {
     }
 
     // Calcular nuevo costo si se proporcionan ingredientes
-    let costPerServing = existingRecipe.costPerServing
+    let costPerServing: any = existingRecipe.costPerServing
     if (ingredients && ingredients.length > 0) {
       let totalCost = 0
       for (const ing of ingredients) {
@@ -223,7 +223,7 @@ router.put('/:id', async (req, res) => {
           instructions,
           preparationTime,
           servings: servings || existingRecipe.servings,
-          costPerServing,
+          costPerServing: costPerServing as any,
           ingredients: ingredients ? {
             create: ingredients.map((ing: any) => ({
               ingredientId: ing.ingredientId,

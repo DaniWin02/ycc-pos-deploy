@@ -51,6 +51,29 @@ export interface MenuItem extends BaseEntity {
   recipe?: MenuItemRecipeItem[];
 }
 
+export interface Product extends BaseEntity {
+  sku: string;
+  name: string;
+  description?: string;
+  categoryId: string;
+  stationId?: string;
+  price: number;
+  cost?: number;
+  taxRate: number;
+  trackInventory: boolean;
+  currentStock: number;
+  minStockLevel?: number;
+  maxStockLevel?: number;
+  reorderPoint?: number;
+  unit?: string;
+  image?: string;
+  preparationTime?: number;
+  hasVariants?: boolean;
+  variantLabel?: string;
+  isActive: boolean;
+  category?: MenuCategory;
+}
+
 export interface MenuItemCreateRequest {
   sku: string;
   name: string;

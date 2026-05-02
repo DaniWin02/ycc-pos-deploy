@@ -1,5 +1,3 @@
-import { BaseEntity } from './index';
-
 // Tipos de órdenes para el sistema YCC POS
 
 export interface Order {
@@ -71,8 +69,10 @@ export interface Payment {
 // Enums del sistema
 export enum OrderStatus {
   PENDING = 'PENDING',
-  ACTIVE = 'ACTIVE',
-  COMPLETED = 'COMPLETED',
+  PREPARING = 'PREPARING',
+  READY = 'READY',
+  DELIVERED = 'DELIVERED',
+  PAID = 'PAID',
   CANCELLED = 'CANCELLED',
   REFUNDED = 'REFUNDED'
 }

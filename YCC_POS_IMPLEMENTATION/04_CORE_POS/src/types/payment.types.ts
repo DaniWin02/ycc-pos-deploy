@@ -1,8 +1,11 @@
-import { Order, PaymentMethod, PaymentStatus } from './order.types';
+import type { Payment } from './order.types';
+export { PaymentMethod, PaymentStatus } from './order.types';
+import type { PaymentMethod } from './order.types';
 
 export interface PaymentRequest {
   method: PaymentMethod;
   amount: number;
+  memberNumber?: string;
   reference?: string;
   authorizationCode?: string;
   customerPaymentMethod?: string;
@@ -11,7 +14,7 @@ export interface PaymentRequest {
     cardHolderName: string;
     expiryDate: string;
     cvv?: string;
-  memberNumber?: string;
+    memberNumber?: string;
   };
 }
 

@@ -40,6 +40,7 @@ interface ResponsiveState {
   // Utilidades
   isTouch: boolean;
   isRetina: boolean;
+  touchTargetSize: number;
   
   // Fullscreen
   isFullscreen: boolean;
@@ -101,6 +102,7 @@ export function useResponsive(): ResponsiveState {
       aspectRatio: width / height,
       isTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
       isRetina: window.devicePixelRatio > 1,
+      touchTargetSize: width < 768 ? 48 : 44,
       isFullscreen: !!document.fullscreenElement,
     };
   });
@@ -149,6 +151,7 @@ export function useResponsive(): ResponsiveState {
             aspectRatio: width / height,
             isTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
             isRetina: window.devicePixelRatio > 1,
+            touchTargetSize: width < 768 ? 48 : 44,
             isFullscreen: !!document.fullscreenElement,
           });
         }
@@ -163,7 +166,7 @@ export function useResponsive(): ResponsiveState {
     };
 
     // Throttled resize listener
-    let resizeTimeout: NodeJS.Timeout;
+    let resizeTimeout: ReturnType<typeof setTimeout>;
     const throttledResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(handleResize, 100);

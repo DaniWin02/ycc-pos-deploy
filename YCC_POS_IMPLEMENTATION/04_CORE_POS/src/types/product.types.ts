@@ -1,6 +1,6 @@
-import { Product } from '@ycc/types';
+import type { Product as SharedProduct } from '@ycc/types';
 
-export interface ProductWithStock extends Product {
+export interface ProductWithStock extends SharedProduct {
   stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
   stockLevel: number;
 }
@@ -66,8 +66,8 @@ export interface Product {
     id: string;
     name: string;
     description?: string;
-  parentId?: string;
-  isActive: boolean;
+    parentId?: string;
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
   };

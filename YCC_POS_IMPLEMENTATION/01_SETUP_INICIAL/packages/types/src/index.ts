@@ -1,14 +1,10 @@
-// Exportar todos los tipos del sistema YCC POS
+export * from './inventory.types';
 export * from './kds.types';
-export * from './websocket.types';
+export * from './menu.types';
 export * from './order.types';
-// Export all types from the packages
-export * from './store.types'
-export * from './inventory.types'
 export * from './recipes.types';
 export * from './store.types';
 
-// Tipos base del sistema
 export interface BaseEntity {
   id: string;
   createdAt: Date;
@@ -36,24 +32,33 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-// Tipos de usuario y autenticación
-export interface User {
-  id: string;
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  CASHIER = 'CASHIER',
+  MANAGER = 'MANAGER',
+  KITCHEN = 'KITCHEN',
+  WAITER = 'WAITER',
+  DELIVERY = 'DELIVERY',
+  CHEF = 'CHEF',
+  SUPERVISOR = 'SUPERVISOR',
+}
+
+export interface User extends BaseEntity {
   username: string;
   email: string;
   firstName: string;
   lastName: string;
   role: UserRole;
+  pin?: string;
+  password?: string;
+  canAccessPos?: boolean;
+  canAccessKds?: boolean;
+  canAccessAdmin?: boolean;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  CASHIER = 'CASHIER',
-  MANAGER = 'MANAGER',
-  KITCHEN = 'KITCHEN'
+  permissions?: unknown;
+  phone?: string;
+  avatar?: string;
+  lastLogin?: Date;
 }
 
 export interface AuthTokens {
@@ -62,30 +67,14 @@ export interface AuthTokens {
   expiresIn: number;
 }
 
-// Tipos de tienda y configuración
-export interface Store {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Terminal {
-  id: string;
+export interface Terminal extends BaseEntity {
   storeId: string;
   name: string;
   location: string;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
-// Tipos de sesión de caja
-export interface CashSession {
-  id: string;
+export interface CashSession extends BaseEntity {
   terminalId: string;
   openedByUserId: string;
   closedByUserId?: string;
@@ -94,11 +83,9 @@ export interface CashSession {
   status: CashSessionStatus;
   openedAt: Date;
   closedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export enum CashSessionStatus {
   OPEN = 'OPEN',
-  CLOSED = 'CLOSED'
+  CLOSED = 'CLOSED',
 }

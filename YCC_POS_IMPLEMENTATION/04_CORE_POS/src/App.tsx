@@ -12,7 +12,7 @@ import { useComandasStore } from './stores/comandas.store';
 import { ComandasPanel } from './components/ComandasPanel';
 import { NewComandaModal } from './components/NewComandaModal';
 import { CustomerSelector } from './components/CustomerSelector';
-import { Product, PaymentMethod, SaleRecord, POSMode, SplitPayment, ComandaType, SelectedModifier, ModifierGroup } from './types';
+import { Product, PaymentMethod, SaleRecord, POSMode, SplitPayment, ComandaType, SelectedModifier, ModifierGroup, OrderType, OrderStatus } from './types';
 import { CashSessionResponse, ShiftResponse, CashCutReport, SaleResponse, ProductResponse } from './types/api.types';
 import { ModeSelector } from './components/ModeSelector';
 import { TableMode } from './components/TableMode';
@@ -143,7 +143,7 @@ export const App: React.FC = () => {
         ).map(id => {
           const product = transformedProducts.find((p: Product) => p.categoryId === id);
           return {
-            id: id || 'unknown',
+            id: String(id ?? 'unknown'),
             name: product?.categoryName || 'Sin categoría'
           };
         });
@@ -159,14 +159,19 @@ export const App: React.FC = () => {
     loadProducts();
   }, []);
 
-  // Cart store
-  const { items, addItem, removeItem, updateQuantity, clearCart, getTotals, getItemCount, completeSale } = useCartStore();
+  // Cart store - SOLO para clearCart (items viven en comandas.store)
+  const { clearCart } = useCartStore();
 
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [cashReceived, setCashReceived] = useState('');
   const [customerName, setCustomerName] = useState(''); // Nombre del cliente
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Print flow - Controla la impresión del ticket durante el cobro
+  const [printStatus, setPrintStatus] = useState<'idle' | 'printing' | 'printed' | 'error'>('idle');
+  const [currentSaleForPrint, setCurrentSaleForPrint] = useState<SaleRecord | null>(null);
+  const [isPrintingTicket, setIsPrintingTicket] = useState(false);
 
   // Sales history
   const [salesHistory, setSalesHistory] = useState<SaleRecord[]>([]);
@@ -194,10 +199,41 @@ export const App: React.FC = () => {
   const [variantPickerProduct, setVariantPickerProduct] = useState<Product | null>(null);
   // Key para forzar re-render del carrito después de venta (evita datos stale)
   const [cartKey, setCartKey] = useState(0);
-  const { comandas, activeComandaId, getActiveComanda, addItemToComanda, removeItemFromComanda, updateItemQuantity: updateComandaItemQuantity, getComandaTotals, closeComanda, setComandaCustomerId, setComandaCustomerName, clearAllComandas, resetOrderState } = useComandasStore();
+  const { comandas, activeComandaId, getActiveComanda, addItemToComanda, removeItemFromComanda, updateItemQuantity: updateComandaItemQuantity, getComandaTotals, closeComanda, setComandaCustomerId, setComandaCustomerName, clearAllComandas, resetOrderState, validateAndSyncState } = useComandasStore();
 
-  const totals = getTotals();
-  const itemCount = getItemCount();
+  // CRITICAL: Validación de estado al iniciar - fuente única de verdad
+  // Ejecuta UNA vez al montar para garantizar consistencia entre stores
+  useEffect(() => {
+    // 1. Validar y sincronizar el store de comandas
+    useComandasStore.getState().validateAndSyncState();
+    
+    // 2. Forzar limpieza del cart store legacy (items viven en comandas)
+    clearCart();
+    
+    // 3. Limpiar localStorage de items de carrito legacy si existen
+    try {
+      const cartStorage = localStorage.getItem('ycc-cart-storage');
+      if (cartStorage) {
+        const parsed = JSON.parse(cartStorage);
+        if (parsed?.state?.items?.length > 0) {
+          console.warn('⚠️ Encontrados items persistidos en cart store legacy, limpiando...');
+          parsed.state.items = [];
+          localStorage.setItem('ycc-cart-storage', JSON.stringify(parsed));
+        }
+      }
+    } catch (e) {
+      console.error('Error limpiando cart storage:', e);
+    }
+    
+    console.log('✅ Validación de estado completada - consistencia garantizada');
+  }, []); // Solo al montar
+
+  // CRITICAL: Sincronización reactiva - limpiar cart legacy cuando no hay comanda activa
+  useEffect(() => {
+    if (!activeComandaId) {
+      clearCart();
+    }
+  }, [activeComandaId, clearCart]);
 
   // Mostrar mensaje cuando no hay comandas activas
   useEffect(() => {
@@ -442,9 +478,27 @@ export const App: React.FC = () => {
   // Guard centralizado: verifica si se puede modificar el carrito
   const canModifyCart = (): boolean => {
     if (!activeComandaId) {
-      toast.error('⚠️ Primero debes abrir una comanda para realizar la compra', { 
-        duration: 3000,
-        icon: '🍽️'
+      toast.error('🍽️ Debes crear una comanda primero', { 
+        duration: 4000,
+        icon: '⚠️',
+        style: {
+          background: '#fef3c7',
+          color: '#92400e',
+          border: '2px solid #f59e0b',
+          fontWeight: '600'
+        }
+      });
+      return false;
+    }
+    // Doble validación: la comanda activa debe ser válida (ACTIVE)
+    const activeComanda = getActiveComanda();
+    if (!activeComanda) {
+      // activeComandaId existe pero la comanda no es válida - forzar sincronización
+      console.error('❌ activeComandaId existe pero getActiveComanda() retorna null - sincronizando...');
+      validateAndSyncState();
+      toast.error('🍽️ La comanda activa no es válida, se ha corregido el estado', { 
+        duration: 4000,
+        icon: '⚠️'
       });
       return false;
     }
@@ -465,12 +519,22 @@ export const App: React.FC = () => {
 
   // Manejar click en producto: verificar comanda activa primero
   const handleProductClick = (product: Product) => {
-    // Guard: no permitir agregar productos sin comanda activa
+    // Guard estricto: NO permitir agregar productos sin comanda activa
     if (!activeComandaId) {
-      toast.error('⚠️ Primero debes abrir una comanda para agregar productos', { 
-        duration: 3000,
-        icon: '🍽️'
+      toast.error('🍽️ Debes crear una comanda primero', { 
+        duration: 4000,
+        icon: '⚠️',
+        style: {
+          background: '#fef3c7',
+          color: '#92400e',
+          border: '2px solid #f59e0b',
+          fontWeight: '600'
+        }
       });
+      // Auto-abrir el modal de nueva comanda después de un breve delay
+      setTimeout(() => {
+        setShowNewComandaModal(true);
+      }, 500);
       return;
     }
     
@@ -492,10 +556,12 @@ export const App: React.FC = () => {
   // Obtener items y totales de la comanda activa (cada comanda tiene su carrito individual)
   const activeComanda = getActiveComanda();
   const comandaTotals = activeComanda ? getComandaTotals(activeComanda.id) : null;
-  // SIEMPRE mostrar items de la comanda activa, nunca el carrito global
+  // Derived values para el carrito/comanda activa
   const displayItems = activeComanda ? activeComanda.items : [];
-  const displayTotals = activeComanda && comandaTotals ? comandaTotals : { subtotal: 0, taxAmount: 0, discountAmount: 0, total: 0, itemCount: 0 };
-  const displayItemCount = activeComanda ? activeComanda.items.reduce((s, i) => s + i.quantity, 0) : 0;
+  const displayTotals = activeComanda ? getComandaTotals(activeComanda.id) : { subtotal: 0, discountAmount: 0, taxAmount: 0, total: 0, itemCount: 0 };
+  const displayItemCount = displayTotals.itemCount;
+  // Solo permitir agregar productos si hay comanda activa válida Y caja está abierta
+  const canAddProduct = !!activeComandaId && !!activeComanda && cashOpen && !!currentCashSession;
 
   // =============== LOGIN ===============
   const handleLogin = async () => {
@@ -852,27 +918,23 @@ export const App: React.FC = () => {
       setCustomerName('');
       setSplitPayments([]);
       
-      // Comanda cobrada exitosamente - mostrar modal para crear nueva comanda
+      // Comanda cobrada exitosamente
       toast.success(`Comanda cobrada - Folio: ${displayFolio(saleFromBackend.folio)}`, { icon: '✅', duration: 3000 });
-      
-      // Mostrar modal para crear nueva comanda en lugar de ir a pantalla complete
-      setShowNewComandaModal(true);
       
       console.log('✅ Venta completada y guardada en backend:', saleFromBackend);
       
-      // Imprimir ticket y luego redirigir a POS después de un momento
-      setTimeout(async () => {
-        try {
-          await handlePrintSaleTicket(sale);
-          // Después de imprimir (o cancelar), redirigir a POS automáticamente
-          setTimeout(() => {
-            setScreen('pos');
-          }, 1500); // Dar tiempo para que el usuario vea el ticket
-        } catch (printError) {
-          // Si hay error en impresión, igual redirigir a POS
-          console.log('⚠️ Error o cancelación de impresión, redirigiendo...');
-          setScreen('pos');
-        }
+      // Mostrar ventana de impresión nativa directamente
+      console.log('🖨️ Abriendo ventana de impresión nativa...');
+      try {
+        await handlePrintSaleTicket(sale);
+        console.log('✅ Ticket enviado a impresora');
+      } catch (printError) {
+        console.log('⚠️ Error o cancelación de impresión:', printError);
+      }
+      
+      // Regresar a POS después de la impresión (o cancelación)
+      setTimeout(() => {
+        setScreen('pos');
       }, 500);
     } catch (error) {
       console.error('❌ Error al procesar venta:', error);
@@ -880,6 +942,36 @@ export const App: React.FC = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // =============== PRINT FLOW COMPLETION ===============
+  const handlePrintComplete = () => {
+    // Finalizar el flujo de impresión y regresar a la pantalla de compra
+    setPrintStatus('idle');
+    setIsPrintingTicket(false);
+    setCurrentSaleForPrint(null);
+    
+    // Mostrar modal para crear nueva comanda
+    setShowNewComandaModal(true);
+    
+    // Después de un momento, regresar a POS
+    setTimeout(() => {
+      setScreen('pos');
+    }, 500);
+  };
+
+  const handlePrintCancel = () => {
+    // Cancelar la impresión pero igual regresar a POS
+    setPrintStatus('idle');
+    setIsPrintingTicket(false);
+    setCurrentSaleForPrint(null);
+    
+    // Mostrar modal para crear nueva comanda
+    setShowNewComandaModal(true);
+    
+    setTimeout(() => {
+      setScreen('pos');
+    }, 500);
   };
 
   // =============== CASH CLOSE ===============
@@ -1005,16 +1097,26 @@ export const App: React.FC = () => {
 
   // --- PAYMENT ---
   if (screen === 'payment') {
+    // Validar que hay comanda activa para mostrar la pantalla de cobro
+    if (!activeComandaId || !getActiveComanda() || displayItems.length === 0) {
+      console.error('❌ Pantalla de pago sin comanda activa - redirigiendo a POS');
+      setScreen('pos');
+      toast.error('No hay comanda activa para cobrar', { icon: '⚠️', duration: 3000 });
+      return null;
+    }
+
     const cashAmount = parseFloat(cashReceived) || 0;
     const change = Math.max(0, cashAmount - displayTotals.total);
     const isSplitMode = splitPayments.length > 0;
     const splitTotal = splitPayments.reduce((sum, p) => sum + p.amount, 0);
     const splitCashAmount = isSplitMode ? splitPayments.filter(p => p.method === 'CASH').reduce((sum, p) => sum + p.amount, 0) : 0;
+
     // Guard: requerir comanda activa y monto válido para poder pagar
     const hasActiveComanda = !!activeComandaId && displayItems.length > 0;
     const canPay = hasActiveComanda && (isSplitMode
       ? Math.abs(splitTotal - displayTotals.total) < 0.01 && (!splitPayments.some(p => p.method === 'CASH') || cashAmount >= splitCashAmount)
       : paymentMethod === 'CASH' ? cashAmount >= displayTotals.total : true);
+
     return (
       <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
         <header className="bg-white border-b px-3 md:px-5 py-2 md:py-3 flex items-center justify-between flex-shrink-0">
@@ -1962,7 +2064,7 @@ export const App: React.FC = () => {
                 const inCart = activeComanda 
                   ? activeComanda.items.find(i => i.productId === product.id)
                   : null;
-                const canAddProduct = !!activeComandaId;
+                const canAddProduct = !!activeComandaId && !!activeComanda;
                 return (
                   <motion.button 
                     key={product.id} 
@@ -2233,11 +2335,20 @@ export const App: React.FC = () => {
               {/* Botón Cobrar - MÁXIMO DESTAQUE */}
               <button 
                 onClick={() => {
-                  if (!activeComandaId) {
-                    toast.error('⚠️ Primero debes abrir una comanda para cobrar', { 
-                      duration: 3000,
-                      icon: '🍽️'
+                  if (!activeComandaId || !getActiveComanda()) {
+                    toast.error('🍽️ Debes crear una comanda primero', { 
+                      duration: 4000,
+                      icon: '⚠️',
+                      style: {
+                        background: '#fef3c7',
+                        color: '#92400e',
+                        border: '2px solid #f59e0b',
+                        fontWeight: '600'
+                      }
                     });
+                    if (activeComandaId && !getActiveComanda()) {
+                      validateAndSyncState();
+                    }
                     return;
                   }
                   if (posMode === 'COUNTER') {
@@ -2248,14 +2359,14 @@ export const App: React.FC = () => {
                     setShowDeliveryMode(true);
                   }
                 }}
-                disabled={!activeComandaId}
+                disabled={!activeComandaId || !getActiveComanda()}
                 className={`
                   w-full py-4 md:py-5 rounded-xl md:rounded-2xl font-black text-lg md:text-xl 
                   transition-all duration-150 
                   active:scale-[0.96] active:shadow-inner
                   flex items-center justify-center gap-3 min-h-[64px] md:min-h-[72px]
                   shadow-lg
-                  ${!activeComandaId 
+                  ${!activeComandaId || !getActiveComanda() 
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' 
                     : posMode === 'COUNTER' 
                       ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-emerald-600/30' 

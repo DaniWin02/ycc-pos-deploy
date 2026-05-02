@@ -15,7 +15,7 @@ export function KdsApp() {
 
   // Tickets pendientes (no completados)
   const pendingTickets = stationTickets.filter(ticket => 
-    ticket.status !== 'COMPLETED' && ticket.status !== 'CANCELLED'
+    ticket.status !== 'SERVED' && ticket.status !== 'CANCELLED'
   )
 
   return (

@@ -64,8 +64,13 @@ export const UsersPage: React.FC = () => {
           firstName: 'Admin',
           lastName: 'User',
           role: 'ADMIN',
+          pin: '1234',
+          password: '',
           phone: '555-1234',
           isActive: true,
+          canAccessPos: true,
+          canAccessKds: true,
+          canAccessAdmin: true,
           createdAt: new Date().toISOString()
         }
       ]);

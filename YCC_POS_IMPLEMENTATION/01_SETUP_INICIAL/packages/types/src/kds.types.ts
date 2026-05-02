@@ -1,5 +1,3 @@
-import { BaseEntity } from './index';
-
 export interface KdsStation {
   id: string;
   name: string;
@@ -23,6 +21,8 @@ export interface KdsTicketItem {
   completedAt?: Date;
   notes?: string;
 }
+
+export type KdsItem = KdsTicketItem;
 
 export interface KdsTicket {
   id: string;

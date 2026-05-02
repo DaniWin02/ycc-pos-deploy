@@ -1,3 +1,5 @@
+import type { Order } from './order.types';
+
 export interface Customer {
   id: string;
   memberNumber?: string;

@@ -224,7 +224,7 @@ router.post('/close/:id', async (req, res) => {
             gte: session.openedAt,
             lte: new Date()
           },
-          status: 'COMPLETED'
+          status: 'DELIVERED'
         },
         include: {
           payments: true
@@ -386,7 +386,7 @@ router.get('/:id/report', async (req, res) => {
             gte: session.openedAt,
             lte: endDate
           },
-          status: 'COMPLETED'
+          status: 'DELIVERED'
         },
         include: {
           payments: true,

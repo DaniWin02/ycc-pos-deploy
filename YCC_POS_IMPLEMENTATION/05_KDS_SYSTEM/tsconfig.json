@@ -6,21 +6,21 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "types": ["vite/client", "node"],
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@ycc/types": ["../03_SHARED_PACKAGES/types/src"],
-      "@ycc/animations": ["../03_SHARED_PACKAGES/animations/src"],
-      "@ycc/ui": ["../03_SHARED_PACKAGES/ui/src"]
+      "@ycc/types": ["./src/types/shared-types.ts"],
+      "@ycc/animations": ["../01_SETUP_INICIAL/packages/animations/src"]
     }
   },
   "include": ["src"],

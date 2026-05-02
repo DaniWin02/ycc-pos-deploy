@@ -3,7 +3,7 @@
 export type PaymentMethod = 'CASH' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'MEMBER_ACCOUNT' | 'TRANSFER';
 export type OrderStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'PREPARING' | 'READY';
 export type POSMode = 'COUNTER' | 'TABLE' | 'DELIVERY';
-export type OrderType = 'COUNTER' | 'TABLE' | 'DELIVERY' | 'TAKEOUT';
+export type OrderType = 'MESA' | 'DOMICILIO' | 'LLEVAR' | 'BARRA';
 
 export interface ProductVariant {
   id: string;

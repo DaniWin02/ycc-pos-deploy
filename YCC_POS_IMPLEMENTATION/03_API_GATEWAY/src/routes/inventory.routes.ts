@@ -42,7 +42,7 @@ router.get('/check/:productId', async (req, res) => {
     }
 
     const requestedQty = Number(quantity)
-    const available = product.currentStock >= requestedQty
+    const available = Number(product.currentStock) >= requestedQty
 
     // Verificar ingredientes si tiene receta
     let ingredientsAvailable = true
@@ -166,12 +166,12 @@ router.post('/consume', async (req, res) => {
       }
 
       // Verificar si necesita alerta de stock bajo
-      if (updatedProduct.minStockLevel && updatedProduct.currentStock <= updatedProduct.minStockLevel) {
+      if (updatedProduct.minStockLevel && Number(updatedProduct.currentStock) <= Number(updatedProduct.minStockLevel)) {
         const existingAlert = await tx.stockAlert.findFirst({
           where: {
             productId,
             isResolved: false,
-            type: updatedProduct.currentStock <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK'
+            type: Number(updatedProduct.currentStock) <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK'
           }
         })
 
@@ -179,9 +179,9 @@ router.post('/consume', async (req, res) => {
           await tx.stockAlert.create({
             data: {
               productId,
-              type: updatedProduct.currentStock <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+              type: Number(updatedProduct.currentStock) <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
               level: updatedProduct.currentStock,
-              message: updatedProduct.currentStock <= 0 
+              message: Number(updatedProduct.currentStock) <= 0 
                 ? `${product.name} está agotado`
                 : `${product.name} tiene stock bajo (${updatedProduct.currentStock} ${product.unit})`
             }

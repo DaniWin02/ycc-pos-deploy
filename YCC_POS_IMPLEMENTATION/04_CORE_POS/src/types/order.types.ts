@@ -31,6 +31,13 @@ export enum PaymentStatus {
   REFUNDED = 'REFUNDED'
 }
 
+export interface OrderModifier {
+  modifierId: string;
+  modifierName: string;
+  quantity: number;
+  priceAdd?: number;
+}
+
 export interface OrderItem {
   id: string;
   orderId: string;

@@ -167,7 +167,7 @@ export function KdsTicketActions({ ticket, completedItems, totalItems }: KdsTick
       )}
 
       {/* Indicador de urgencia */}
-      {ticket.priority === 'HIGH' && ticket.status !== 'COMPLETED' && (
+      {ticket.priority === 'HIGH' && ticket.status !== 'SERVED' && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}

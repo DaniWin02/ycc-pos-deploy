@@ -28,7 +28,7 @@ export const useCartStore = create<CartState>()(
   devtools(
     persist(
       (set, get) => ({
-        items: [],
+        items: [], // CRITICAL: items siempre vacío - los items viven en useComandasStore
         isOpen: false,
         customerName: '',
         paymentMethod: 'CASH' as PaymentMethod,
@@ -36,47 +36,25 @@ export const useCartStore = create<CartState>()(
         discountType: 'percentage' as const,
         notes: '',
 
+        // CRITICAL: addItem/removeItem/updateQuantity están deshabilitados
+        // Los items ahora viven exclusivamente en useComandasStore (addItemToComanda, etc.)
+        // Estas funciones se mantienen por compatibilidad pero NO deben usarse para el flujo principal
         addItem: (product: Product, quantity = 1) => {
-          set((state) => {
-            const existing = state.items.findIndex(i => i.productId === product.id)
-            const newItems = [...state.items]
-            if (existing >= 0) {
-              const item = newItems[existing]
-              const newQty = item.quantity + quantity
-              newItems[existing] = { ...item, quantity: newQty, totalPrice: item.unitPrice * newQty }
-            } else {
-              newItems.push({
-                productId: product.id,
-                name: product.name,
-                sku: product.sku,
-                unitPrice: product.price,
-                quantity,
-                totalPrice: product.price * quantity,
-                categoryName: product.categoryName,
-                stationId: product.stationId || product.station?.id,
-                stationName: product.station?.displayName || product.station?.name
-              })
-            }
-            return { items: newItems }
-          })
+          console.warn('⚠️ useCartStore.addItem está deprecado. Usa useComandasStore.addItemToComanda');
+          // No-op: los items se manejan en comandas
         },
 
         removeItem: (productId: string) => {
-          set((state) => ({ items: state.items.filter(i => i.productId !== productId) }))
+          console.warn('⚠️ useCartStore.removeItem está deprecado. Usa useComandasStore.removeItemFromComanda');
+          // No-op: los items se manejan en comandas
         },
 
         updateQuantity: (productId: string, quantity: number) => {
-          set((state) => {
-            if (quantity <= 0) return { items: state.items.filter(i => i.productId !== productId) }
-            return {
-              items: state.items.map(i =>
-                i.productId === productId ? { ...i, quantity, totalPrice: i.unitPrice * quantity } : i
-              )
-            }
-          })
+          console.warn('⚠️ useCartStore.updateQuantity está deprecado. Usa useComandasStore.updateItemQuantity');
+          // No-op: los items se manejan en comandas
         },
 
-        clearCart: () => set({ items: [], discount: 0, discountType: 'percentage', notes: '', customerName: '' }),
+        clearCart: () => set({ items: [], discount: 0, discountType: 'percentage', notes: '', customerName: '' }), // items siempre [] por seguridad
 
         setCustomerName: (name) => set({ customerName: name }),
         setPaymentMethod: (method) => set({ paymentMethod: method }),
@@ -171,6 +149,7 @@ export const useCartStore = create<CartState>()(
 
             // Limpiar carrito después de venta exitosa
             get().clearCart()
+            console.log('🧹 Cart store limpiado después de venta');
 
             return sale
           } catch (error: any) {
@@ -187,7 +166,20 @@ export const useCartStore = create<CartState>()(
           }
         },
       }),
-      { name: 'ycc-cart-storage' }
+      { 
+        name: 'ycc-cart-storage',
+        // CRITICAL: No persistir items del carrito - los items viven en comandas.store
+        // Solo persistir configuración de pago (paymentMethod, customerName, etc.)
+        partialize: (state) => ({
+          items: [], // SIEMPRE vacío al rehidratar - nunca restaurar items del carrito legacy
+          isOpen: false,
+          customerName: '',
+          paymentMethod: state.paymentMethod,
+          discount: 0,
+          discountType: state.discountType,
+          notes: ''
+        })
+      }
     )
   )
 )
