@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChefHat, Delete, User } from 'lucide-react'
 import { useResponsive } from '../hooks/useResponsive'
 
@@ -11,20 +11,61 @@ export function KdsLogin({ onLogin }: KdsLoginProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const { isMobile } = useResponsive()
+  
+  // Socket and heartbeat refs
+  const socketRef = useRef<any>(null)
+  const heartbeatIntervalRef = useRef<any>(null)
+  const currentUserRef = useRef<any>(null)
 
   // Cargar usuarios del sistema
   const [users, setUsers] = useState<any[]>([])
 
   useEffect(() => {
-    // Por ahora usamos usuarios mock o del API
-    // En producción esto vendría de /api/users
-    const mockUsers = [
-      { id: 'chef1', name: 'Chef Principal', pin: '1234', role: 'chef' },
-      { id: 'cocina1', name: 'Cocinero 1', pin: '1111', role: 'chef' },
-      { id: 'bar1', name: 'Barman', pin: '2222', role: 'bartender' },
-      { id: 'admin1', name: 'Administrador', pin: '9999', role: 'admin' }
-    ]
-    setUsers(mockUsers)
+    // Cargar usuarios desde la API que tienen acceso a KDS
+    const loadUsers = async () => {
+      try {
+        const response = await fetch('http://localhost:3004/api/users')
+        if (response.ok) {
+          const data = await response.json()
+          // Filtrar solo usuarios que pueden acceder al KDS
+          const kdsUsers = data.filter((u: any) => u.canAccessKds && u.pin)
+          
+          // Si no hay usuarios o no hay admin, agregar admin universal
+          const hasAdmin = kdsUsers.some((u: any) => u.pin === '0000')
+          if (!hasAdmin) {
+            kdsUsers.push({
+              id: 'admin-universal',
+              name: 'Administrador',
+              pin: '0000',
+              role: 'ADMIN'
+            })
+          }
+          
+          setUsers(kdsUsers.map((u: any) => ({
+            id: u.id,
+            name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : u.username,
+            pin: u.pin,
+            role: u.role?.toLowerCase() || 'chef'
+          })))
+        } else {
+          // Fallback a usuarios básicos incluyendo admin universal
+          setUsers([
+            { id: 'admin-universal', name: 'Administrador', pin: '0000', role: 'admin' },
+            { id: 'chef-main', name: 'Chef Principal', pin: '1111', role: 'chef' },
+            { id: 'cocinero-main', name: 'Cocinero', pin: '2222', role: 'chef' }
+          ])
+        }
+      } catch (error) {
+        console.error('Error cargando usuarios:', error)
+        // Fallback con admin universal
+        setUsers([
+          { id: 'admin-universal', name: 'Administrador', pin: '0000', role: 'admin' },
+          { id: 'chef-main', name: 'Chef Principal', pin: '1111', role: 'chef' }
+        ])
+      }
+    }
+    
+    loadUsers()
   }, [])
 
   const handlePinPress = (digit: string) => {
@@ -53,6 +94,39 @@ export function KdsLogin({ onLogin }: KdsLoginProps) {
     
     if (user) {
       console.log('✅ Login exitoso:', user.name)
+      currentUserRef.current = user
+      
+      // Reportar actividad al Admin Panel
+      try {
+        const { io } = await import('socket.io-client')
+        socketRef.current = io('http://localhost:3004', { 
+          transports: ['polling', 'websocket'],
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5
+        })
+        
+        socketRef.current.emit('user:login', {
+          userId: user.id,
+          username: user.name,
+          firstName: user.name.split(' ')[0] || user.name,
+          lastName: user.name.split(' ')[1] || '',
+          role: user.role.toUpperCase(),
+          module: 'KDS'
+        })
+        console.log('📡 Actividad de usuario KDS reportada al Admin Panel')
+        
+        // Enviar heartbeat cada 30 segundos para mantener estado online
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (socketRef.current && currentUserRef.current) {
+            socketRef.current.emit('user:heartbeat', { userId: currentUserRef.current.id })
+            console.log('💓 KDS Heartbeat enviado para usuario:', currentUserRef.current.id)
+          }
+        }, 30000)
+        
+      } catch (error) {
+        console.error('Error reportando actividad KDS:', error)
+      }
+      
       onLogin({ id: user.id, name: user.name, role: user.role })
     } else {
       setError('PIN incorrecto')
@@ -68,6 +142,18 @@ export function KdsLogin({ onLogin }: KdsLoginProps) {
       handleLogin()
     }
   }, [pin])
+
+  // Limpiar socket y heartbeat al desmontar
+  useEffect(() => {
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+      }
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+      }
+    }
+  }, [])
 
   return (
     <div className="kds-login-container">

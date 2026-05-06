@@ -147,6 +147,24 @@ router.patch('/:id/status', async (req, res) => {
 
       console.log(`📡 Socket.io: order:updated emitido para orden ${order.folio}`);
     }
+    
+    // CREAR ALERTA EN TIEMPO REAL PARA ADMIN PANEL
+    if (status === 'READY' || status === 'COMPLETED') {
+      try {
+        const alerts = req.app.get('alerts');
+        if (alerts) {
+          alerts.createAlert({
+            type: status === 'READY' ? 'info' : 'success',
+            title: status === 'READY' ? 'Pedido Listo' : 'Pedido Completado',
+            message: `Orden ${order.folio} ${status === 'READY' ? 'lista para servir' : 'completada'}`,
+            source: 'KDS',
+            metadata: { folio: order.folio, status, orderId: order.id }
+          });
+        }
+      } catch (alertError) {
+        console.warn('⚠️ Error creando alerta:', alertError);
+      }
+    }
 
     res.json(order);
   } catch (error: any) {

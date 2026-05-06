@@ -240,29 +240,51 @@ function App() {
 
   // =============== DAILY AUTO-RESET ===============
   const KDS_RESET_KEY = 'kds_lastResetDate';
+  const { checkAndClearForNewDay, forceClearAll } = useKdsStore();
 
   useEffect(() => {
     const checkDailyReset = () => {
       const today = new Date().toDateString();
       const lastReset = localStorage.getItem(KDS_RESET_KEY);
+      const lastSessionDate = localStorage.getItem('kds-last-session-date');
       
-      if (lastReset !== today) {
+      // Detectar cambio de día por cualquiera de las dos claves
+      const isNewDay = lastReset !== today || (lastSessionDate && lastSessionDate !== new Date().toISOString().split('T')[0]);
+      
+      if (isNewDay) {
         console.log('🔄 KDS Reinicio diario - Limpiando sesión y tickets');
-        // Limpiar todo
-        useKdsStore.setState({ stationId: null, tickets: [], completedTicketIds: [] });
+        // Usar función del store para limpiar correctamente
+        forceClearAll();
+        // Limpiar sesión
         setUser(null);
-        localStorage.removeItem('kds-tickets');
-        localStorage.removeItem('kds-completed-ticket-ids');
         localStorage.removeItem('kds-last-session-date');
         // Marcar reset de hoy
         localStorage.setItem(KDS_RESET_KEY, today);
+        // Recargar página si hay cambio de día para asegurar estado limpio
+        window.location.reload();
       }
     };
 
+    // Verificar inmediatamente al cargar
     checkDailyReset();
-    const interval = setInterval(checkDailyReset, 60000); // Checar cada minuto
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Verificar cada minuto
+    const interval = setInterval(checkDailyReset, 60000);
+    
+    // También verificar cuando la ventana recibe foco (usuario regresa)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ KDS visible - verificando nuevo día...');
+        checkDailyReset();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [forceClearAll]);
 
   // Track window resize
   useEffect(() => {

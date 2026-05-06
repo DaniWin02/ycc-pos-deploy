@@ -125,26 +125,24 @@ router.post('/open', async (req, res) => {
         });
       }
       
-      // Verificar/crear usuario si no existe
+      // Verificar usuario en BD
       let user = await prisma.user.findUnique({
         where: { id: userId || 'user-admin' }
       });
       
+      // Si no existe, buscar cualquier admin
       if (!user) {
-        console.log('👤 Creando usuario administrador por defecto...');
-        user = await prisma.user.create({
-          data: {
-            id: 'user-admin',
-            username: 'admin',
-            email: 'admin@ycc.com',
-            passwordHash: '$2b$10$defaultHashForSystemUser',
-            firstName: 'Administrador',
-            lastName: 'Sistema',
-            role: 'ADMIN',
-            isActive: true
-          }
+        console.log(`👤 Usuario ${userId} no encontrado, buscando admin...`);
+        user = await prisma.user.findFirst({
+          where: { role: 'ADMIN' }
         });
       }
+      
+      if (!user) {
+        return res.status(400).json({ error: 'No hay usuarios admin en la base de datos. Ejecuta el script SQL para crear el admin.' });
+      }
+      
+      console.log(`✅ Usuario encontrado: ${user.id} (${user.firstName} ${user.lastName})`);
       
       // Ahora crear la sesión de caja
       const session = await prisma.cashSession.create({
@@ -161,21 +159,59 @@ router.post('/open', async (req, res) => {
       res.status(201).json(session);
       
     } catch (fkError: any) {
-      console.error('❌ Error de foreign key:', fkError.message);
-      // Si todavía hay error de FK, crear sesión sin relaciones
-      console.log('🔄 Intentando crear sesión sin relaciones...');
-      const session = await prisma.cashSession.create({
-        data: {
-          terminalId: 'temp-terminal',
-          openedByUserId: 'temp-user',
-          openingFloat: new Prisma.Decimal(openingFloat || 0),
-          status: 'OPEN',
-          openedAt: new Date()
-        }
-      });
+      console.error('❌ Error de foreign key:', fkError.message, fkError.code, fkError.meta);
       
-      console.log('✅ Sesión temporal creada:', session.id);
-      res.status(201).json(session);
+      // Crear registros temporales si no existen
+      try {
+        // Verificar/crear terminal temporal
+        let tempTerminal = await prisma.terminal.findUnique({
+          where: { id: 'temp-terminal' }
+        });
+        if (!tempTerminal) {
+          const store = await prisma.store.findFirst() || await prisma.store.create({
+            data: { id: 'temp-store', name: 'Temp Store', address: 'Temp', phone: '000', isActive: true }
+          });
+          tempTerminal = await prisma.terminal.create({
+            data: { id: 'temp-terminal', storeId: store.id, name: 'Temp Terminal', location: 'Temp', isActive: true }
+          });
+        }
+        
+        // Verificar/crear usuario temporal
+        let tempUser = await prisma.user.findUnique({
+          where: { id: 'temp-user' }
+        });
+        if (!tempUser) {
+          tempUser = await prisma.user.create({
+            data: {
+              id: 'temp-user',
+              username: 'tempuser',
+              email: 'temp@pos.local',
+              passwordHash: '$2b$10$temppass',
+              firstName: 'Temp',
+              lastName: 'User',
+              role: 'ADMIN',
+              isActive: true
+            }
+          });
+        }
+        
+        console.log('🔄 Intentando crear sesión con registros temporales...');
+        const session = await prisma.cashSession.create({
+          data: {
+            terminalId: 'temp-terminal',
+            openedByUserId: 'temp-user',
+            openingFloat: new Prisma.Decimal(openingFloat || 0),
+            status: 'OPEN',
+            openedAt: new Date()
+          }
+        });
+        
+        console.log('✅ Sesión temporal creada:', session.id);
+        res.status(201).json(session);
+      } catch (tempError: any) {
+        console.error('❌ Error creando sesión temporal:', tempError.message);
+        throw fkError; // Re-lanzar error original
+      }
     }
   } catch (error: any) {
     console.error('❌ ERROR CRÍTICO abriendo sesión de caja:');

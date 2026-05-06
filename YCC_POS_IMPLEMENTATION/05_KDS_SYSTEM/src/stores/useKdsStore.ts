@@ -65,6 +65,8 @@ interface KdsState {
   isTicketCompleted: (ticketId: string) => boolean // Verificar si ticket fue completado
   clearHistory: () => void // Limpiar historial (tickets PREPARING y READY)
   clearHistoryByStation: (stationId: string) => void // Limpiar historial de una estación específica
+  checkAndClearForNewDay: () => boolean // Verificar y limpiar si es nuevo día
+  forceClearAll: () => void // Forzar limpieza completa
 }
 
 // Cargar tickets desde localStorage al iniciar
@@ -116,40 +118,50 @@ const loadCompletedTicketIds = (): string[] => {
   return []
 }
 
-// Verificar si es un nuevo día y si se debe limpiar el historial
-const shouldClearHistoryForNewDay = (): boolean => {
+// Verificar si es un nuevo día y limpiar TODO (comandas e historial)
+const checkAndClearForNewDay = (): { isNewDay: boolean; clearedTickets: KdsTicket[]; clearedIds: string[] } => {
   try {
     const lastSessionDate = localStorage.getItem('kds-last-session-date')
     const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
     
     if (lastSessionDate && lastSessionDate !== today) {
-      console.log(`📅 Nueva sesión detectada: ${today} (última: ${lastSessionDate})`)
-      return true
+      console.log(`📅 NUEVO DÍA DETECTADO: ${today} (última sesión: ${lastSessionDate})`)
+      console.log('🧹 Limpiando TODAS las comandas e historial del día anterior...')
+      
+      // Limpiar TODO el localStorage del KDS
+      localStorage.removeItem('kds-tickets')
+      localStorage.removeItem('kds-completed-ticket-ids')
+      
+      console.log('✅ Limpieza completada - Sistema listo para nuevo día')
+      
+      // Guardar fecha de hoy
+      localStorage.setItem('kds-last-session-date', today)
+      return { isNewDay: true, clearedTickets: [], clearedIds: [] }
     }
     
-    // Guardar fecha de hoy
-    localStorage.setItem('kds-last-session-date', today)
-    return false
+    // Guardar fecha de hoy si no existe
+    if (!lastSessionDate) {
+      localStorage.setItem('kds-last-session-date', today)
+    }
+    
+    return { isNewDay: false, clearedTickets: loadInitialTickets(), clearedIds: loadCompletedTicketIds() }
   } catch (error) {
     console.error('❌ Error verificando fecha:', error)
-    return false
+    return { isNewDay: false, clearedTickets: [], clearedIds: [] }
   }
 }
 
-// Socket.io instance (singleton)
 let socket: any = null;
 
-// Verificar si se debe limpiar historial al iniciar
-const isNewDay = shouldClearHistoryForNewDay()
+// Verificar y limpiar al iniciar
+const { isNewDay, clearedTickets, clearedIds } = checkAndClearForNewDay()
 
 export const useKdsStore = create<KdsState>()(
   devtools(
     (set, get) => ({
-      // Si es un nuevo día, no cargar tickets de historial (PREPARING/READY)
-      tickets: isNewDay 
-        ? loadInitialTickets().filter(t => t.status === 'NEW') 
-        : loadInitialTickets(),
-      completedTicketIds: loadCompletedTicketIds(), // Lista negra de tickets completados
+      // Si es nuevo día, empezar limpio. Si no, cargar datos guardados
+      tickets: isNewDay ? [] : clearedTickets,
+      completedTicketIds: isNewDay ? [] : clearedIds,
       stationId: null,
       connectionStatus: 'connected',
       socket: null,
@@ -175,7 +187,9 @@ export const useKdsStore = create<KdsState>()(
             
             // Crear nueva conexión
             socket = io('http://localhost:3004', {
-              transports: ['websocket', 'polling']
+              transports: ['polling', 'websocket'], // Polling primero para evitar warnings
+              reconnectionDelay: 1000,
+              reconnectionAttempts: 5
             });
             set({ socket })
             
@@ -631,6 +645,39 @@ export const useKdsStore = create<KdsState>()(
         
         get().saveToStorage()
         console.log(`🧹 Historial limpiado para estación ${stationId}: ${stationHistoryTickets.length} tickets marcados como SERVED`)
+      },
+
+      // Verificar si es un nuevo día y limpiar automáticamente
+      checkAndClearForNewDay: () => {
+        const lastSessionDate = localStorage.getItem('kds-last-session-date')
+        const today = new Date().toISOString().split('T')[0]
+        
+        if (lastSessionDate && lastSessionDate !== today) {
+          console.log(`📅 NUEVO DÍA DETECTADO en check: ${today} (última: ${lastSessionDate})`)
+          get().forceClearAll()
+          localStorage.setItem('kds-last-session-date', today)
+          return true
+        }
+        
+        if (!lastSessionDate) {
+          localStorage.setItem('kds-last-session-date', today)
+        }
+        
+        return false
+      },
+
+      // Forzar limpieza completa de todas las comandas e historial
+      forceClearAll: () => {
+        console.log('🧹 FORZANDO LIMPIEZA COMPLETA del KDS...')
+        
+        // Limpiar estado
+        set({ tickets: [], completedTicketIds: [] })
+        
+        // Limpiar localStorage
+        localStorage.removeItem('kds-tickets')
+        localStorage.removeItem('kds-completed-ticket-ids')
+        
+        console.log('✅ Limpieza completa realizada')
       },
 
       saveToStorage: () => {

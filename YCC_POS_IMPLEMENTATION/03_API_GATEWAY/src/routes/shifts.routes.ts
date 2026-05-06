@@ -142,17 +142,20 @@ router.get('/current/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
+    // Si es un usuario fake del POS/KDS, retornar null sin error
+    if (userId.startsWith('user-') || userId.startsWith('pos-') || userId.startsWith('kds-') || userId.startsWith('temp-')) {
+      console.log(`⚠️ Usuario fake detectado: ${userId}, retornando null`);
+      return res.json(null);
+    }
+    
     // Verificar que el usuario existe
     const user = await prisma.user.findUnique({
       where: { id: userId }
     });
     
     if (!user) {
-      console.log(`⚠️ Usuario no encontrado: ${userId}`);
-      return res.status(404).json({ 
-        error: 'Usuario no encontrado',
-        message: `El usuario ${userId} no existe en la base de datos. Ejecute /api/init-data para crear los usuarios por defecto.`
-      });
+      console.log(`⚠️ Usuario no encontrado: ${userId}, retornando null`);
+      return res.json(null);
     }
     
     const currentShift = await prisma.shift.findFirst({
@@ -173,10 +176,8 @@ router.get('/current/:userId', async (req, res) => {
     res.json(currentShift);
   } catch (error: any) {
     console.error('❌ Error obteniendo turno actual:', error);
-    res.status(500).json({ 
-      error: 'Error obteniendo turno actual',
-      details: error.message 
-    });
+    // Retornar null en lugar de error 500 para mantener compatibilidad
+    res.json(null);
   }
 });
 

@@ -2,78 +2,112 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, CheckCircle, Clock, Users, Package } from 'lucide-react'
 import { useAdminStore } from '../../stores/useAdminStore'
+import { io, Socket } from 'socket.io-client'
 
 interface Alert {
   id: string
   type: 'warning' | 'success' | 'info' | 'error'
   title: string
   message: string
-  timestamp: Date
+  timestamp: Date | string
   acknowledged: boolean
+  source?: 'POS' | 'KDS' | 'INVENTORY' | 'SYSTEM'
 }
 
 export function AlertsPanel() {
   const [alerts, setAlerts] = useState<Alert[]>([])
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
   const { currentStore } = useAdminStore()
 
-  // Mock WebSocket connection for real-time alerts
+  // Real-time Socket.IO connection for alerts
   useEffect(() => {
-    // Simulate receiving alerts
-    const mockAlerts: Alert[] = [
-      {
-        id: '1',
-        type: 'warning',
-        title: 'Stock Bajo',
-        message: 'Papas Fritas está por debajo del mínimo (15 unidades)',
-        timestamp: new Date(Date.now() - 5 * 60000),
-        acknowledged: false
-      },
-      {
-        id: '2',
-        type: 'info',
-        title: 'Nueva Orden',
-        message: 'Orden #ORD-456 creada por $285',
-        timestamp: new Date(Date.now() - 2 * 60000),
-        acknowledged: false
-      },
-      {
-        id: '3',
-        type: 'success',
-        title: 'Meta Diaria',
-        message: 'Ventas diarias alcanzadas: $12,500 / $10,000',
-        timestamp: new Date(Date.now() - 15 * 60000),
-        acknowledged: false
-      },
-      {
-        id: '4',
-        type: 'error',
-        title: 'Error de Sistema',
-        message: 'Conexión con terminal POS-03 perdida',
-        timestamp: new Date(Date.now() - 8 * 60000),
-        acknowledged: false
-      }
-    ]
+    // Connect to API Gateway
+    const newSocket = io('http://localhost:3004', {
+      transports: ['polling', 'websocket'],
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    })
 
-    setAlerts(mockAlerts)
-
-    // Simulate WebSocket updates
-    const interval = setInterval(() => {
-      const newAlert: Alert = {
-        id: Date.now().toString(),
-        type: Math.random() > 0.7 ? 'warning' : 'info',
-        title: Math.random() > 0.5 ? 'Alerta Automática' : 'Actualización',
-        message: 'Mensaje de prueba del sistema',
-        timestamp: new Date(),
-        acknowledged: false
-      }
+    newSocket.on('connect', () => {
+      console.log('🔔 Conectado a sistema de alertas en tiempo real')
+      setIsConnected(true)
       
-      setAlerts(prev => [newAlert, ...prev.slice(0, 9)])
-    }, 30000) // New alert every 30 seconds
+      // Request initial alerts list
+      newSocket.emit('alerts:get')
+    })
 
-    return () => clearInterval(interval)
-  }, [currentStore])
+    newSocket.on('disconnect', () => {
+      console.log('🔔 Desconectado de sistema de alertas')
+      setIsConnected(false)
+    })
 
-  const acknowledgeAlert = (alertId: string) => {
+    // Receive initial alerts list
+    newSocket.on('alerts:list', (data: Alert[]) => {
+      console.log('📋 Lista de alertas recibida:', data.length)
+      setAlerts(data.map(alert => ({
+        ...alert,
+        timestamp: new Date(alert.timestamp)
+      })))
+    })
+
+    // New alert received in real-time
+    newSocket.on('alert:new', (alert: Alert) => {
+      console.log('🔔 Nueva alerta recibida:', alert.title)
+      setAlerts(prev => [{
+        ...alert,
+        timestamp: new Date(alert.timestamp)
+      }, ...prev.slice(0, 49)]) // Keep max 50 alerts
+    })
+
+    // Alert updated (e.g., acknowledged)
+    newSocket.on('alert:updated', (updatedAlert: Alert) => {
+      setAlerts(prev => 
+        prev.map(alert => 
+          alert.id === updatedAlert.id 
+            ? { ...updatedAlert, timestamp: new Date(updatedAlert.timestamp) }
+            : alert
+        )
+      )
+    })
+
+    setSocket(newSocket)
+
+    // Cleanup
+    return () => {
+      newSocket.close()
+    }
+  }, [])
+
+  // Fallback: Load alerts from REST API on mount
+  useEffect(() => {
+    const loadAlertsFromAPI = async () => {
+      try {
+        const response = await fetch('http://localhost:3004/api/auth/alerts')
+        if (response.ok) {
+          const data = await response.json()
+          setAlerts(data.map((alert: Alert) => ({
+            ...alert,
+            timestamp: new Date(alert.timestamp)
+          })))
+        }
+      } catch (error) {
+        console.error('Error cargando alertas desde API:', error)
+      }
+    }
+
+    // Load from API if socket not connected after 2 seconds
+    const timeout = setTimeout(() => {
+      if (!isConnected) {
+        loadAlertsFromAPI()
+      }
+    }, 2000)
+
+    return () => clearTimeout(timeout)
+  }, [isConnected])
+
+  const acknowledgeAlert = async (alertId: string) => {
+    // Optimistic update
     setAlerts(prev => 
       prev.map(alert => 
         alert.id === alertId 
@@ -81,6 +115,20 @@ export function AlertsPanel() {
           : alert
       )
     )
+    
+    // Emit to server via Socket.IO
+    if (socket && isConnected) {
+      socket.emit('alert:acknowledge', alertId)
+    } else {
+      // Fallback to REST API
+      try {
+        await fetch(`http://localhost:3004/api/auth/alerts/${alertId}/acknowledge`, {
+          method: 'PUT'
+        })
+      } catch (error) {
+        console.error('Error marcando alerta:', error)
+      }
+    }
   }
 
   const getAlertIcon = (type: Alert['type']) => {
@@ -134,14 +182,16 @@ export function AlertsPanel() {
             Alertas en Tiempo Real
           </h3>
           <p className="text-sm text-admin-text-secondary">
-            Monitoreo del sistema {currentStoreName}
+            Monitoreo del sistema en tiempo real
           </p>
         </div>
 
         {/* Status indicator */}
         <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-status-online rounded-full"></div>
-          <span className="text-sm text-admin-text-secondary">Conectado</span>
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+          <span className="text-sm text-admin-text-secondary">
+            {isConnected ? 'En vivo' : 'Desconectado'}
+          </span>
         </div>
       </div>
 
@@ -185,7 +235,7 @@ export function AlertsPanel() {
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation()
                           acknowledgeAlert(alert.id)
                         }}
@@ -202,7 +252,7 @@ export function AlertsPanel() {
 
                   <div className="flex items-center space-x-2 text-xs text-admin-text-secondary">
                     <Clock className="w-3 h-3" />
-                    <span>{formatTime(alert.timestamp)}</span>
+                    <span>{formatTime(new Date(alert.timestamp))}</span>
                   </div>
                 </div>
               </div>

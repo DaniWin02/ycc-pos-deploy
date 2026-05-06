@@ -25,7 +25,7 @@ interface User {
 }
 
 function AppNew() {
-  const { tickets, loadTickets, clearHistory, clearHistoryByStation, deleteTicket } = useKdsStore()
+  const { tickets, loadTickets, clearHistory, clearHistoryByStation, deleteTicket, forceClearAll, checkAndClearForNewDay } = useKdsStore()
   
   // Estados del flujo
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -34,6 +34,54 @@ function AppNew() {
   const [stations, setStations] = useState<Station[]>([])
   const [loading, setLoading] = useState(true)
   const [currentView, setCurrentView] = useState<'comandas' | 'historial'>('comandas') // Vista actual
+
+  // Cargar sesión persistida al iniciar (verificar nuevo día)
+  useEffect(() => {
+    const checkPersistedSession = () => {
+      try {
+        // Primero verificar y limpiar si es nuevo día usando el store
+        const isNewDay = checkAndClearForNewDay()
+        
+        if (isNewDay) {
+          console.log('📅 Nuevo día detectado - Limpiando sesión y comandas de KDS')
+          localStorage.removeItem('kds-user')
+          localStorage.removeItem('kds-station-id')
+          localStorage.setItem('kds-last-session-date', new Date().toISOString().split('T')[0])
+          // Recargar para asegurar estado limpio
+          window.location.reload()
+          return
+        }
+        
+        // Cargar usuario y estación si existen
+        const storedUser = localStorage.getItem('kds-user')
+        const storedStationId = localStorage.getItem('kds-station-id')
+        
+        if (storedUser) {
+          const user = JSON.parse(storedUser)
+          setCurrentUser(user)
+          console.log('✅ Sesión de KDS restaurada:', user.name)
+          
+          if (storedStationId) {
+            setSelectedStationId(storedStationId)
+            setStationSelected(true)
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando sesión persistida:', error)
+      }
+    }
+    
+    checkPersistedSession()
+    
+    // Verificar cada minuto si es nuevo día
+    const interval = setInterval(() => {
+      if (checkAndClearForNewDay()) {
+        window.location.reload()
+      }
+    }, 60000)
+    
+    return () => clearInterval(interval)
+  }, [checkAndClearForNewDay])
 
   // Cargar estaciones al iniciar
   useEffect(() => {
@@ -91,6 +139,14 @@ function AppNew() {
   const handleLogin = (user: User) => {
     console.log('✅ Login exitoso:', user.name)
     setCurrentUser(user)
+    
+    // Persistir sesión en localStorage
+    try {
+      localStorage.setItem('kds-user', JSON.stringify(user))
+      console.log('💾 Sesión de KDS guardada en localStorage')
+    } catch (error) {
+      console.error('Error guardando sesión:', error)
+    }
   }
 
   const handleLogout = () => {
@@ -98,6 +154,15 @@ function AppNew() {
       setCurrentUser(null)
       setSelectedStationId(null)
       setStationSelected(false)
+      
+      // Limpiar sesión de localStorage
+      try {
+        localStorage.removeItem('kds-user')
+        localStorage.removeItem('kds-station-id')
+        console.log('🧹 Sesión de KDS eliminada de localStorage')
+      } catch (error) {
+        console.error('Error limpiando sesión:', error)
+      }
     }
   }
 
@@ -105,10 +170,16 @@ function AppNew() {
     console.log('🔍 Estación seleccionada:', stationId || 'Todas')
     setSelectedStationId(stationId)
     setStationSelected(true) // Marcar que ya seleccionó estación
+    
+    // Persistir estación seleccionada
+    if (stationId) {
+      localStorage.setItem('kds-station-id', stationId)
+    }
   }
 
   const handleChangeStation = () => {
     setStationSelected(false) // Volver a la pantalla de selección de estación
+    localStorage.removeItem('kds-station-id') // Limpiar estación guardada
   }
 
   // Calcular tickets en historial para la confirmación

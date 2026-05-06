@@ -496,9 +496,107 @@ const io = new SocketIOServer(httpServer, {
   }
 })
 
+// ============================================
+// USER ACTIVITY TRACKING (Online/Offline Status)
+// ============================================
+interface UserActivity {
+  userId: string
+  username: string
+  firstName: string
+  lastName: string
+  role: string
+  isOnline: boolean
+  lastSeen: Date
+  currentModule: 'POS' | 'KDS' | 'ADMIN' | null
+  socketId: string | null
+  loginTime?: Date
+}
+
+// In-memory store for user activity
+const userActivityMap = new Map<string, UserActivity>()
+
+// Function to get all users activity status
+export const getUsersActivity = () => {
+  return Array.from(userActivityMap.values())
+}
+
+// Function to update user activity
+export const updateUserActivity = (userId: string, activity: Partial<UserActivity>) => {
+  const existing = userActivityMap.get(userId)
+  if (existing) {
+    userActivityMap.set(userId, { ...existing, ...activity, lastSeen: new Date() })
+  } else {
+    userActivityMap.set(userId, {
+      userId,
+      username: activity.username || '',
+      firstName: activity.firstName || '',
+      lastName: activity.lastName || '',
+      role: activity.role || '',
+      isOnline: activity.isOnline ?? false,
+      lastSeen: new Date(),
+      currentModule: activity.currentModule || null,
+      socketId: activity.socketId || null,
+      loginTime: activity.loginTime
+    })
+  }
+}
+
+// Function to set user offline
+export const setUserOffline = (socketId: string) => {
+  for (const [userId, activity] of userActivityMap.entries()) {
+    if (activity.socketId === socketId) {
+      userActivityMap.set(userId, {
+        ...activity,
+        isOnline: false,
+        currentModule: null,
+        socketId: null,
+        lastSeen: new Date()
+      })
+      console.log(`👤 Usuario ${activity.username} marcado como OFFLINE`)
+      // Broadcast updated activity to all clients
+      io.emit('user:activity:updated', getUsersActivity())
+      break
+    }
+  }
+}
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log(`🔌 Cliente conectado: ${socket.id}`)
+
+  // User login tracking
+  socket.on('user:login', (data: { userId: string; username: string; firstName: string; lastName: string; role: string; module: 'POS' | 'KDS' | 'ADMIN' }) => {
+    console.log(`👤 Usuario conectado: ${data.username} (${data.module})`)
+    updateUserActivity(data.userId, {
+      ...data,
+      currentModule: data.module,
+      isOnline: true,
+      socketId: socket.id,
+      loginTime: new Date()
+    })
+    // Broadcast updated activity to all clients
+    io.emit('user:activity:updated', getUsersActivity())
+  })
+
+  // User module change
+  socket.on('user:module:change', (data: { userId: string; module: 'POS' | 'KDS' | 'ADMIN' | null }) => {
+    const activity = userActivityMap.get(data.userId)
+    if (activity) {
+      activity.currentModule = data.module
+      activity.lastSeen = new Date()
+      userActivityMap.set(data.userId, activity)
+      io.emit('user:activity:updated', getUsersActivity())
+    }
+  })
+
+  // User heartbeat (ping)
+  socket.on('user:heartbeat', (data: { userId: string }) => {
+    const activity = userActivityMap.get(data.userId)
+    if (activity) {
+      activity.lastSeen = new Date()
+      userActivityMap.set(data.userId, activity)
+    }
+  })
 
   socket.on('join-station', (station: string) => {
     socket.join(`station-${station}`)
@@ -512,8 +610,100 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`🔌 Cliente desconectado: ${socket.id}`)
+    setUserOffline(socket.id)
+  })
+  
+  // Alertas: obtener lista inicial
+  socket.on('alerts:get', () => {
+    socket.emit('alerts:list', getAlerts())
+  })
+  
+  // Alertas: marcar como leída
+  socket.on('alert:acknowledge', (alertId: string) => {
+    acknowledgeAlert(alertId)
   })
 })
+
+// ========================================
+// ALERTAS EN TIEMPO REAL
+// ========================================
+interface Alert {
+  id: string
+  type: 'warning' | 'success' | 'info' | 'error'
+  title: string
+  message: string
+  timestamp: Date
+  acknowledged: boolean
+  source?: 'POS' | 'KDS' | 'INVENTORY' | 'SYSTEM'
+  metadata?: any
+}
+
+const alertsMap = new Map<string, Alert>()
+
+// Función para crear una nueva alerta
+function createAlert(data: Omit<Alert, 'id' | 'timestamp' | 'acknowledged'>): Alert {
+  const alert: Alert = {
+    id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    type: data.type,
+    title: data.title,
+    message: data.message,
+    timestamp: new Date(),
+    acknowledged: false,
+    source: data.source,
+    metadata: data.metadata
+  }
+  alertsMap.set(alert.id, alert)
+  
+  // Emitir a todos los clientes conectados
+  io.emit('alert:new', alert)
+  console.log(`🔔 Nueva alerta: ${alert.title} (${alert.type})`)
+  
+  // Limitar a máximo 50 alertas
+  if (alertsMap.size > 50) {
+    const oldestKey = Array.from(alertsMap.keys())[0]
+    alertsMap.delete(oldestKey)
+  }
+  
+  return alert
+}
+
+// Función para obtener todas las alertas
+function getAlerts(): Alert[] {
+  return Array.from(alertsMap.values()).sort((a, b) => 
+    b.timestamp.getTime() - a.timestamp.getTime()
+  )
+}
+
+// Función para marcar alerta como leída
+function acknowledgeAlert(alertId: string): boolean {
+  const alert = alertsMap.get(alertId)
+  if (alert) {
+    alert.acknowledged = true
+    alertsMap.set(alertId, alert)
+    io.emit('alert:updated', alert)
+    return true
+  }
+  return false
+}
+
+// Función para limpiar alertas antiguas (más de 24 horas)
+function cleanOldAlerts() {
+  const now = new Date()
+  const oneDay = 24 * 60 * 60 * 1000
+  
+  for (const [id, alert] of alertsMap) {
+    if (now.getTime() - alert.timestamp.getTime() > oneDay) {
+      alertsMap.delete(id)
+    }
+  }
+}
+
+// Limpiar alertas antiguas cada hora
+setInterval(cleanOldAlerts, 60 * 60 * 1000)
+
+// Make user activity and alerts available to routes
+app.set('userActivity', { getUsersActivity, updateUserActivity })
+app.set('alerts', { createAlert, getAlerts, acknowledgeAlert })
 
 // Exponer Socket.io para que esté disponible en los routers
 app.set('io', io)

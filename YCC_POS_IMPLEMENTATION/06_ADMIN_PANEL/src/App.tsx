@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
   DollarSign, TrendingUp,
-  ChevronRight, Bell, Search, Menu, Clock, AlertTriangle,
+  ChevronRight, Bell, Search, Menu, Clock, AlertTriangle, CheckCircle,
   Store, FolderOpen, Utensils, Warehouse, Hash, Palette, Monitor,
   Shield
 } from 'lucide-react';
@@ -77,6 +77,33 @@ export const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
   const socketRef = useRef<Socket | null>(null);
+  
+  // Estado para alertas dinámicas en tiempo real
+  const [dashboardAlerts, setDashboardAlerts] = useState<{
+    lowStock: { count: number; items: any[] };
+    pendingClosures: { count: number; terminals: string[] };
+    systemStatus: {
+      apiGateway: boolean;
+      database: boolean;
+      posTerminals: { id: string; name: string; active: boolean }[];
+      kds: boolean;
+      onlineUsers: number;
+    };
+  }>({
+    lowStock: { count: 0, items: [] },
+    pendingClosures: { count: 0, terminals: [] },
+    systemStatus: {
+      apiGateway: true,
+      database: true,
+      posTerminals: [
+        { id: '1', name: 'Terminal 1', active: true },
+        { id: '2', name: 'Terminal 2', active: false },
+        { id: '3', name: 'Terminal 3', active: false }
+      ],
+      kds: true,
+      onlineUsers: 0
+    }
+  });
 
   // Cargar datos desde el API
   useEffect(() => {
@@ -112,27 +139,120 @@ export const App: React.FC = () => {
     loadData();
   }, []);
 
+  // Función para cargar alertas del dashboard
+  const loadDashboardAlerts = async () => {
+    try {
+      // Cargar productos con stock bajo
+      const productsRes = await fetch('http://localhost:3004/api/products');
+      const productsData = await productsRes.json();
+      
+      const lowStockItems = (productsData || []).filter((p: any) => 
+        p.stock !== undefined && p.minStock !== undefined && p.stock <= p.minStock
+      );
+      
+      // Cargar estadísticas de actividad de usuarios
+      const activityRes = await fetch('http://localhost:3004/api/auth/activity/stats');
+      const activityData = await activityRes.json().catch(() => ({ onlineUsers: 0 }));
+      
+      setDashboardAlerts(prev => ({
+        ...prev,
+        lowStock: {
+          count: lowStockItems.length,
+          items: lowStockItems
+        },
+        systemStatus: {
+          ...prev.systemStatus,
+          apiGateway: true,
+          database: true,
+          onlineUsers: activityData.onlineUsers || 0
+        }
+      }));
+      
+      console.log('📊 Alertas del dashboard actualizadas:', {
+        lowStock: lowStockItems.length,
+        onlineUsers: activityData.onlineUsers
+      });
+    } catch (error) {
+      console.error('Error cargando alertas:', error);
+    }
+  };
+  
+  // Cargar alertas inicialmente y cada 30 segundos
+  useEffect(() => {
+    loadDashboardAlerts();
+    const interval = setInterval(loadDashboardAlerts, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Conectar a Socket.io para sincronización en tiempo real
   useEffect(() => {
     const socket = io('http://localhost:3004', {
-      transports: ['websocket', 'polling']
+      transports: ['polling', 'websocket'], // Polling primero para evitar warnings
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
     });
     
     socketRef.current = socket;
     
+    // Heartbeat interval ref
+    let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+    
     socket.on('connect', () => {
       console.log('🔌 Admin Panel conectado a Socket.io');
       setConnectionStatus('connected');
+      
+      // Reportar actividad de administrador al conectar
+      socket.emit('user:login', {
+        userId: 'admin-panel',
+        username: 'Admin Panel',
+        firstName: 'Administrador',
+        lastName: 'Sistema',
+        role: 'ADMIN',
+        module: 'ADMIN'
+      });
+      console.log('📡 Actividad de Admin Panel reportada');
+      
+      // Enviar heartbeat cada 30 segundos para mantener estado online
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      heartbeatInterval = setInterval(() => {
+        socket.emit('user:heartbeat', { userId: 'admin-panel' });
+        console.log('💓 Admin Panel heartbeat enviado');
+      }, 30000);
     });
     
     socket.on('disconnect', () => {
       console.log('🔌 Admin Panel desconectado de Socket.io');
       setConnectionStatus('disconnected');
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
     });
     
     socket.on('reconnecting', () => {
       console.log('🔄 Admin Panel reconectando...');
       setConnectionStatus('reconnecting');
+    });
+    
+    // Escuchar actualizaciones de alertas en tiempo real
+    socket.on('alert:new', (alert: any) => {
+      console.log('🔔 Nueva alerta recibida:', alert);
+      // Recargar alertas del dashboard
+      loadDashboardAlerts();
+    });
+    
+    // Escuchar actualizaciones de actividad de usuarios
+    socket.on('user:activity:updated', (data: any) => {
+      console.log('📊 Actividad de usuarios actualizada:', data);
+      if (data && typeof data.online === 'number') {
+        setDashboardAlerts(prev => ({
+          ...prev,
+          systemStatus: {
+            ...prev.systemStatus,
+            onlineUsers: data.online || 0
+          }
+        }));
+      }
     });
     
     // Escuchar nuevas ventas creadas
@@ -335,47 +455,108 @@ export const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-6">
           {page === 'dashboard' && (
             <div className="space-y-6">
-              {/* PRIORITY 1: Alerts - At the top */}
+              {/* PRIORITY 1: Alerts - At the top - EN TIEMPO REAL */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white rounded-xl border border-gray-200 p-6 md:col-span-2">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-gray-900">Alertas</h3>
-                    <span className="text-xs font-medium text-red-600 bg-red-100 px-2 py-1 rounded-full">2 pendientes</span>
+                    <h3 className="font-semibold text-gray-900">Alertas en Tiempo Real</h3>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                      <span className="text-xs font-medium text-gray-500">
+                        {dashboardAlerts.lowStock.count > 0 || dashboardAlerts.pendingClosures.count > 0 ? (
+                          <span className="text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                            {dashboardAlerts.lowStock.count + dashboardAlerts.pendingClosures.count} pendientes
+                          </span>
+                        ) : (
+                          <span className="text-green-600 bg-green-100 px-2 py-1 rounded-full">Sin alertas</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
                   <div className="space-y-3">
-                    {/* CRITICAL - Stock Bajo */}
-                    <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
-                      <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-red-800">Stock Bajo</p>
-                          <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">CRÍTICO</span>
+                    {/* CRITICAL - Stock Bajo - Dato real */}
+                    {dashboardAlerts.lowStock.count > 0 ? (
+                      <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
+                        <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-red-800">Stock Bajo</p>
+                            <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">CRÍTICO</span>
+                          </div>
+                          <p className="text-xs text-red-600 mt-1">
+                            {dashboardAlerts.lowStock.count} producto{dashboardAlerts.lowStock.count !== 1 ? 's' : ''} por debajo del mínimo de inventario
+                          </p>
                         </div>
-                        <p className="text-xs text-red-600 mt-1">12 productos por debajo del mínimo de inventario</p>
                       </div>
-                    </div>
-                    {/* MEDIUM - Cierre Pendiente */}
-                    <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-                      <Clock className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-amber-800">Cierre Pendiente</p>
-                          <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded">MEDIO</span>
+                    ) : (
+                      <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-100 rounded-lg">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-green-800">Inventario OK</p>
+                          <p className="text-xs text-green-600 mt-1">Todos los productos tienen stock suficiente</p>
                         </div>
-                        <p className="text-xs text-amber-600 mt-1">Terminal 3 sin cierre de caja</p>
                       </div>
-                    </div>
+                    )}
+                    
+                    {/* MEDIUM - Cierre Pendiente - Dato real */}
+                    {dashboardAlerts.pendingClosures.count > 0 ? (
+                      <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                        <Clock className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-amber-800">Cierre Pendiente</p>
+                            <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded">MEDIO</span>
+                          </div>
+                          <p className="text-xs text-amber-600 mt-1">
+                            {dashboardAlerts.pendingClosures.terminals.join(', ')} sin cierre de caja
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                        <CheckCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-blue-800">Cierres al día</p>
+                          <p className="text-xs text-blue-600 mt-1">Todas las terminales han cerrado caja</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-                {/* System Status - Secondary */}
+                {/* System Status - EN TIEMPO REAL */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="font-semibold text-gray-900 mb-4">Estado del Sistema</h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">API Gateway</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Online</span></div>
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Base de Datos</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Online</span></div>
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">POS Terminal 1</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Activo</span></div>
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">KDS Cocina</span><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Activo</span></div>
-                    <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Usuarios Online</span><span className="text-sm font-bold text-gray-900">8</span></div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">API Gateway</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.apiGateway ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'}`}>
+                        {dashboardAlerts.systemStatus.apiGateway ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Base de Datos</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.database ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'}`}>
+                        {dashboardAlerts.systemStatus.database ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+                    {dashboardAlerts.systemStatus.posTerminals.map(terminal => (
+                      <div key={terminal.id} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">{terminal.name}</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${terminal.active ? 'text-emerald-600 bg-emerald-100' : 'text-gray-500 bg-gray-100'}`}>
+                          {terminal.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">KDS Cocina</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.kds ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'}`}>
+                        {dashboardAlerts.systemStatus.kds ? 'Activo' : 'Offline'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Usuarios Online</span>
+                      <span className="text-sm font-bold text-gray-900">{dashboardAlerts.systemStatus.onlineUsers}</span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart, Package, CreditCard, DollarSign, Users, LogOut,
@@ -78,6 +78,10 @@ export const App: React.FC = () => {
   // Print Error Modal
   const [showPrintError, setShowPrintError] = useState(false);
   const [printErrorMessage, setPrintErrorMessage] = useState('');
+  
+  // Socket.IO for real-time activity tracking
+  const socketRef = useRef<any>(null);
+  const heartbeatIntervalRef = useRef<any>(null);
 
   // POS
   const [searchTerm, setSearchTerm] = useState('');
@@ -576,26 +580,54 @@ export const App: React.FC = () => {
     // Determinar usuario basado en PIN
     let userName = 'Cajero';
     let userIdValue = 'user-cashier';
+    let userRole = 'CASHIER';
     
     if (pin === '1234') {
       userName = 'Cajero 1';
       userIdValue = 'user-cashier';
+      userRole = 'CASHIER';
     } else if (pin === '0000' || pin === '9999') {
+      // Usar usuario admin real de la base de datos
       userName = 'Administrador';
-      userIdValue = 'user-admin';
+      userIdValue = 'user-admin'; // Usuario real en BD
+      userRole = 'ADMIN';
     }
-
+    
     setUser(userName);
     setUserId(userIdValue);
     
     toast.success(`Bienvenido ${userName}`, { icon: '👋' });
     console.log('✅ Login exitoso:', { userName, userIdValue });
 
-    // Iniciar turno automáticamente si no existe
-    const shift = await startShift(userIdValue);
-    
-    if (shift) {
-      console.log('✅ Turno iniciado automáticamente');
+    // Emitir actividad de usuario al Admin Panel
+    try {
+      const { io } = await import('socket.io-client');
+      socketRef.current = io('http://localhost:3004', { 
+        transports: ['polling', 'websocket'],
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5
+      });
+      
+      socketRef.current.emit('user:login', {
+        userId: userIdValue,
+        username: userName,
+        firstName: userName.split(' ')[0] || userName,
+        lastName: userName.split(' ')[1] || '',
+        role: userRole,
+        module: 'POS'
+      });
+      console.log('📡 Actividad de usuario reportada al Admin Panel');
+      
+      // Enviar heartbeat cada 30 segundos para mantener estado online
+      heartbeatIntervalRef.current = setInterval(() => {
+        if (socketRef.current && userIdValue) {
+          socketRef.current.emit('user:heartbeat', { userId: userIdValue });
+          console.log('💓 Heartbeat enviado para usuario:', userIdValue);
+        }
+      }, 30000);
+      
+    } catch (error) {
+      console.error('Error reportando actividad:', error);
     }
 
     setScreen('cash-open');
@@ -976,6 +1008,16 @@ export const App: React.FC = () => {
 
   // =============== CASH CLOSE ===============
   const handleCloseCash = () => {
+    // Limpiar socket y heartbeat
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+    
     setCashOpen(false);
     setScreen('login');
     setPin('');
@@ -1057,6 +1099,21 @@ export const App: React.FC = () => {
           </div>
           <button onClick={handleOpenCash} disabled={!openingFloat || parseFloat(openingFloat) <= 0} className="w-full py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-emerald-700 disabled:opacity-40 transition-all">
             Abrir Caja
+          </button>
+          <button 
+            onClick={() => {
+              setScreen('login');
+              setUser('');
+              setUserId('');
+              setPin('');
+              localStorage.removeItem('pos_user');
+              localStorage.removeItem('pos_userId');
+              localStorage.removeItem('pos_screen');
+            }} 
+            className="w-full mt-3 py-2 sm:py-2.5 border-2 border-gray-300 text-gray-600 rounded-lg sm:rounded-xl font-medium text-sm sm:text-base hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Cambiar Usuario
           </button>
         </motion.div>
       </div>

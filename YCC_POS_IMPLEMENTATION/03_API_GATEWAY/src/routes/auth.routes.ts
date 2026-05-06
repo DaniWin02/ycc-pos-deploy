@@ -284,4 +284,213 @@ router.put('/profile/:userId', async (req, res) => {
   }
 })
 
+// ========================================
+// USER ACTIVITY - ESTADO EN TIEMPO REAL
+// ========================================
+router.get('/activity', async (req, res) => {
+  try {
+    // Obtener todos los usuarios de la base de datos
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        pin: true,
+        canAccessPos: true,
+        canAccessKds: true,
+        canAccessAdmin: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true
+      }
+    })
+
+    // Obtener actividad en tiempo real del store
+    const userActivity = req.app.get('userActivity')
+    const onlineUsers = userActivity ? userActivity.getUsersActivity() : []
+
+    // Combinar información de DB con actividad en tiempo real
+    const usersWithActivity = users.map(user => {
+      const onlineStatus = onlineUsers.find((u: any) => u.userId === user.id)
+      
+      return {
+        ...user,
+        isOnline: onlineStatus?.isOnline || false,
+        currentModule: onlineStatus?.currentModule || null,
+        lastSeen: onlineStatus?.lastSeen || user.lastLogin,
+        loginTime: onlineStatus?.loginTime || null
+      }
+    })
+    
+    // Agregar usuarios hardcodeados que estén online pero no en BD
+    const hardcodedOnlineUsers = onlineUsers.filter((onlineUser: any) => 
+      !users.find((dbUser: any) => dbUser.id === onlineUser.userId)
+    )
+    
+    for (const onlineUser of hardcodedOnlineUsers) {
+      usersWithActivity.push({
+        id: onlineUser.userId,
+        username: onlineUser.username || onlineUser.userId,
+        firstName: onlineUser.firstName || 'Usuario',
+        lastName: onlineUser.lastName || 'Hardcodeado',
+        role: onlineUser.role || 'ADMIN',
+        pin: '0000',
+        canAccessPos: true,
+        canAccessKds: true,
+        canAccessAdmin: onlineUser.role === 'ADMIN',
+        isActive: true,
+        lastLogin: onlineUser.loginTime,
+        createdAt: new Date(),
+        isOnline: true,
+        currentModule: onlineUser.currentModule,
+        lastSeen: onlineUser.lastSeen,
+        loginTime: onlineUser.loginTime,
+        isHardcoded: true // Marcar como usuario hardcodeado
+      })
+    }
+
+    // Estadísticas
+    const stats = {
+      total: users.length,
+      online: usersWithActivity.filter((u: any) => u.isOnline).length,
+      offline: usersWithActivity.filter((u: any) => !u.isOnline).length,
+      inPos: usersWithActivity.filter((u: any) => u.currentModule === 'POS').length,
+      inKds: usersWithActivity.filter((u: any) => u.currentModule === 'KDS').length,
+      inAdmin: usersWithActivity.filter((u: any) => u.currentModule === 'ADMIN').length
+    }
+
+    res.json({
+      users: usersWithActivity,
+      stats,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Error obteniendo actividad de usuarios:', error)
+    res.status(500).json({ error: 'Error al obtener actividad de usuarios' })
+  }
+})
+
+// ========================================
+// ACTIVITY STATS - RESUMEN RÁPIDO
+// ========================================
+router.get('/activity/stats', async (req, res) => {
+  try {
+    const userActivity = req.app.get('userActivity')
+    const onlineUsers = userActivity ? userActivity.getUsersActivity() : []
+    
+    const totalUsers = await prisma.user.count()
+    const onlineCount = onlineUsers.filter((u: any) => u.isOnline).length
+
+    res.json({
+      totalUsers,
+      onlineUsers: onlineCount,
+      offlineUsers: totalUsers - onlineCount,
+      activeInPos: onlineUsers.filter((u: any) => u.currentModule === 'POS').length,
+      activeInKds: onlineUsers.filter((u: any) => u.currentModule === 'KDS').length,
+      activeInAdmin: onlineUsers.filter((u: any) => u.currentModule === 'ADMIN').length,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error)
+    res.status(500).json({ error: 'Error al obtener estadísticas' })
+  }
+})
+
+// ========================================
+// ALERTS API - REST Endpoints
+// ========================================
+
+// GET /alerts - Obtener todas las alertas
+router.get('/alerts', (req, res) => {
+  try {
+    const alerts = req.app.get('alerts')
+    if (!alerts) {
+      return res.status(500).json({ error: 'Sistema de alertas no inicializado' })
+    }
+    res.json(alerts.getAlerts())
+  } catch (error) {
+    console.error('Error obteniendo alertas:', error)
+    res.status(500).json({ error: 'Error al obtener alertas' })
+  }
+})
+
+// POST /alerts - Crear nueva alerta
+router.post('/alerts', (req, res) => {
+  try {
+    const { type, title, message, source, metadata } = req.body
+    
+    if (!type || !title || !message) {
+      return res.status(400).json({ error: 'Se requieren type, title y message' })
+    }
+    
+    const alerts = req.app.get('alerts')
+    if (!alerts) {
+      return res.status(500).json({ error: 'Sistema de alertas no inicializado' })
+    }
+    
+    const alert = alerts.createAlert({
+      type,
+      title,
+      message,
+      source,
+      metadata
+    })
+    
+    res.status(201).json(alert)
+  } catch (error) {
+    console.error('Error creando alerta:', error)
+    res.status(500).json({ error: 'Error al crear alerta' })
+  }
+})
+
+// PUT /alerts/:id/acknowledge - Marcar alerta como leída
+router.put('/alerts/:id/acknowledge', (req, res) => {
+  try {
+    const { id } = req.params
+    const alerts = req.app.get('alerts')
+    
+    if (!alerts) {
+      return res.status(500).json({ error: 'Sistema de alertas no inicializado' })
+    }
+    
+    const success = alerts.acknowledgeAlert(id)
+    
+    if (success) {
+      res.json({ success: true, message: 'Alerta marcada como leída' })
+    } else {
+      res.status(404).json({ error: 'Alerta no encontrada' })
+    }
+  } catch (error) {
+    console.error('Error marcando alerta:', error)
+    res.status(500).json({ error: 'Error al marcar alerta' })
+  }
+})
+
+// GET /alerts/stats - Estadísticas de alertas
+router.get('/alerts/stats', (req, res) => {
+  try {
+    const alerts = req.app.get('alerts')
+    if (!alerts) {
+      return res.status(500).json({ error: 'Sistema de alertas no inicializado' })
+    }
+    
+    const allAlerts = alerts.getAlerts()
+    
+    res.json({
+      total: allAlerts.length,
+      pending: allAlerts.filter((a: any) => !a.acknowledged).length,
+      warning: allAlerts.filter((a: any) => a.type === 'warning').length,
+      error: allAlerts.filter((a: any) => a.type === 'error').length,
+      success: allAlerts.filter((a: any) => a.type === 'success').length,
+      info: allAlerts.filter((a: any) => a.type === 'info').length,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error)
+    res.status(500).json({ error: 'Error al obtener estadísticas' })
+  }
+})
+
 export default router

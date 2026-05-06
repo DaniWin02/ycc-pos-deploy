@@ -413,6 +413,22 @@ router.post('/', async (req, res) => {
     
     console.log('✅ Venta creada exitosamente:', sale.folio);
     
+    // CREAR ALERTA EN TIEMPO REAL PARA ADMIN PANEL
+    try {
+      const alerts = req.app.get('alerts');
+      if (alerts) {
+        alerts.createAlert({
+          type: 'success',
+          title: 'Nueva Venta',
+          message: `Orden ${sale.folio} creada por $${sale.totalAmount.toFixed(2)}`,
+          source: 'POS',
+          metadata: { folio: sale.folio, total: sale.totalAmount, items: items.length }
+        });
+      }
+    } catch (alertError) {
+      console.warn('⚠️ Error creando alerta:', alertError);
+    }
+    
     // AGRUPAR ITEMS POR ESTACIÓN Y EMITIR SOCKET.IO
     try {
       const io = req.app.get('io');
