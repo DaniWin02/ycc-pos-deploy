@@ -112,6 +112,41 @@ async function main() {
       })
     ]);
 
+    // 4.5. Crear estaciones de cocina (requerido por Product)
+    console.log('👨‍🍳 Creando estaciones de cocina...');
+    const stations = await Promise.all([
+      prisma.station.upsert({
+        where: { name: 'Barra de Bebidas' },
+        update: {},
+        create: {
+          name: 'Barra de Bebidas',
+          displayName: 'Bebidas',
+          color: '#3B82F6',
+          isActive: true
+        }
+      }),
+      prisma.station.upsert({
+        where: { name: 'Cocina Principal' },
+        update: {},
+        create: {
+          name: 'Cocina Principal',
+          displayName: 'Cocina',
+          color: '#EF4444',
+          isActive: true
+        }
+      }),
+      prisma.station.upsert({
+        where: { name: 'Estación de Postres' },
+        update: {},
+        create: {
+          name: 'Estación de Postres',
+          displayName: 'Postres',
+          color: '#F59E0B',
+          isActive: true
+        }
+      })
+    ]);
+
     // 5. Crear productos
     console.log('🛍️ Creando productos...');
     const products = await Promise.all([
@@ -125,6 +160,7 @@ async function main() {
           price: 25.00,
           currentStock: 100,
           categoryId: categories[0].id,
+          stationId: stations[0].id,  // Barra de Bebidas
           isActive: true
         }
       }),
@@ -138,6 +174,7 @@ async function main() {
           price: 85.00,
           currentStock: 50,
           categoryId: categories[1].id,
+          stationId: stations[1].id,  // Cocina Principal
           isActive: true
         }
       }),
@@ -151,6 +188,7 @@ async function main() {
           price: 45.00,
           currentStock: 80,
           categoryId: categories[1].id,
+          stationId: stations[1].id,  // Cocina Principal
           isActive: true
         }
       }),
@@ -164,6 +202,7 @@ async function main() {
           price: 35.00,
           currentStock: 40,
           categoryId: categories[2].id,
+          stationId: stations[2].id,  // Estación de Postres
           isActive: true
         }
       }),
@@ -177,6 +216,7 @@ async function main() {
           price: 20.00,
           currentStock: 150,
           categoryId: categories[0].id,
+          stationId: stations[0].id,  // Barra de Bebidas
           isActive: true
         }
       })
@@ -191,7 +231,7 @@ async function main() {
           totalAmount: 110.00,
           taxAmount: 17.60,
           subtotal: 92.40,
-          status: 'COMPLETED',
+          status: 'READY',
           storeId: store.id,
           terminalId: terminal.id,
           createdByUserId: users[1].id,
@@ -227,7 +267,7 @@ async function main() {
           totalAmount: 65.00,
           taxAmount: 10.40,
           subtotal: 54.60,
-          status: 'COMPLETED',
+          status: 'READY',
           storeId: store.id,
           terminalId: terminal.id,
           createdByUserId: users[2].id,
@@ -266,6 +306,7 @@ async function main() {
     console.log(`   - Terminales: 1`);
     console.log(`   - Categorías: ${categories.length}`);
     console.log(`   - Productos: ${products.length}`);
+    console.log(`   - Estaciones: ${stations.length}`);
     console.log(`   - Órdenes: ${orders.length}`);
     
   } catch (error) {
