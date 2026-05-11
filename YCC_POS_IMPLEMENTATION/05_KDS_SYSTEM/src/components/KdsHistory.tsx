@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, CheckCircle, RotateCcw, AlertCircle, Trash2, X } from 'lucide-react'
+import { Clock, CheckCircle, RotateCcw, AlertCircle, Trash2, X, Users } from 'lucide-react'
 import { useKdsStore, KdsTicket } from '../stores/useKdsStore'
 
 interface KdsHistoryProps {
@@ -46,13 +46,13 @@ export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
 
   if (historyTickets.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-        <AlertCircle className="w-16 h-16 mb-3" />
-        <p className="text-lg font-medium">Sin pedidos en historial</p>
-        <p className="text-sm">
+      <div className="flex flex-col items-center justify-center py-12" style={{ color: 'var(--muted-foreground)' }}>
+        <AlertCircle className="w-16 h-16 mb-3 opacity-20" />
+        <p className="text-lg font-bold">Historial Vacío</p>
+        <p className="text-sm opacity-60">
           {selectedStationId 
-            ? 'No hay pedidos en preparación para esta estación'
-            : 'Los pedidos en preparación aparecerán aquí'
+            ? 'No hay pedidos pendientes en esta estación'
+            : 'Los pedidos en proceso aparecerán aquí'
           }
         </p>
       </div>
@@ -60,7 +60,7 @@ export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 pb-8">
       {historyTickets.map((ticket) => {
         const elapsedMinutes = getElapsedTime(ticket.createdAt)
         const visibleItems = selectedStationId
@@ -71,47 +71,51 @@ export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
           <motion.div
             key={ticket.id}
             layout
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             className={`
-              bg-white rounded-lg border-2 p-4 shadow-sm
-              ${ticket.status === 'PREPARING' ? 'border-amber-300' : 'border-green-300'}
+              rounded-2xl border-2 p-5 shadow-lg transition-all
             `}
+            style={{ 
+              backgroundColor: 'var(--card)', 
+              borderColor: ticket.status === 'PREPARING' ? 'var(--warning)' : 'var(--success)',
+              color: 'var(--foreground)'
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-gray-900">
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-dashed" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-3">
+                <span className="text-3xl font-black tracking-tighter">
                   #{ticket.folio}
                 </span>
                 <span className={`
-                  px-2 py-1 rounded-full text-xs font-bold
+                  px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm
                   ${ticket.status === 'PREPARING' 
                     ? 'bg-amber-100 text-amber-700' 
                     : 'bg-green-100 text-green-700'
                   }
                 `}>
-                  {ticket.status === 'PREPARING' ? 'EN PREPARACIÓN' : 'LISTO'}
+                  {ticket.status === 'PREPARING' ? 'PREPARANDO' : 'LISTO'}
                 </span>
               </div>
               
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm font-bold opacity-60">
                 <Clock className="w-4 h-4" />
-                <span className="font-medium">{formatTime(elapsedMinutes)}</span>
+                <span>{formatTime(elapsedMinutes)}</span>
               </div>
             </div>
 
             {/* Items */}
-            <div className="space-y-2 mb-3">
+            <div className="space-y-3 mb-6">
               {visibleItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-700">{item.quantity}x</span>
-                    <span className="text-gray-900">{item.name}</span>
+                <div key={item.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg flex items-center justify-center font-black bg-opacity-10 text-sm" style={{ backgroundColor: 'var(--primary)', color: 'var(--primary)' }}>{item.quantity}x</span>
+                    <span className="font-bold text-base leading-tight">{item.name}</span>
                   </div>
                   {item.notes && (
-                    <span className="text-xs text-gray-500 italic">{item.notes}</span>
+                    <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-100">⚠️ {item.notes}</span>
                   )}
                 </div>
               ))}
@@ -119,12 +123,12 @@ export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
 
             {/* Info adicional */}
             {(ticket.table || ticket.waiter) && (
-              <div className="flex items-center gap-4 text-xs text-gray-600 mb-3 pb-3 border-b border-gray-200">
+              <div className="flex items-center gap-6 text-xs font-bold uppercase tracking-wider mb-6 opacity-40">
                 {ticket.table && (
-                  <span>Mesa: <strong>{ticket.table}</strong></span>
+                  <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Mesa: {ticket.table}</span>
                 )}
                 {ticket.waiter && (
-                  <span>Mesero: <strong>{ticket.waiter}</strong></span>
+                  <span>Mesero: {ticket.waiter}</span>
                 )}
               </div>
             )}
@@ -134,19 +138,19 @@ export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
               {ticket.status === 'PREPARING' && (
                 <button
                   onClick={() => markAsReady(ticket.id)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-black py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md"
                 >
                   <CheckCircle className="w-5 h-5" />
-                  Marcar como Listo
+                  LISTO
                 </button>
               )}
               
               <button
                 onClick={() => returnToActive(ticket.id)}
-                className="flex-1 flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 bg-gray-500 hover:bg-gray-600 text-white font-black py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md"
               >
                 <RotateCcw className="w-5 h-5" />
-                Regresar a Comandas
+                COMANDAS
               </button>
               
               <button
@@ -155,7 +159,7 @@ export function KdsHistory({ selectedStationId }: KdsHistoryProps) {
                     permanentDeleteTicket(ticket.id)
                   }
                 }}
-                className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-black py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md"
                 title="Eliminar comanda"
               >
                 <Trash2 className="w-5 h-5" />

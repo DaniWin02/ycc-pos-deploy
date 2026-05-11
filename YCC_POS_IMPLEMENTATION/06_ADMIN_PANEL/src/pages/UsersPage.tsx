@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { io, Socket } from 'socket.io-client';
-import { 
+import {
   Users, Plus, Edit2, Trash2, Search, X, Shield, Mail, Phone, Lock, 
   Monitor, Utensils, LayoutDashboard, Activity, Wifi, WifiOff, 
   Clock, LogIn, Store, ChefHat, ShieldCheck, AlertCircle,
   UserPlus, RefreshCw, Loader2, Zap, ArrowRight
 } from 'lucide-react';
+import { useThemeStore } from '../stores/theme.store';
 
 // ===================== INTERFACES =====================
 
@@ -50,11 +51,11 @@ const REFRESH_INTERVAL_MS = 10000; // Polling cada 10 segundos como backup
 const ACTIVITY_CHECK_INTERVAL_MS = 5000; // Verificar actividad cada 5 segundos
 
 const ROLE_COLORS = {
-  ADMIN: 'bg-red-100 text-red-800 border-red-200',
-  MANAGER: 'bg-purple-100 text-purple-800 border-purple-200',
-  CASHIER: 'bg-blue-100 text-blue-800 border-blue-200',
-  KITCHEN: 'bg-orange-100 text-orange-800 border-orange-200'
-};
+  ADMIN: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
+  MANAGER: { bg: '#F3E8FF', text: '#6B21A8', border: '#E9D5FF' },
+  CASHIER: { bg: '#DBEAFE', text: '#1E40AF', border: '#BFDBFE' },
+  KITCHEN: { bg: '#FFEDD5', text: '#9A3412', border: '#FED7AA' }
+} as const;
 
 const ROLE_LABELS = {
   ADMIN: 'Administrador',
@@ -66,6 +67,28 @@ const ROLE_LABELS = {
 // ===================== COMPONENTE PRINCIPAL =====================
 
 export const UsersPage: React.FC = () => {
+  const { getEffectiveConfig } = useThemeStore();
+  
+  // Get effective admin theme config
+  const adminTheme = getEffectiveConfig('admin');
+  
+  // Fallback theme to prevent undefined errors
+  const safeTheme = adminTheme || {
+    colors: {
+      textPrimary: '#0f172a',
+      textSecondary: '#64748b',
+      textMuted: '#94a3b8',
+      surface: '#ffffff',
+      border: '#e2e8f0',
+      borderLight: '#f1f5f9',
+      primary: '#059669', // Verde Country Club
+      primaryLight: '#d1fae5', // emerald-100
+      success: '#10b981',
+      successLight: '#d1fae5',
+      warning: '#f59e0b',
+      warningLight: '#fef3c7'
+    }
+  };
   // Estado de usuarios y carga
   const [users, setUsers] = useState<User[]>([]);
   const [dbUserCount, setDbUserCount] = useState<number>(0);
@@ -78,7 +101,7 @@ export const UsersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
-  // Estado de estadísticas calculadas (no del backend)
+  // Estado de estadÃ­sticas calculadas (no del backend)
   const [calculatedStats, setCalculatedStats] = useState<ActivityStats>({
     total: 0,
     online: 0,
@@ -112,7 +135,7 @@ export const UsersPage: React.FC = () => {
   // ===================== FUNCIONES AUXILIARES =====================
 
   /**
-   * Verifica si un usuario está realmente "en línea" basado en su última actividad
+   * Verifica si un usuario estÃ¡ realmente "en lÃ­nea" basado en su Ãºltima actividad
    */
   const isUserOnline = useCallback((user: User): boolean => {
     if (!user.lastActivityAt && !user.lastSeen) return false;
@@ -128,7 +151,7 @@ export const UsersPage: React.FC = () => {
   }, []);
 
   /**
-   * Calcula las estadísticas en tiempo real basadas en los usuarios actuales
+   * Calcula las estadÃ­sticas en tiempo real basadas en los usuarios actuales
    */
   const calculateRealtimeStats = useCallback((userList: User[]): ActivityStats => {
     const stats: ActivityStats = {
@@ -157,7 +180,7 @@ export const UsersPage: React.FC = () => {
   }, [isUserOnline]);
 
   /**
-   * Formatea el tiempo transcurrido desde la última actividad
+   * Formatea el tiempo transcurrido desde la Ãºltima actividad
    */
   const formatTimeAgo = (dateString?: string): string => {
     if (!dateString) return 'Nunca';
@@ -211,7 +234,7 @@ export const UsersPage: React.FC = () => {
       const dbUsers = await loadUsersFromDB();
       
       if (dbUsers.length === 0) {
-        // No hay usuarios en la base de datos - mostrar estado vacío
+        // No hay usuarios en la base de datos - mostrar estado vacÃ­o
         setUsers([]);
         setCalculatedStats({
           total: 0,
@@ -269,7 +292,7 @@ export const UsersPage: React.FC = () => {
 
       setUsers(mergedUsers);
       
-      // 4. Calcular estadísticas en tiempo real
+      // 4. Calcular estadÃ­sticas en tiempo real
       const stats = calculateRealtimeStats(mergedUsers);
       setCalculatedStats(stats);
       
@@ -294,11 +317,11 @@ export const UsersPage: React.FC = () => {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('🔌 UsersPage: Conectado a Socket.IO');
+      console.log('ðŸ”Œ UsersPage: Conectado a Socket.IO');
     });
 
     socket.on('user:activity:updated', (activityData: any) => {
-      console.log('📊 Actividad actualizada:', activityData);
+      console.log('ðŸ“Š Actividad actualizada:', activityData);
       
       // Actualizar usuarios con nueva actividad
       if (activityData?.users && Array.isArray(activityData.users)) {
@@ -317,7 +340,7 @@ export const UsersPage: React.FC = () => {
             return user;
           });
           
-          // Recalcular estadísticas
+          // Recalcular estadÃ­sticas
           const newStats = calculateRealtimeStats(updatedUsers);
           setCalculatedStats(newStats);
           
@@ -327,13 +350,13 @@ export const UsersPage: React.FC = () => {
     });
 
     socket.on('user:login', (userData: any) => {
-      console.log('👤 Usuario conectado:', userData);
+      console.log('ðŸ‘¤ Usuario conectado:', userData);
       // Forzar refresh para capturar nuevo usuario
       loadUserActivity();
     });
 
     socket.on('disconnect', () => {
-      console.log('🔌 UsersPage: Desconectado de Socket.IO');
+      console.log('ðŸ”Œ UsersPage: Desconectado de Socket.IO');
     });
 
     return () => {
@@ -357,7 +380,7 @@ export const UsersPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadUserActivity]);
 
-  // Verificación periódica de actividad (para marcar offline automáticamente)
+  // VerificaciÃ³n periÃ³dica de actividad (para marcar offline automÃ¡ticamente)
   useEffect(() => {
     const checkActivity = () => {
       setUsers(prevUsers => {
@@ -411,12 +434,12 @@ export const UsersPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error guardando usuario:', error);
-      alert('Error de conexión al guardar usuario');
+      alert('Error de conexiÃ³n al guardar usuario');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este usuario?\n\nNota: Si el usuario tiene ventas o registros asociados, se desactivará en lugar de eliminarse.')) return;
+    if (!confirm('Â¿EstÃ¡s seguro de eliminar este usuario?\n\nNota: Si el usuario tiene ventas o registros asociados, se desactivarÃ¡ en lugar de eliminarse.')) return;
     
     try {
       const response = await fetch(`http://localhost:3004/api/users/${id}`, {
@@ -426,21 +449,21 @@ export const UsersPage: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         
-        // Mostrar mensaje diferente según el tipo de eliminación
+        // Mostrar mensaje diferente segÃºn el tipo de eliminaciÃ³n
         if (result.softDeleted) {
-          alert(`✅ ${result.message}\n\n${result.reason || 'El usuario ha sido desactivado y no aparecerá en la lista.'}`);
+          alert(`âœ… ${result.message}\n\n${result.reason || 'El usuario ha sido desactivado y no aparecerÃ¡ en la lista.'}`);
         } else {
-          alert('✅ Usuario eliminado exitosamente');
+          alert('âœ… Usuario eliminado exitosamente');
         }
         
         await loadUserActivity();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(`❌ Error: ${errorData.error || 'No se pudo eliminar el usuario'}${errorData.details ? '\n' + errorData.details : ''}`);
+        alert(`âŒ Error: ${errorData.error || 'No se pudo eliminar el usuario'}${errorData.details ? '\n' + errorData.details : ''}`);
       }
     } catch (error) {
       console.error('Error eliminando usuario:', error);
-      alert('❌ Error de conexión al eliminar usuario');
+      alert('âŒ Error de conexiÃ³n al eliminar usuario');
     }
   };
 
@@ -498,12 +521,12 @@ export const UsersPage: React.FC = () => {
 
   if (!loading && dbUserCount === 0) {
     return (
-      <div className="p-6">
+      <div className="p-6" style={{ color: safeTheme.colors.textPrimary }}>
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Usuarios</h1>
-            <p className="text-gray-600 mt-1">Gestiona los usuarios del sistema</p>
+            <h1 className="text-3xl font-bold" style={{ color: safeTheme.colors.textPrimary }}>Usuarios</h1>
+            <p className="mt-1" style={{ color: safeTheme.colors.textSecondary }}>Gestiona los usuarios del sistema</p>
           </div>
         </div>
 
@@ -515,20 +538,23 @@ export const UsersPage: React.FC = () => {
             icon={Users} 
             color="indigo"
             borderColor="border-indigo-500"
+            theme={safeTheme}
           />
           <StatCard 
-            label="En Línea" 
+            label="En LÃ­nea" 
             value={0} 
             icon={Wifi} 
             color="emerald"
             borderColor="border-emerald-500"
+            theme={safeTheme}
           />
           <StatCard 
-            label="Fuera de Línea" 
+            label="Fuera de LÃ­nea" 
             value={0} 
             icon={WifiOff} 
             color="gray"
             borderColor="border-gray-400"
+            theme={safeTheme}
           />
           <StatCard 
             label="En POS" 
@@ -536,6 +562,7 @@ export const UsersPage: React.FC = () => {
             icon={Store} 
             color="blue"
             borderColor="border-blue-500"
+            theme={safeTheme}
           />
           <StatCard 
             label="En KDS" 
@@ -543,6 +570,7 @@ export const UsersPage: React.FC = () => {
             icon={ChefHat} 
             color="orange"
             borderColor="border-orange-500"
+            theme={safeTheme}
           />
           <StatCard 
             label="En Admin" 
@@ -550,23 +578,25 @@ export const UsersPage: React.FC = () => {
             icon={ShieldCheck} 
             color="purple"
             borderColor="border-purple-500"
+            theme={safeTheme}
           />
         </div>
 
         {/* Empty State */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Users className="w-10 h-10 text-indigo-400" />
+        <div className="rounded-xl shadow-sm border p-12 text-center" style={{ backgroundColor: safeTheme.colors.surface, borderColor: safeTheme.colors.border }}>
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: safeTheme.colors.primaryLight }}>
+            <Users className="w-10 h-10" style={{ color: safeTheme.colors.primary }} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">
+          <h2 className="text-2xl font-bold mb-3" style={{ color: safeTheme.colors.textPrimary }}>
             No hay usuarios registrados
           </h2>
-          <p className="text-gray-500 mb-8 max-w-md mx-auto">
+          <p className="mb-8 max-w-md mx-auto" style={{ color: safeTheme.colors.textSecondary }}>
             Comienza creando tu primer usuario administrador para gestionar el sistema.
           </p>
           <button
             onClick={() => openModal()}
-            className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all font-medium shadow-lg shadow-indigo-200"
+            className="inline-flex items-center gap-2 text-white px-6 py-3 rounded-lg transition-all font-medium shadow-lg"
+            style={{ backgroundColor: safeTheme.colors.primary }}
           >
             <UserPlus className="w-5 h-5" />
             Crear Usuario
@@ -584,6 +614,7 @@ export const UsersPage: React.FC = () => {
               formData={formData}
               setFormData={setFormData}
               onSubmit={handleSubmit}
+              theme={safeTheme}
             />
           )}
         </AnimatePresence>
@@ -594,12 +625,12 @@ export const UsersPage: React.FC = () => {
   // ===================== RENDER: MAIN CONTENT =====================
 
   return (
-    <div className="p-6">
+    <div className="p-6" style={{ color: safeTheme.colors.textPrimary }}>
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Usuarios</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold" style={{ color: safeTheme.colors.textPrimary }}>Usuarios</h1>
+          <p className="mt-1" style={{ color: safeTheme.colors.textSecondary }}>
             {dbUserCount > 0 
               ? `Gestiona los ${dbUserCount} usuarios del sistema`
               : 'Gestiona los usuarios del sistema'
@@ -610,14 +641,16 @@ export const UsersPage: React.FC = () => {
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:opacity-90 transition-all disabled:opacity-50"
+            style={{ borderColor: safeTheme.colors.border, color: safeTheme.colors.textSecondary, backgroundColor: safeTheme.colors.surface }}
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Actualizando...' : 'Actualizar'}
           </button>
           <button
             onClick={() => openModal()}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+            className="flex items-center gap-2 text-white px-4 py-2 rounded-lg transition-all shadow-lg"
+            style={{ backgroundColor: safeTheme.colors.primary }}
           >
             <Plus className="w-5 h-5" />
             Nuevo Usuario
@@ -633,23 +666,26 @@ export const UsersPage: React.FC = () => {
           icon={Users} 
           color="indigo"
           borderColor="border-indigo-500"
+            theme={safeTheme}
           isLoading={loading && initialLoad}
         />
         <StatCard 
-          label="En Línea" 
+          label="En LÃ­nea" 
           value={calculatedStats.online} 
           icon={Wifi} 
           color="emerald"
           borderColor="border-emerald-500"
+            theme={safeTheme}
           pulse={calculatedStats.online > 0}
           isLoading={loading && initialLoad}
         />
         <StatCard 
-          label="Fuera de Línea" 
+          label="Fuera de LÃ­nea" 
           value={calculatedStats.offline} 
           icon={WifiOff} 
           color="gray"
           borderColor="border-gray-400"
+            theme={safeTheme}
           isLoading={loading && initialLoad}
         />
         <StatCard 
@@ -658,6 +694,7 @@ export const UsersPage: React.FC = () => {
           icon={Store} 
           color="blue"
           borderColor="border-blue-500"
+            theme={safeTheme}
           isLoading={loading && initialLoad}
         />
         <StatCard 
@@ -666,6 +703,7 @@ export const UsersPage: React.FC = () => {
           icon={ChefHat} 
           color="orange"
           borderColor="border-orange-500"
+            theme={safeTheme}
           isLoading={loading && initialLoad}
         />
         <StatCard 
@@ -674,13 +712,14 @@ export const UsersPage: React.FC = () => {
           icon={ShieldCheck} 
           color="purple"
           borderColor="border-purple-500"
+            theme={safeTheme}
           isLoading={loading && initialLoad}
         />
       </div>
 
       {/* Consistency Warning */}
       {calculatedStats.online > calculatedStats.total && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800">
+        <div className="mb-4 p-3 border rounded-lg flex items-center gap-2" style={{ backgroundColor: safeTheme.colors.warningLight, borderColor: safeTheme.colors.warning, color: safeTheme.colors.warning }}>
           <AlertCircle className="w-5 h-5" />
           <span className="text-sm">
             Advertencia: Hay inconsistencia en los datos. Usuarios online ({calculatedStats.online}) &gt; Total ({calculatedStats.total})
@@ -691,25 +730,27 @@ export const UsersPage: React.FC = () => {
       {/* Search */}
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: safeTheme.colors.textMuted }} />
           <input
             type="text"
             placeholder="Buscar usuarios por nombre, email o usuario..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            className="w-full pl-10 pr-4 py-3 border rounded-lg transition-all"
+            style={{ borderColor: safeTheme.colors.border, color: safeTheme.colors.textPrimary, backgroundColor: safeTheme.colors.surface }}
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2"
+              style={{ color: safeTheme.colors.textMuted }}
             >
               <X className="w-5 h-5" />
             </button>
           )}
         </div>
         {searchTerm && (
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm mt-2" style={{ color: safeTheme.colors.textSecondary }}>
             {filteredUsers.length} resultado{filteredUsers.length !== 1 ? 's' : ''} para "{searchTerm}"
           </p>
         )}
@@ -717,20 +758,21 @@ export const UsersPage: React.FC = () => {
 
       {/* Users Table */}
       {loading && initialLoad ? (
-        <TableSkeleton />
+        <TableSkeleton theme={safeTheme} />
       ) : filteredUsers.length === 0 && searchTerm ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-          <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No se encontraron usuarios para "{searchTerm}"</p>
+        <div className="rounded-lg shadow-sm border p-8 text-center" style={{ backgroundColor: safeTheme.colors.surface, borderColor: safeTheme.colors.border }}>
+          <Search className="w-12 h-12 mx-auto mb-3" style={{ color: safeTheme.colors.textMuted }} />
+          <p style={{ color: safeTheme.colors.textSecondary }}>No se encontraron usuarios para "{searchTerm}"</p>
           <button
             onClick={() => setSearchTerm('')}
-            className="mt-3 text-indigo-600 hover:text-indigo-800 font-medium"
+            className="mt-3 font-medium"
+            style={{ color: safeTheme.colors.primary }}
           >
-            Limpiar búsqueda
+            Limpiar bÃºsqueda
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md border border-gray-200">
+        <div className="rounded-lg shadow-md border" style={{ backgroundColor: safeTheme.colors.surface, borderColor: safeTheme.colors.border }}>
           <table className="w-full table-fixed">
             <colgroup>
               <col className="w-[120px]" />
@@ -742,9 +784,9 @@ export const UsersPage: React.FC = () => {
               <col className="w-[130px]" />
               <col className="w-[180px]" />
             </colgroup>
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead style={{ backgroundColor: safeTheme.colors.borderLight, borderBottom: `1px solid ${safeTheme.colors.border}` }}>
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+                <th className="px-3 py-3 text-left text-xs font-medium uppercase" style={{ color: safeTheme.colors.textMuted }}>Usuario</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">PIN</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
@@ -754,14 +796,14 @@ export const UsersPage: React.FC = () => {
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody style={{ borderTop: `1px solid ${safeTheme.colors.border}` }}>
               {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={user.id} className="transition-colors" style={{ borderBottom: `1px solid ${safeTheme.colors.borderLight}` }}>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="font-medium text-gray-900 truncate" title={user.username}>{user.username}</span>
+                      <span className="font-medium truncate" style={{ color: safeTheme.colors.textPrimary }} title={user.username}>{user.username}</span>
                       {user.isOnline && (
-                        <span className="relative flex h-2 w-2 flex-shrink-0" title="En línea">
+                        <span className="relative flex h-2 w-2 flex-shrink-0" title="En lÃ­nea">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
@@ -769,18 +811,18 @@ export const UsersPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <span className="text-sm text-gray-900 truncate block" title={`${user.firstName} ${user.lastName}`}>
+                    <span className="text-sm truncate block" style={{ color: safeTheme.colors.textPrimary }} title={`${user.firstName} ${user.lastName}`}>
                       {user.firstName} {user.lastName}
                     </span>
                   </td>
                   <td className="px-3 py-3">
-                    <div className="flex items-center text-sm text-gray-600 font-mono">
-                      <Lock className="w-4 h-4 mr-1 text-gray-400 flex-shrink-0" />
-                      {user.pin ? '••••' : '—'}
+                    <div className="flex items-center text-sm font-mono" style={{ color: safeTheme.colors.textSecondary }}>
+                      <Lock className="w-4 h-4 mr-1 flex-shrink-0" style={{ color: safeTheme.colors.textMuted }} />
+                      {user.pin ? 'â€¢â€¢â€¢â€¢' : 'â€”'}
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full border whitespace-nowrap ${ROLE_COLORS[user.role]}`}>
+                    <span className="px-2 py-1 text-xs font-medium rounded-full border whitespace-nowrap" style={{ backgroundColor: ROLE_COLORS[user.role].bg, color: ROLE_COLORS[user.role].text, borderColor: ROLE_COLORS[user.role].border }}>
                       {ROLE_LABELS[user.role]}
                     </span>
                   </td>
@@ -798,9 +840,7 @@ export const UsersPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
-                      user.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className="px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap" style={user.isActive ? { backgroundColor: safeTheme.colors.successLight, color: safeTheme.colors.success } : { backgroundColor: safeTheme.colors.borderLight, color: safeTheme.colors.textSecondary }}>
                       {user.isActive ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
@@ -811,12 +851,12 @@ export const UsersPage: React.FC = () => {
                         {user.isOnline ? (
                           <>
                             <Wifi className="w-3 h-3 text-emerald-500" />
-                            <span className="text-xs text-emerald-600 font-medium">En línea</span>
+                            <span className="text-xs text-emerald-600 font-medium">En lÃ­nea</span>
                           </>
                         ) : (
                           <>
                             <WifiOff className="w-3 h-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">Fuera de línea</span>
+                            <span className="text-xs text-gray-500">Fuera de lÃ­nea</span>
                           </>
                         )}
                       </div>
@@ -843,7 +883,7 @@ export const UsersPage: React.FC = () => {
                       )}
                       
                       {/* Last Activity */}
-                      <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <div className="flex items-center gap-1 text-xs" style={{ color: safeTheme.colors.textMuted }}>
                         <Clock className="w-3 h-3" />
                         {formatTimeAgo(user.lastActivityAt || user.lastSeen)}
                       </div>
@@ -853,7 +893,8 @@ export const UsersPage: React.FC = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => openModal(user)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm text-sm font-medium whitespace-nowrap"
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-white rounded-lg transition-all shadow-sm text-sm font-medium whitespace-nowrap"
+                        style={{ backgroundColor: safeTheme.colors.info }}
                         title="Editar usuario"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -861,7 +902,8 @@ export const UsersPage: React.FC = () => {
                       </button>
                       <button
                         onClick={() => handleDelete(user.id)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all shadow-sm text-sm font-medium whitespace-nowrap"
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-white rounded-lg transition-all shadow-sm text-sm font-medium whitespace-nowrap"
+                        style={{ backgroundColor: safeTheme.colors.error }}
                         title="Eliminar usuario"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -877,14 +919,14 @@ export const UsersPage: React.FC = () => {
       )}
 
       {/* Real-time indicator */}
-      <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
+      <div className="mt-4 flex items-center justify-between text-sm" style={{ color: safeTheme.colors.textSecondary }}>
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-emerald-500" />
-          <span>Actualización en tiempo real activa</span>
-          <span className="text-xs text-gray-400">(timeout: {ONLINE_TIMEOUT_MS/1000}s)</span>
+          <Zap className="w-4 h-4" style={{ color: safeTheme.colors.success }} />
+          <span>ActualizaciÃ³n en tiempo real activa</span>
+          <span className="text-xs" style={{ color: safeTheme.colors.textMuted }}>(timeout: {ONLINE_TIMEOUT_MS/1000}s)</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+          <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: safeTheme.colors.success }}></div>
           <span>Socket.IO conectado</span>
         </div>
       </div>
@@ -899,6 +941,7 @@ export const UsersPage: React.FC = () => {
             formData={formData}
             setFormData={setFormData}
             onSubmit={handleSubmit}
+              theme={safeTheme}
           />
         )}
       </AnimatePresence>
@@ -916,6 +959,7 @@ interface StatCardProps {
   borderColor: string;
   pulse?: boolean;
   isLoading?: boolean;
+  theme: any;
 }
 
 const StatCard: React.FC<StatCardProps> = ({ 
@@ -925,7 +969,8 @@ const StatCard: React.FC<StatCardProps> = ({
   color, 
   borderColor,
   pulse = false,
-  isLoading = false
+  isLoading = false,
+  theme
 }) => {
   const colorClasses: Record<string, string> = {
     indigo: 'text-indigo-600',
@@ -937,14 +982,14 @@ const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-md p-4 border-l-4 ${borderColor} transition-all hover:shadow-lg`}>
+    <div className={`rounded-lg shadow-md p-4 border-l-4 ${borderColor} transition-all hover:shadow-lg`} style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className={`text-xs uppercase font-semibold ${color === 'gray' ? 'text-gray-500' : colorClasses[color]}`}>
             {label}
           </p>
           {isLoading ? (
-            <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+            <div className="h-8 w-16 rounded animate-pulse mt-1" style={{ backgroundColor: theme.colors.border }}></div>
           ) : (
             <p className={`text-2xl font-bold ${colorClasses[color]} ${pulse ? 'animate-pulse' : ''}`}>
               {value}
@@ -957,18 +1002,18 @@ const StatCard: React.FC<StatCardProps> = ({
   );
 };
 
-const TableSkeleton: React.FC = () => (
-  <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+const TableSkeleton: React.FC<{ theme: any }> = ({ theme }) => (
+  <div className="rounded-lg shadow-md overflow-hidden border" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
     <div className="p-4">
       {[...Array(5)].map((_, i) => (
-        <div key={i} className="flex items-center gap-4 py-4 border-b border-gray-100 last:border-0">
-          <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+        <div key={i} className="flex items-center gap-4 py-4 border-b last:border-0" style={{ borderColor: theme.colors.borderLight }}>
+          <div className="w-10 h-10 rounded-full animate-pulse" style={{ backgroundColor: theme.colors.border }}></div>
           <div className="flex-1">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mb-2 animate-pulse"></div>
-            <div className="h-3 bg-gray-100 rounded w-1/3 animate-pulse"></div>
+            <div className="h-4 rounded w-1/4 mb-2 animate-pulse" style={{ backgroundColor: theme.colors.border }}></div>
+            <div className="h-3 rounded w-1/3 animate-pulse" style={{ backgroundColor: theme.colors.borderLight }}></div>
           </div>
           <div className="w-20">
-            <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-6 rounded animate-pulse" style={{ backgroundColor: theme.colors.border }}></div>
           </div>
         </div>
       ))}
@@ -983,32 +1028,35 @@ interface UserModalProps {
   formData: any;
   setFormData: (data: any) => void;
   onSubmit: (e: React.FormEvent) => void;
+  theme: any;
 }
 
-const UserModal: React.FC<UserModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  editingUser, 
-  formData, 
-  setFormData, 
-  onSubmit 
+const UserModal: React.FC<UserModalProps> = ({
+  isOpen,
+  onClose,
+  editingUser,
+  formData,
+  setFormData,
+  onSubmit,
+  theme
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        style={{ backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}
       >
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold" style={{ color: theme.colors.textPrimary }}>
               {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
             </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={onClose} style={{ color: theme.colors.textMuted }}>
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -1016,157 +1064,64 @@ const UserModal: React.FC<UserModalProps> = ({
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                />
+                <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.textSecondary }}>Nombre *</label>
+                <input type="text" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ borderColor: theme.colors.border, color: theme.colors.textPrimary, backgroundColor: theme.colors.surface }} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                />
+                <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.textSecondary }}>Apellido *</label>
+                <input type="text" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ borderColor: theme.colors.border, color: theme.colors.textPrimary, backgroundColor: theme.colors.surface }} />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Usuario *</label>
-              <input
-                type="text"
-                required
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              />
+              <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.textSecondary }}>Usuario *</label>
+              <input type="text" required value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ borderColor: theme.colors.border, color: theme.colors.textPrimary, backgroundColor: theme.colors.surface }} />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              />
+              <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.textSecondary }}>Email *</label>
+              <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ borderColor: theme.colors.border, color: theme.colors.textPrimary, backgroundColor: theme.colors.surface }} />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              />
+              <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.textSecondary }}>Teléfono</label>
+              <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ borderColor: theme.colors.border, color: theme.colors.textPrimary, backgroundColor: theme.colors.surface }} />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rol *</label>
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="CASHIER">Cajero</option>
-                <option value="KITCHEN">Cocina</option>
-                <option value="MANAGER">Gerente</option>
-                <option value="ADMIN">Administrador</option>
+              <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.textSecondary }}>Rol *</label>
+              <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ borderColor: theme.colors.border, color: theme.colors.textPrimary, backgroundColor: theme.colors.surface }}>
+                <option value="CASHIER">Cajero</option><option value="KITCHEN">Cocina</option><option value="MANAGER">Gerente</option><option value="ADMIN">Administrador</option>
               </select>
             </div>
 
             {!editingUser && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
-                <input
-                  type="password"
-                  required={!editingUser}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                />
+                <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.textSecondary }}>Contraseña *</label>
+                <input type="password" required={!editingUser} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ borderColor: theme.colors.border, color: theme.colors.textPrimary, backgroundColor: theme.colors.surface }} />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">PIN (4-6 dígitos)</label>
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="1234"
-                value={formData.pin}
-                onChange={(e) => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono"
-              />
-              <p className="text-xs text-gray-500 mt-1">PIN numérico para acceso rápido en POS y KDS</p>
+              <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.textSecondary }}>PIN (4-6 dígitos)</label>
+              <input type="text" maxLength={6} placeholder="1234" value={formData.pin} onChange={(e) => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })} className="w-full px-3 py-2 border rounded-lg font-mono" style={{ borderColor: theme.colors.border, color: theme.colors.textPrimary, backgroundColor: theme.colors.surface }} />
+              <p className="text-xs mt-1" style={{ color: theme.colors.textMuted }}>PIN numérico para acceso rápido en POS y KDS</p>
             </div>
 
-            {/* Permisos de Acceso */}
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Permisos de Acceso</h4>
+            <div className="border rounded-lg p-4" style={{ borderColor: theme.colors.border }}>
+              <h4 className="text-sm font-medium mb-3" style={{ color: theme.colors.textSecondary }}>Permisos de Acceso</h4>
               <div className="space-y-3">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.canAccessPos}
-                    onChange={(e) => setFormData({ ...formData, canAccessPos: e.target.checked })}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Acceso al POS (Punto de Venta)</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.canAccessKds}
-                    onChange={(e) => setFormData({ ...formData, canAccessKds: e.target.checked })}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Acceso al KDS (Cocina)</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.canAccessAdmin}
-                    onChange={(e) => setFormData({ ...formData, canAccessAdmin: e.target.checked })}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Acceso al Admin Panel</span>
-                </label>
+                <label className="flex items-center cursor-pointer"><input type="checkbox" checked={formData.canAccessPos} onChange={(e) => setFormData({ ...formData, canAccessPos: e.target.checked })} className="w-4 h-4" /><span className="ml-2 text-sm" style={{ color: theme.colors.textSecondary }}>Acceso al POS (Punto de Venta)</span></label>
+                <label className="flex items-center cursor-pointer"><input type="checkbox" checked={formData.canAccessKds} onChange={(e) => setFormData({ ...formData, canAccessKds: e.target.checked })} className="w-4 h-4" /><span className="ml-2 text-sm" style={{ color: theme.colors.textSecondary }}>Acceso al KDS (Cocina)</span></label>
+                <label className="flex items-center cursor-pointer"><input type="checkbox" checked={formData.canAccessAdmin} onChange={(e) => setFormData({ ...formData, canAccessAdmin: e.target.checked })} className="w-4 h-4" /><span className="ml-2 text-sm" style={{ color: theme.colors.textSecondary }}>Acceso al Admin Panel</span></label>
               </div>
             </div>
 
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <span className="ml-2 text-sm text-gray-700">Usuario activo</span>
-            </label>
+            <label className="flex items-center cursor-pointer"><input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} className="w-4 h-4" /><span className="ml-2 text-sm" style={{ color: theme.colors.textSecondary }}>Usuario activo</span></label>
 
             <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              >
-                {editingUser ? 'Actualizar' : 'Crear'}
-              </button>
+              <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border rounded-lg" style={{ borderColor: theme.colors.border, color: theme.colors.textSecondary, backgroundColor: theme.colors.surface }}>Cancelar</button>
+              <button type="submit" className="flex-1 px-4 py-2 text-white rounded-lg" style={{ backgroundColor: theme.colors.primary }}>{editingUser ? 'Actualizar' : 'Crear'}</button>
             </div>
           </form>
         </div>
@@ -1176,3 +1131,5 @@ const UserModal: React.FC<UserModalProps> = ({
 };
 
 export default UsersPage;
+
+

@@ -25,7 +25,7 @@ interface User {
 }
 
 function AppNew() {
-  const { tickets, loadTickets, clearHistory, clearHistoryByStation, deleteTicket, forceClearAll, checkAndClearForNewDay } = useKdsStore()
+  const { tickets, loadTickets, clearHistory, clearHistoryByStation, deleteTicket, forceClearAll, checkAndClearForNewDay, cleanOldTickets } = useKdsStore()
   
   // Estados del flujo
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -33,7 +33,21 @@ function AppNew() {
   const [stationSelected, setStationSelected] = useState(false) // Nueva bandera para controlar si ya seleccionó estación
   const [stations, setStations] = useState<Station[]>([])
   const [loading, setLoading] = useState(true)
+  const [stationsError, setStationsError] = useState<string | null>(null)
   const [currentView, setCurrentView] = useState<'comandas' | 'historial'>('comandas') // Vista actual
+
+  const ui = {
+    appBg: 'var(--background, #f9fafb)',
+    surface: 'var(--card, #ffffff)',
+    border: 'var(--border, #e5e7eb)',
+    text: 'var(--foreground, #111827)',
+    textMuted: 'var(--muted-foreground, #4b5563)',
+    primary: 'var(--primary, #059669)', // Verde Country Club
+    primaryForeground: 'var(--primary-foreground, #ffffff)',
+    success: 'var(--success, #16a34a)',
+    danger: 'var(--destructive, #dc2626)',
+    warning: 'var(--warning, #d97706)',
+  }
 
   // Cargar sesión persistida al iniciar (verificar nuevo día)
   useEffect(() => {
@@ -83,14 +97,69 @@ function AppNew() {
     return () => clearInterval(interval)
   }, [checkAndClearForNewDay])
 
+  // Limpieza automática diaria al cambiar de fecha (medianoche local)
+  useEffect(() => {
+    let midnightTimeout: ReturnType<typeof setTimeout> | null = null
+
+    const scheduleNextMidnightReset = () => {
+      const now = new Date()
+      const nextMidnight = new Date(now)
+      nextMidnight.setHours(24, 0, 0, 0)
+      const msUntilMidnight = nextMidnight.getTime() - now.getTime()
+
+      midnightTimeout = setTimeout(() => {
+        console.log('🧹 Reinicio diario KDS: limpiando comandas e historial')
+
+        // Limpiar store (comandas activas + historial + blacklist local)
+        forceClearAll()
+
+        // Limpiar sesión de operador/estación para iniciar turno limpio
+        localStorage.removeItem('kds-user')
+        localStorage.removeItem('kds-station-id')
+        localStorage.setItem('kds-last-session-date', new Date().toISOString().split('T')[0])
+
+        // Recargar la app para estado completamente consistente
+        window.location.reload()
+      }, msUntilMidnight + 1000) // +1s para asegurar cambio de día
+    }
+
+    scheduleNextMidnightReset()
+
+    return () => {
+      if (midnightTimeout) clearTimeout(midnightTimeout)
+    }
+  }, [forceClearAll])
+
+  // Limpieza automática de tickets antiguos cada hora
+  useEffect(() => {
+    // Limpiar tickets antiguos al iniciar
+    console.log('🧹 Verificando tickets antiguos al iniciar KDS...')
+    cleanOldTickets(24)
+
+    // Programar limpieza cada hora
+    const hourlyCleanup = setInterval(() => {
+      console.log('🧹 Limpieza programada de tickets antiguos (cada hora)...')
+      cleanOldTickets(24)
+    }, 60 * 60 * 1000) // 1 hora
+
+    return () => clearInterval(hourlyCleanup)
+  }, [cleanOldTickets])
+
   // Cargar estaciones al iniciar
   useEffect(() => {
     const loadStations = async () => {
-      try {
-        const response = await fetch('http://localhost:3004/api/stations')
-        if (response.ok) {
+      const maxRetries = 5
+      let lastError = 'No se pudieron cargar estaciones'
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch('http://localhost:3004/api/stations')
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`)
+          }
+
           const data = await response.json()
-          const mappedStations = data
+          const mappedStations = (data || [])
             .filter((s: any) => s.isActive)
             .map((s: any) => ({
               id: s.id,
@@ -102,13 +171,22 @@ function AppNew() {
               pendingCount: 0,
               isActive: s.isActive
             }))
+
           setStations(mappedStations)
+          setStationsError(null)
+          setLoading(false)
+          return
+        } catch (error: any) {
+          lastError = error?.message || lastError
+          console.error(`Error cargando estaciones (intento ${attempt}/${maxRetries}):`, error)
+          // Backoff simple: 1s, 2s, 3s, ...
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000))
         }
-      } catch (error) {
-        console.error('Error cargando estaciones:', error)
-      } finally {
-        setLoading(false)
       }
+
+      setStations([])
+      setStationsError(lastError)
+      setLoading(false)
     }
     loadStations()
   }, [])
@@ -284,19 +362,19 @@ function AppNew() {
   // PASO 2: Seleccionar Estación (pantalla completa)
   if (!stationSelected) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: ui.appBg }}>
         {/* Header */}
-        <header className="bg-white border-b-2 border-gray-200 px-fluid-sm py-fluid-sm">
+        <header className="border-b-2 px-fluid-sm py-fluid-sm" style={{ backgroundColor: ui.surface, borderColor: ui.border }}>
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="bg-green-100 p-2 rounded-xl">
-                <ChefHat className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+              <div className="p-2 rounded-xl" style={{ backgroundColor: '#dcfce7' }}>
+                <ChefHat className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: ui.success }} />
               </div>
               <div>
-                <h1 className="font-bold text-gray-900 text-fluid-lg sm:text-fluid-xl">
+                <h1 className="font-bold text-fluid-lg sm:text-fluid-xl" style={{ color: ui.text }}>
                   Selecciona tu Estación
                 </h1>
-                <div className="flex items-center gap-2 sm:gap-3 text-fluid-xs sm:text-fluid-sm text-gray-600">
+                <div className="flex items-center gap-2 sm:gap-3 text-fluid-xs sm:text-fluid-sm" style={{ color: ui.textMuted }}>
                   <span className="flex items-center gap-1">
                     <User className="w-3 h-3 sm:w-4 sm:h-4" />
                     {currentUser.name}
@@ -306,7 +384,7 @@ function AppNew() {
             </div>
             <button
               onClick={handleLogout}
-              className="kds-touch bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center gap-1 sm:gap-2 px-3 py-2 active:scale-95 transition-all"
+              className="kds-touch bg-[var(--danger)] hover:bg-[var(--danger)] text-[var(--danger-foreground)] rounded-xl flex items-center gap-1 sm:gap-2 px-3 py-2 active:scale-95 transition-all"
             >
               <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden md:inline text-fluid-sm">Salir</span>
@@ -317,37 +395,56 @@ function AppNew() {
         {/* Contenido - Selector de Estaciones */}
         <main className="flex-1 flex items-center justify-center p-fluid-md sm:p-fluid-lg">
           <div className="w-full max-w-4xl">
-            <KdsStationFilter
-              stations={stations}
-              selectedStationId={selectedStationId}
-              onSelectStation={handleSelectStation}
-            />
+            {stations.length > 0 ? (
+              <KdsStationFilter
+                stations={stations}
+                selectedStationId={selectedStationId}
+                onSelectStation={handleSelectStation}
+              />
+            ) : (
+              <div className="border rounded-2xl p-6 text-center" style={{ backgroundColor: ui.surface, borderColor: '#fecaca' }}>
+                <p className="font-semibold mb-2" style={{ color: ui.danger }}>No se pudieron cargar estaciones</p>
+                <p className="text-sm mb-4" style={{ color: ui.textMuted }}>
+                  {stationsError || 'Verifica que el API (puerto 3004) esté disponible.'}
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="kds-touch bg-[var(--info)] hover:bg-[var(--info)] text-[var(--info-foreground)] rounded-xl px-4 py-2 font-semibold"
+                >
+                  Reintentar
+                </button>
+              </div>
+            )}
           </div>
         </main>
       </div>
     )
   }
 
+  // Helper seguro para nombre corto en mobile (evita .split sobre undefined/null)
+  const currentUserName = (currentUser?.name || '').trim()
+  const currentUserShortName = currentUserName ? currentUserName.split(' ')[0] : 'Usuario'
+
   // PASO 4: Vista Principal con Pedidos
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: ui.appBg }}>
       {/* Header Principal */}
-      <header className="bg-white border-b-2 border-gray-200 px-fluid-sm py-fluid-xs flex-shrink-0">
+      <header className="border-b-2 px-fluid-sm py-fluid-xs flex-shrink-0" style={{ backgroundColor: ui.surface, borderColor: ui.border }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Info de usuario y turno */}
           <div className="flex items-center gap-2 sm:gap-4">
-            <div className="bg-green-100 p-1.5 sm:p-2 rounded-xl">
-              <ChefHat className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+            <div className="p-1.5 sm:p-2 rounded-xl" style={{ backgroundColor: '#dcfce7' }}>
+              <ChefHat className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: ui.success }} />
             </div>
             <div>
-              <h1 className="font-bold text-gray-900 text-fluid-base sm:text-fluid-lg">
+              <h1 className="font-bold text-fluid-base sm:text-fluid-lg" style={{ color: ui.text }}>
                 Kitchen Display
               </h1>
-              <div className="flex items-center gap-2 sm:gap-3 text-fluid-xs text-gray-600">
+              <div className="flex items-center gap-2 sm:gap-3 text-fluid-xs" style={{ color: ui.textMuted }}>
                 <span className="flex items-center gap-1">
                   <User className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">{currentUser.name}</span>
-                  <span className="sm:hidden">{currentUser.name.split(' ')[0]}</span>
+                  <span className="hidden sm:inline">{currentUserName || 'Usuario'}</span>
+                  <span className="sm:hidden">{currentUserShortName}</span>
                 </span>
               </div>
             </div>
@@ -355,24 +452,24 @@ function AppNew() {
 
           {/* Stats rápidos */}
           <div className="hidden lg:flex items-center gap-2">
-            <div className="bg-blue-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-blue-200">
-              <span className="text-fluid-xs text-blue-600 font-medium">Nuevos</span>
-              <span className="ml-1 sm:ml-2 text-fluid-base sm:text-fluid-lg font-bold text-blue-700">{newCount}</span>
+            <div className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border" style={{ backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
+              <span className="text-fluid-xs font-medium" style={{ color: ui.primary }}>Nuevos</span>
+              <span className="ml-1 sm:ml-2 text-fluid-base sm:text-fluid-lg font-bold" style={{ color: ui.primary }}>{newCount}</span>
             </div>
-            <div className="bg-amber-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-amber-200">
-              <span className="text-fluid-xs text-amber-600 font-medium">Prep</span>
-              <span className="ml-1 sm:ml-2 text-fluid-base sm:text-fluid-lg font-bold text-amber-700">{preparingCount}</span>
+            <div className="bg-[var(--warning-light)] px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-[var(--warning)]">
+              <span className="text-fluid-xs text-[var(--warning)] font-medium">Prep</span>
+              <span className="ml-1 sm:ml-2 text-fluid-base sm:text-fluid-lg font-bold text-[var(--warning)]">{preparingCount}</span>
             </div>
-            <div className="bg-green-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-green-200">
-              <span className="text-fluid-xs text-green-600 font-medium">Listos</span>
-              <span className="ml-1 sm:ml-2 text-fluid-base sm:text-fluid-lg font-bold text-green-700">{readyCount}</span>
+            <div className="bg-[var(--success-light)] px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-[var(--success)]">
+              <span className="text-fluid-xs text-[var(--success)] font-medium">Listos</span>
+              <span className="ml-1 sm:ml-2 text-fluid-base sm:text-fluid-lg font-bold text-[var(--success)]">{readyCount}</span>
             </div>
           </div>
 
           {/* Botón logout */}
           <button
             onClick={handleLogout}
-            className="kds-touch bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 active:scale-95 transition-all"
+            className="kds-touch bg-[var(--danger)] hover:bg-[var(--danger)] text-[var(--danger-foreground)] rounded-xl flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 active:scale-95 transition-all"
           >
             <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="hidden md:inline text-fluid-sm">Salir</span>
@@ -381,13 +478,13 @@ function AppNew() {
       </header>
 
       {/* Banner de Estación Actual */}
-      <div className="bg-white border-b border-gray-200 px-fluid-sm py-2 flex-shrink-0">
+      <div className="border-b px-fluid-sm py-2 flex-shrink-0" style={{ backgroundColor: ui.surface, borderColor: ui.border }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
-            <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-            <span className="text-fluid-xs sm:text-fluid-sm text-gray-700">
+            <Filter className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: ui.textMuted }} />
+            <span className="text-fluid-xs sm:text-fluid-sm" style={{ color: ui.textMuted }}>
               <span className="hidden sm:inline">Estación actual: </span>
-              <strong className="text-gray-900">
+              <strong style={{ color: ui.text }}>
                 {selectedStationId 
                   ? stations.find(s => s.id === selectedStationId)?.displayName || 'Estación'
                   : 'Todas'
@@ -397,7 +494,8 @@ function AppNew() {
           </div>
           <button
             onClick={handleChangeStation}
-            className="kds-touch bg-blue-600 text-white hover:bg-blue-700 rounded-xl flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 active:scale-95 transition-all text-fluid-xs sm:text-fluid-sm font-semibold"
+            className="kds-touch text-white rounded-xl flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 active:scale-95 transition-all text-fluid-xs sm:text-fluid-sm font-semibold"
+            style={{ backgroundColor: ui.primary }}
           >
             <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Cambiar</span>
@@ -406,24 +504,25 @@ function AppNew() {
       </div>
 
       {/* Pestañas de Navegación */}
-      <div className="bg-white border-b-2 border-gray-200 px-fluid-sm flex-shrink-0">
+      <div className="border-b-2 px-fluid-sm flex-shrink-0" style={{ backgroundColor: ui.surface, borderColor: ui.border }}>
         <div className="max-w-7xl mx-auto flex gap-1 sm:gap-2">
           <button
             onClick={() => setCurrentView('comandas')}
             className={`
               px-3 sm:px-6 py-2 sm:py-3 font-bold text-fluid-sm sm:text-fluid-base transition-all border-b-4
               ${currentView === 'comandas'
-                ? 'border-blue-600 text-blue-600 bg-blue-50'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'border-[var(--info)] text-[var(--info)] bg-[var(--info-light)]'
+                : 'border-transparent'
               }
             `}
+            style={currentView === 'comandas' ? undefined : { color: ui.textMuted }}
           >
             <div className="flex items-center gap-1 sm:gap-2">
               <ChefHat className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline">Comandas</span>
               <span className={`
                 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-fluid-xs font-bold
-                ${currentView === 'comandas' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}
+                ${currentView === 'comandas' ? 'bg-[var(--info)] text-[var(--info-foreground)]' : 'bg-[var(--muted)]'}
               `}>
                 {newCount}
               </span>
@@ -435,17 +534,18 @@ function AppNew() {
             className={`
               px-3 sm:px-6 py-2 sm:py-3 font-bold text-fluid-sm sm:text-fluid-base transition-all border-b-4
               ${currentView === 'historial'
-                ? 'border-amber-600 text-amber-600 bg-amber-50'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'border-[var(--warning)] text-[var(--warning)] bg-[var(--warning-light)]'
+                : 'border-transparent'
               }
             `}
+            style={currentView === 'historial' ? undefined : { color: ui.textMuted }}
           >
             <div className="flex items-center gap-1 sm:gap-2">
               <History className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline">Historial</span>
               <span className={`
                 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-fluid-xs font-bold
-                ${currentView === 'historial' ? 'bg-amber-600 text-white' : 'bg-gray-200 text-gray-700'}
+                ${currentView === 'historial' ? 'bg-[var(--warning)] text-[var(--warning-foreground)]' : 'bg-[var(--muted)]'}
               `}>
                 {preparingCount + readyCount}
               </span>
@@ -459,8 +559,8 @@ function AppNew() {
               className={`
                 ml-2 px-3 sm:px-4 py-2 sm:py-3 font-bold text-fluid-sm sm:text-fluid-base transition-all rounded-lg flex items-center gap-1 sm:gap-2
                 ${selectedStationId 
-                  ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300' 
-                  : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'}
+                  ? 'bg-[var(--danger-light)] text-[var(--danger)] hover:bg-[var(--danger)] border border-[var(--danger)]' 
+                  : 'bg-[var(--danger-light)] text-[var(--danger)] hover:bg-[var(--danger)] border border-[var(--danger)]'}
               `}
               title={selectedStationId ? 'Cancelar todas las comandas de esta estación' : 'Cancelar todas las comandas'}
             >
@@ -476,8 +576,8 @@ function AppNew() {
               className={`
                 ml-2 px-3 sm:px-4 py-2 sm:py-3 font-bold text-fluid-sm sm:text-fluid-base transition-all rounded-lg flex items-center gap-1 sm:gap-2
                 ${selectedStationId 
-                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-300' 
-                  : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'}
+                  ? 'bg-[var(--warning-light)] text-[var(--warning)] hover:bg-[var(--warning)] border border-[var(--warning)]' 
+                  : 'bg-[var(--danger-light)] text-[var(--danger)] hover:bg-[var(--danger)] border border-[var(--danger)]'}
               `}
               title={selectedStationId ? 'Limpiar historial de esta estación' : 'Limpiar historial de todas las estaciones'}
             >
@@ -495,13 +595,13 @@ function AppNew() {
           <div className="h-full overflow-x-auto overflow-y-hidden kds-scrollbar">
             {orderedActiveTickets.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
-                <div className="bg-green-50 p-6 sm:p-8 rounded-3xl mb-4 sm:mb-6">
-                  <ChefHat className="w-16 h-16 sm:w-24 sm:h-24 text-green-600" />
+                <div className="p-6 sm:p-8 rounded-3xl mb-4 sm:mb-6" style={{ backgroundColor: '#f0fdf4' }}>
+                  <ChefHat className="w-16 h-16 sm:w-24 sm:h-24" style={{ color: ui.success }} />
                 </div>
-                <h2 className="text-fluid-xl sm:text-fluid-2xl font-bold text-gray-800 mb-2">
+                <h2 className="text-fluid-xl sm:text-fluid-2xl font-bold mb-2" style={{ color: ui.text }}>
                   ¡Todo al día!
                 </h2>
-                <p className="text-fluid-base text-gray-600 text-center">
+                <p className="text-fluid-base text-center" style={{ color: ui.textMuted }}>
                   No hay comandas activas
                 </p>
               </div>
@@ -529,24 +629,24 @@ function AppNew() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t-2 border-gray-200 px-fluid-sm py-2 flex-shrink-0">
-        <div className="max-w-7xl mx-auto flex items-center justify-between text-fluid-xs sm:text-fluid-sm text-gray-600">
+      <footer className="border-t-2 px-fluid-sm py-2 flex-shrink-0" style={{ backgroundColor: ui.surface, borderColor: ui.border }}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between text-fluid-xs sm:text-fluid-sm" style={{ color: ui.textMuted }}>
           <div className="flex items-center gap-2 sm:gap-4">
             <span className="font-medium">
               <span className="hidden sm:inline">Activas: </span>
-              <strong className="text-gray-900">{newCount}</strong>
+              <strong style={{ color: ui.text }}>{newCount}</strong>
               <span className="mx-1">|</span>
               <span className="hidden sm:inline">Historial: </span>
-              <strong className="text-gray-900">{preparingCount + readyCount}</strong>
+              <strong style={{ color: ui.text }}>{preparingCount + readyCount}</strong>
             </span>
-            <span className="hidden lg:inline text-gray-400">
+            <span className="hidden lg:inline" style={{ color: '#9ca3af' }}>
               {new Date().toLocaleTimeString('es-MX', { 
                 hour: '2-digit', 
                 minute: '2-digit' 
               })}
             </span>
           </div>
-          <div className="text-fluid-xs text-gray-500">
+          <div className="text-fluid-xs" style={{ color: ui.textMuted }}>
             YCC © 2026
           </div>
         </div>

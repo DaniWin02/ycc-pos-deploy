@@ -16,16 +16,16 @@
     --kds-text-secondary: #d1d5db;
     --kds-text-muted: #9ca3af;
     
-    /* Status Colors */
-    --kds-status-new: #3b82f6;
+    /* Status Colors - Verde Country Club */
+    --kds-status-new: #059669; /* emerald-600 */
     --kds-status-preparing: #f59e0b;
     --kds-status-ready: #10b981;
     --kds-status-served: #6b7280;
     --kds-status-cancelled: #ef4444;
     --kds-status-rush: #dc2626;
-    
-    /* Station Colors */
-    --kds-station-bar: #2563eb;
+
+    /* Station Colors - Verde Country Club */
+    --kds-station-bar: #059669; /* emerald-600 */
     --kds-station-cocina: #dc2626;
     --kds-station-fria: #0891b2;
     --kds-station-parrilla: #ea580c;

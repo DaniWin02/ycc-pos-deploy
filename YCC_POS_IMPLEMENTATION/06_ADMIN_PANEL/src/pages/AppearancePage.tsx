@@ -1,244 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Palette, 
-  Type, 
-  Layout,
-  Image, 
-  Save, 
-  RotateCcw, 
-  Undo, 
-  Redo, 
-  Download, 
-  Upload,
-  Eye,
-  Monitor,
-  Smartphone,
+import {
   Building2,
-  ShoppingCart,
-  Sun,
-  Moon,
   Check,
-  Volume2,
-  Grid3X3,
-  List,
-  Maximize2
+  Download,
+  Eye,
+  Image,
+  Layout,
+  Maximize2,
+  Monitor,
+  Moon,
+  Palette,
+  Redo,
+  RefreshCcw,
+  RotateCcw,
+  Settings,
+  Sun,
+  Type,
+  Upload,
+  Undo,
+  Utensils,
+  Smartphone,
+  X
 } from 'lucide-react';
 import { useThemeStore } from '../stores/theme.store';
+import { useThemeApplication } from '../hooks/useThemeApplication';
+import { ThemeModule, defaultSemanticLight, defaultSemanticDark } from '../types/theme.types';
 
-// Color input component
-const ColorPicker: React.FC<{
-  label: string;
-  value: string;
-  onChange: (color: string) => void;
-  description?: string;
-}> = ({ label, value, onChange, description }) => {
-  return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">{label}</label>
-      {description && (
-        <p className="text-xs text-gray-500">{description}</p>
-      )}
-      <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-10 h-10 rounded cursor-pointer border border-gray-300 p-1"
-        />
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase"
-          placeholder="#000000"
-        />
-      </div>
+// ===================== COMPONENTS =====================
+
+const ColorPicker = ({ label, value, onChange }: { label: string; value: string; onChange: (val: string) => void }) => (
+  <div className="flex items-center justify-between p-3 bg-white border rounded-lg">
+    <span className="text-sm font-medium text-gray-700">{label}</span>
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-400 font-mono uppercase">{value}</span>
+      <input 
+        type="color" 
+        value={value} 
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8 w-8 cursor-pointer rounded border-0 p-0 overflow-hidden" 
+      />
     </div>
-  );
-};
+  </div>
+);
 
-// Section component
-const Section: React.FC<{
-  title: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-}> = ({ title, icon, children, className = '' }) => {
-  return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden ${className}`}>
-      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-        {icon && <div className="flex-shrink-0">{icon}</div>}
-        <h3 className="font-semibold text-gray-900">{title}</h3>
-      </div>
-      <div className="p-6">
-        {children}
-      </div>
+const Section = ({ title, children, icon: Icon }: { title: string; children: React.ReactNode; icon?: any }) => (
+  <div className="mb-8 last:mb-0">
+    <div className="flex items-center gap-2 mb-4">
+      {Icon && <Icon className="w-5 h-5 text-indigo-600" />}
+      <h3 className="text-lg font-bold text-gray-900">{title}</h3>
     </div>
-  );
-};
+    <div className="space-y-4">
+      {children}
+    </div>
+  </div>
+);
 
-// Toast notification component
-const Toast: React.FC<{ message: string; onClose: () => void }> = ({ message, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 2000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-50"
-    >
-      <Check className="w-4 h-4" />
-      <span className="text-sm font-medium">{message}</span>
-    </motion.div>
-  );
-};
+// ===================== PAGE =====================
 
 export function AppearancePage() {
-  const {
-    currentTheme,
-    updateColors,
-    updateTypography,
+  const { 
+    config, 
+    activeModule, 
+    setActiveModule, 
+    updateModuleConfig,
     updateBranding,
-    toggleDarkMode,
-    toggleShadows,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    resetToDefault,
+    getEffectiveConfig,
+    resetModule,
     exportTheme,
     importTheme,
-    isPreviewMode,
-    setPreviewMode,
+    globalUi,
+    updateGlobalUi
   } = useThemeStore();
 
-  // Ensure branding exists with defaults
-  const branding = currentTheme.branding ?? {
-    logoUrl: '',
-    logoWidth: 120,
-    logoHeight: 40,
-    faviconUrl: '',
-    posIconUrl: '',
-    posIconColor: '#10B981',
-    useCustomPosIcon: false,
-    companyName: 'Mi Negocio',
-    companyTagline: '',
-    showLogoInHeader: true,
-    showLogoInReceipt: true,
-    showLogoInLogin: true,
-    iconStyle: 'outline',
-    appIcon192: '',
-    appIcon512: '',
-  };
+  // Apply theme for real-time preview
+  useThemeApplication(activeModule);
 
-  const [activeTab, setActiveTab] = useState<'colors' | 'typography' | 'layout' | 'branding' | 'pos' | 'kds'>('colors');
+  const [activeCategory, setActiveCategory] = useState<'colors' | 'typography' | 'branding' | 'global'>('colors');
+  const [showPreview, setShowPreview] = useState(true);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // KDS Config State
-  const [kdsConfig, setKdsConfig] = useState({
-    layout: 'grid' as 'grid' | 'list' | 'compact',
-    cardsPerRow: 3,
-    fontSize: 'medium' as 'small' | 'medium' | 'large',
-    showImages: true,
-    showTimer: true,
-    showOrderNumber: true,
-    showCustomerName: true,
-    soundEnabled: true,
-    soundType: 'bell',
-    soundVolume: 80,
-    desktopNotifications: true,
-    flashOnNewOrder: true,
-    priorityEnabled: true,
-    warningTime: 300,
-    dangerTime: 600,
-    autoArchiveTime: 30,
-    stationColors: {
-      cocina: '#EF4444',
-      bar: '#3B82F6',
-      parrilla: '#F59E0B',
-      ensaladas: '#10B981',
-      pasteleria: '#8B5CF6',
-    },
-  });
-
-  // POS Config State
-  const [posConfig, setPosConfig] = useState({
-    layout: 'grid' as 'grid' | 'list',
-    productsPerRow: 4,
-    showProductImages: true,
-    showProductPrices: true,
-    showProductStock: true,
-    showCategories: true,
-    cartPosition: 'right' as 'right' | 'bottom' | 'overlay',
-    showQuickPayment: true,
-    showDiscountButton: true,
-    showSplitPayment: true,
-    enableBarcodeScanner: true,
-    autoPrintReceipt: false,
-    receiptPrinterEnabled: true,
-    ticketPrinterEnabled: false,
-    enableComandas: true,
-    defaultPOSMode: 'COUNTER' as 'COUNTER' | 'TABLE' | 'DELIVERY',
-    enableCashDrawer: true,
-    enableTips: true,
-    tipPresets: [10, 15, 20],
-    enableLoyalty: false,
-  });
-
-  // Load configs from localStorage
-  useEffect(() => {
-    const savedKds = localStorage.getItem('kds-config');
-    if (savedKds) {
-      try {
-        const parsed = JSON.parse(savedKds);
-        setKdsConfig(prev => ({ ...prev, ...parsed }));
-      } catch {
-        console.error('Failed to load KDS config');
-      }
-    }
-
-    const savedPos = localStorage.getItem('pos-config');
-    if (savedPos) {
-      try {
-        const parsed = JSON.parse(savedPos);
-        setPosConfig(prev => ({ ...prev, ...parsed }));
-      } catch {
-        console.error('Failed to load POS config');
-      }
-    }
-  }, []);
-
-  const showNotification = (message: string) => {
+  const notify = (message: string) => {
     setToastMessage(message);
     setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
   };
 
-  const updateKdsConfig = (updates: Partial<typeof kdsConfig>) => {
-    setKdsConfig(prev => {
-      const updated = { ...prev, ...updates };
-      localStorage.setItem('kds-config', JSON.stringify(updated));
-      localStorage.setItem('kds-config-updated', Date.now().toString());
-      window.dispatchEvent(new CustomEvent('kds-config-change', { detail: updated }));
-      return updated;
-    });
-    showNotification('Configuración KDS guardada');
-  };
+  // Get current module configuration (effective, including inheritance)
+  const currentModuleConfig = useMemo(() => getEffectiveConfig(activeModule), [config, activeModule, getEffectiveConfig]);
 
-  const updatePosConfig = (updates: Partial<typeof posConfig>) => {
-    setPosConfig(prev => {
-      const updated = { ...prev, ...updates };
-      localStorage.setItem('pos-config', JSON.stringify(updated));
-      localStorage.setItem('pos-config-updated', Date.now().toString());
-      window.dispatchEvent(new CustomEvent('pos-config-change', { detail: updated }));
-      return updated;
+  // Note: Theme is now applied globally via useThemeApplication hook in App.tsx
+  // This ensures all pages receive theme updates, not just the appearance page
+
+  const toggleDarkMode = () => {
+    const isDark = !currentModuleConfig.isDark;
+    updateModuleConfig(activeModule, { 
+      isDark,
+      colors: isDark ? defaultSemanticDark : defaultSemanticLight
     });
-    showNotification('Configuración POS guardada');
+    notify(`Modo ${isDark ? 'oscuro' : 'claro'} activado para ${activeModule.toUpperCase()}`);
   };
 
   const handleExport = () => {
@@ -247,1069 +108,307 @@ export function AppearancePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `theme-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `ycc-theme-modular-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification('Tema exportado');
+    notify('Tema exportado correctamente');
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        const themeJson = e.target?.result as string;
-        importTheme(themeJson);
-        showNotification('Tema importado exitosamente');
-      } catch (error) {
-        alert('Error al importar el tema. Verifica que el archivo sea válido.');
+      const themeJson = e.target?.result as string;
+      if (importTheme(themeJson)) {
+        notify('Tema importado correctamente');
+      } else {
+        notify('Error al importar tema');
       }
     };
     reader.readAsText(file);
   };
 
-  const tabs = [
-    { id: 'colors', label: 'Colores', icon: Palette },
-    { id: 'typography', label: 'Tipografía', icon: Type },
-    { id: 'layout', label: 'Diseño', icon: Layout },
-    { id: 'branding', label: 'Marca', icon: Image },
-    { id: 'pos', label: 'POS', icon: ShoppingCart },
-    { id: 'kds', label: 'KDS', icon: Monitor },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {showToast && <Toast message={toastMessage} onClose={() => setShowToast(false)} />}
+    <div className="flex h-full flex-col bg-gray-50 overflow-hidden">
+      {showToast && (
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="fixed top-4 right-4 z-50 bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3">
+          <Check className="w-5 h-5" /> {toastMessage}
+        </motion.div>
+      )}
 
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Apariencia</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Personaliza los colores, tipografía y diseño de tu sistema
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Undo/Redo */}
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={undo}
-                disabled={!canUndo}
-                className="p-2 rounded hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                title="Deshacer"
-              >
-                <Undo className="w-4 h-4" />
+      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Personalización Visual</h1>
+          <p className="text-sm text-gray-500">Arquitectura de temas independiente por módulo</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 transition-colors">
+            <Download className="w-4 h-4" /> Exportar
+          </button>
+          <label className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+            <Upload className="w-4 h-4" /> Importar
+            <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+          </label>
+          <button onClick={() => setShowPreview(!showPreview)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${showPreview ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-gray-700 border'}`}>
+            <Eye className="w-4 h-4" /> {showPreview ? 'Ocultar Vista' : 'Mostrar Vista'}
+          </button>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-96 bg-white border-r overflow-y-auto flex flex-col shadow-inner">
+          <div className="p-4 border-b bg-gray-50/50">
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Contexto de Edición</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setActiveModule('global')} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${activeModule === 'global' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'}`}>
+                <Maximize2 className="w-5 h-5 mb-1" />
+                <span className="text-[11px] font-bold">GLOBAL</span>
               </button>
-              <button
-                onClick={redo}
-                disabled={!canRedo}
-                className="p-2 rounded hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                title="Rehacer"
-              >
-                <Redo className="w-4 h-4" />
+              <button onClick={() => setActiveModule('admin')} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${activeModule === 'admin' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'}`}>
+                <Settings className="w-5 h-5 mb-1" />
+                <span className="text-[11px] font-bold">ADMIN</span>
+              </button>
+              <button onClick={() => setActiveModule('pos')} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${activeModule === 'pos' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'}`}>
+                <Smartphone className="w-5 h-5 mb-1" />
+                <span className="text-[11px] font-bold">POS</span>
+              </button>
+              <button onClick={() => setActiveModule('kds')} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${activeModule === 'kds' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'}`}>
+                <Utensils className="w-5 h-5 mb-1" />
+                <span className="text-[11px] font-bold">KDS</span>
               </button>
             </div>
-
-            {/* Preview Mode Toggle */}
-            <button
-              onClick={() => setPreviewMode(!isPreviewMode)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                isPreviewMode
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {isPreviewMode ? <Eye className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              <span className="text-sm">{isPreviewMode ? 'Vista Previa ON' : 'Vista Previa'}</span>
-            </button>
-
-            {/* Export/Import */}
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span className="text-sm hidden sm:inline">Exportar</span>
-            </button>
-            <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors cursor-pointer">
-              <Upload className="w-4 h-4" />
-              <span className="text-sm hidden sm:inline">Importar</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImport}
-                className="hidden"
-              />
-            </label>
-
-            {/* Reset */}
-            <button
-              onClick={resetToDefault}
-              className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span className="text-sm hidden sm:inline">Restablecer</span>
-            </button>
           </div>
-        </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 px-6">
-        <div className="flex gap-6">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 py-4 border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="font-medium">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+          <div className="flex border-b sticky top-0 bg-white z-10 shadow-sm">
+            <button onClick={() => setActiveCategory('colors')} className={`flex-1 py-3 text-xs font-bold transition-all ${activeCategory === 'colors' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>COLORES</button>
+            <button onClick={() => setActiveCategory('typography')} className={`flex-1 py-3 text-xs font-bold transition-all ${activeCategory === 'typography' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>TEXTO</button>
+            <button onClick={() => setActiveCategory('branding')} className={`flex-1 py-3 text-xs font-bold transition-all ${activeCategory === 'branding' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>MARCA</button>
+            <button onClick={() => setActiveCategory('global')} className={`flex-1 py-3 text-xs font-bold transition-all ${activeCategory === 'global' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>UX</button>
+          </div>
 
-      {/* Content */}
-      <div className="p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Settings */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* COLORS TAB */}
-            {activeTab === 'colors' && (
-              <>
-                <Section title="Colores de Marca" icon={<Palette className="w-5 h-5 text-blue-600" />}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ColorPicker
-                      label="Color Primario"
-                      value={currentTheme.colors.primary}
-                      onChange={(color) => updateColors({ primary: color })}
-                      description="Usado en botones principales y elementos de marca"
-                    />
-                    <ColorPicker
-                      label="Color Secundario"
-                      value={currentTheme.colors.secondary}
-                      onChange={(color) => updateColors({ secondary: color })}
-                      description="Usado en elementos secundarios y acentos"
-                    />
-                    <ColorPicker
-                      label="Color Primario Oscuro"
-                      value={currentTheme.colors.primaryDark}
-                      onChange={(color) => updateColors({ primaryDark: color })}
-                      description="Variante oscura para estados hover"
-                    />
-                    <ColorPicker
-                      label="Color Primario Claro"
-                      value={currentTheme.colors.primaryLight}
-                      onChange={(color) => updateColors({ primaryLight: color })}
-                      description="Variante clara para fondos y estados suaves"
-                    />
-                  </div>
-                </Section>
-
-                <Section title="Colores de Estado" icon={<Check className="w-5 h-5 text-green-600" />}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ColorPicker
-                      label="Éxito"
-                      value={currentTheme.colors.success}
-                      onChange={(color) => updateColors({ success: color })}
-                    />
-                    <ColorPicker
-                      label="Error"
-                      value={currentTheme.colors.error}
-                      onChange={(color) => updateColors({ error: color })}
-                    />
-                    <ColorPicker
-                      label="Advertencia"
-                      value={currentTheme.colors.warning}
-                      onChange={(color) => updateColors({ warning: color })}
-                    />
-                    <ColorPicker
-                      label="Información"
-                      value={currentTheme.colors.info}
-                      onChange={(color) => updateColors({ info: color })}
-                    />
-                  </div>
-                </Section>
-
-                <Section title="Fondos y Texto" icon={<Layout className="w-5 h-5 text-gray-600" />}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ColorPicker
-                      label="Fondo Principal"
-                      value={currentTheme.colors.background}
-                      onChange={(color) => updateColors({ background: color })}
-                    />
-                    <ColorPicker
-                      label="Superficie/Tarjetas"
-                      value={currentTheme.colors.surface}
-                      onChange={(color) => updateColors({ surface: color })}
-                    />
-                    <ColorPicker
-                      label="Texto Principal"
-                      value={currentTheme.colors.textPrimary}
-                      onChange={(color) => updateColors({ textPrimary: color })}
-                    />
-                    <ColorPicker
-                      label="Texto Secundario"
-                      value={currentTheme.colors.textSecondary}
-                      onChange={(color) => updateColors({ textSecondary: color })}
-                    />
-                  </div>
-                </Section>
-
-                <Section title="Colores del POS" icon={<Monitor className="w-5 h-5 text-purple-600" />}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ColorPicker
-                      label="Encabezado POS"
-                      value={currentTheme.colors.posHeader || currentTheme.colors.primary}
-                      onChange={(color) => updateColors({ posHeader: color })}
-                    />
-                    <ColorPicker
-                      label="Tarjeta de Producto"
-                      value={currentTheme.colors.posProductCard || currentTheme.colors.surface}
-                      onChange={(color) => updateColors({ posProductCard: color })}
-                    />
-                    <ColorPicker
-                      label="Fondo del Carrito"
-                      value={currentTheme.colors.posCartBackground || currentTheme.colors.surface}
-                      onChange={(color) => updateColors({ posCartBackground: color })}
-                    />
-                    <ColorPicker
-                      label="Botón Primario POS"
-                      value={currentTheme.colors.posButtonPrimary || currentTheme.colors.primary}
-                      onChange={(color) => updateColors({ posButtonPrimary: color })}
-                    />
-                  </div>
-                </Section>
-
-                {/* Live Preview */}
-                <Section title="Vista Previa en Vivo" icon={<Eye className="w-5 h-5 text-indigo-600" />}>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-3">Botones</p>
-                      <div className="flex flex-wrap gap-2">
-                        <button className="px-4 py-2 rounded text-white text-sm" style={{ backgroundColor: currentTheme.colors.primary }}>Primario</button>
-                        <button className="px-4 py-2 rounded text-white text-sm" style={{ backgroundColor: currentTheme.colors.secondary }}>Secundario</button>
-                        <button className="px-4 py-2 rounded text-white text-sm" style={{ backgroundColor: currentTheme.colors.success }}>Éxito</button>
-                        <button className="px-4 py-2 rounded text-white text-sm" style={{ backgroundColor: currentTheme.colors.error }}>Error</button>
-                      </div>
+          <div className="p-6">
+            {activeCategory === 'colors' && (
+              <Section title="Esquema Semántico" icon={Palette}>
+                <button onClick={toggleDarkMode} className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 mb-6 group hover:border-indigo-300 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${currentModuleConfig.isDark ? 'bg-indigo-600 text-white' : 'bg-amber-100 text-amber-600'}`}>
+                      {currentModuleConfig.isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-3">Tarjetas</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 rounded border" style={{ backgroundColor: currentTheme.colors.surface, borderColor: currentTheme.colors.border }}>
-                          <p className="text-sm font-medium" style={{ color: currentTheme.colors.textPrimary }}>Tarjeta</p>
-                          <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Contenido</p>
-                        </div>
-                      </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-gray-900">Modo {currentModuleConfig.isDark ? 'Oscuro' : 'Claro'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Click para alternar</p>
                     </div>
                   </div>
-                </Section>
-              </>
+                  <RefreshCcw className="w-4 h-4 text-gray-400 group-hover:rotate-180 transition-transform duration-500" />
+                </button>
+
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Primarios</label>
+                    <ColorPicker label="Acción Principal" value={currentModuleConfig.colors.primary || '#059669'} onChange={(val) => updateModuleConfig(activeModule, { colors: { primary: val, ring: val } })} />
+                    <ColorPicker label="Texto sobre Primario" value={currentModuleConfig.colors.primaryForeground || '#ffffff'} onChange={(val) => updateModuleConfig(activeModule, { colors: { primaryForeground: val } })} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Fondo y Texto</label>
+                    <ColorPicker label="Fondo Base" value={currentModuleConfig.colors.background || '#ffffff'} onChange={(val) => updateModuleConfig(activeModule, { colors: { background: val } })} />
+                    <ColorPicker label="Texto Base" value={currentModuleConfig.colors.foreground || '#0f172a'} onChange={(val) => updateModuleConfig(activeModule, { colors: { foreground: val } })} />
+                    <ColorPicker label="Tarjetas" value={currentModuleConfig.colors.card || '#ffffff'} onChange={(val) => updateModuleConfig(activeModule, { colors: { card: val, popover: val } })} />
+                    <ColorPicker label="Bordes" value={currentModuleConfig.colors.border || '#e2e8f0'} onChange={(val) => updateModuleConfig(activeModule, { colors: { border: val, input: val } })} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Estados Críticos</label>
+                    <ColorPicker label="Destructivo" value={currentModuleConfig.colors.destructive || '#ef4444'} onChange={(val) => updateModuleConfig(activeModule, { colors: { destructive: val } })} />
+                    <ColorPicker label="Muteado" value={currentModuleConfig.colors.muted || '#f1f5f9'} onChange={(val) => updateModuleConfig(activeModule, { colors: { muted: val, accent: val } })} />
+                  </div>
+                </div>
+              </Section>
             )}
 
-            {/* TYPOGRAPHY TAB */}
-            {activeTab === 'typography' && (
-              <Section title="Configuración de Tipografía" icon={<Type className="w-5 h-5 text-indigo-600" />}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Familia de Fuente</label>
-                    <select
-                      value={currentTheme.typography.fontFamily}
-                      onChange={(e) => updateTypography({ fontFamily: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="Inter, system-ui, sans-serif">Inter</option>
-                      <option value="Roboto, system-ui, sans-serif">Roboto</option>
-                      <option value="Poppins, system-ui, sans-serif">Poppins</option>
-                      <option value="Open Sans, system-ui, sans-serif">Open Sans</option>
-                      <option value="Montserrat, system-ui, sans-serif">Montserrat</option>
+            {activeCategory === 'typography' && (
+              <Section title="Tipografía" icon={Type}>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500">Familia Tipográfica</label>
+                    <select value={currentModuleConfig.typography.fontFamily} onChange={(e) => updateModuleConfig(activeModule, { typography: { fontFamily: e.target.value } })} className="w-full h-12 px-4 bg-white border-2 border-gray-100 rounded-xl text-sm font-medium focus:border-indigo-500 outline-none transition-all">
+                      <option value="Inter, system-ui, sans-serif">Inter (Moderna)</option>
+                      <option value="system-ui, sans-serif">Sistema (Nativa)</option>
+                      <option value="'Roboto', sans-serif">Roboto (Google)</option>
+                      <option value="'JetBrains Mono', monospace">JetBrains (Mono)</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Tamaño Base</label>
-                    <input
-                      type="text"
-                      value={currentTheme.typography.fontSizeBase}
-                      onChange={(e) => updateTypography({ fontSizeBase: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500">Tamaño de Texto Base</label>
+                    <input type="text" value={currentModuleConfig.typography.fontSizeBase} onChange={(e) => updateModuleConfig(activeModule, { typography: { fontSizeBase: e.target.value } })} className="w-full h-12 px-4 border-2 border-gray-100 rounded-xl text-sm" placeholder="16px" />
                   </div>
                 </div>
               </Section>
             )}
 
-            {/* LAYOUT TAB */}
-            {activeTab === 'layout' && (
-              <Section title="Configuración de Diseño" icon={<Layout className="w-5 h-5 text-indigo-600" />}>
+            {activeCategory === 'branding' && (
+              <Section title="Branding" icon={Building2}>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500">Nombre del Club/Empresa</label>
+                    <input type="text" value={config.branding.companyName} onChange={(e) => updateBranding({ companyName: e.target.value })} className="w-full h-12 px-4 border-2 border-gray-100 rounded-xl text-sm font-bold" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500">URL del Logo</label>
+                    <div className="flex gap-2">
+                      <input type="text" value={config.branding.logoUrl} onChange={(e) => updateBranding({ logoUrl: e.target.value })} className="flex-1 h-12 px-4 border-2 border-gray-100 rounded-xl text-sm" placeholder="https://..." />
+                      <button className="h-12 w-12 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"><Image className="w-5 h-5 text-gray-400" /></button>
+                    </div>
+                  </div>
+                </div>
+              </Section>
+            )}
+
+            {activeCategory === 'global' && (
+              <Section title="Experiencia Global" icon={Maximize2}>
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm">
-                        {currentTheme.isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Modo Oscuro</p>
-                        <p className="text-sm text-gray-500">Activar tema oscuro para toda la aplicación</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={toggleDarkMode}
-                      className={`relative w-14 h-8 rounded-full transition-colors ${
-                        currentTheme.isDark ? 'bg-indigo-600' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                          currentTheme.isDark ? 'translate-x-6' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm">
-                        <Maximize2 className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Sombras</p>
-                        <p className="text-sm text-gray-500">Añadir sombras a tarjetas y botones</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={toggleShadows}
-                      className={`relative w-14 h-8 rounded-full transition-colors ${
-                        currentTheme.shadows ? 'bg-indigo-600' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                          currentTheme.shadows ? 'translate-x-6' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-              </Section>
-            )}
-
-            {/* BRANDING TAB */}
-            {activeTab === 'branding' && (
-              <Section title="Identidad de Marca" icon={<Image className="w-5 h-5 text-pink-600" />}>
-                <div className="space-y-6">
-                  {/* Logo Principal */}
-                  <div className="bg-white rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Image className="w-5 h-5" />
-                      Logo Principal
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          URL del Logo (o dejar vacío para icono por defecto)
-                        </label>
-                        <input
-                          type="text"
-                          value={branding.logoUrl}
-                          onChange={(e) => updateBranding({ logoUrl: e.target.value })}
-                          placeholder="https://mi-sitio.com/logo.png"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Recomendado: PNG o SVG con fondo transparente
-                        </p>
-                      </div>
-                      <div className="flex gap-4">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Ancho (px)</label>
-                          <input
-                            type="number"
-                            value={branding.logoWidth}
-                            onChange={(e) => updateBranding({ logoWidth: parseInt(e.target.value) || 120 })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Alto (px)</label>
-                          <input
-                            type="number"
-                            value={branding.logoHeight}
-                            onChange={(e) => updateBranding({ logoHeight: parseInt(e.target.value) || 40 })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Preview Logo */}
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Vista Previa:</p>
-                      <div className="flex items-center gap-4">
-                        {branding.logoUrl ? (
-                          <img
-                            src={branding.logoUrl}
-                            alt="Logo"
-                            style={{ width: branding.logoWidth, height: branding.logoHeight }}
-                            className="object-contain"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center bg-gray-200 rounded" style={{ width: branding.logoWidth, height: branding.logoHeight }}>
-                            <ShoppingCart className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )}
-                        <span className="text-gray-500 text-sm">
-                          {branding.logoUrl ? 'Logo personalizado' : 'Icono por defecto'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* POS Icon */}
-                  <div className="bg-white rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Monitor className="w-5 h-5" />
-                      Icono del POS
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Icono Personalizado del POS
-                        </label>
-                        <div className="flex items-center gap-3 mb-3">
-                          <input
-                            type="checkbox"
-                            checked={branding.useCustomPosIcon}
-                            onChange={(e) => updateBranding({ useCustomPosIcon: e.target.checked })}
-                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
-                          />
-                          <span className="text-sm text-gray-700">Usar icono personalizado</span>
-                        </div>
-                        {branding.useCustomPosIcon && (
-                          <>
-                            <input
-                              type="text"
-                              value={branding.posIconUrl}
-                              onChange={(e) => updateBranding({ posIconUrl: e.target.value })}
-                              placeholder="https://mi-sitio.com/pos-icon.png"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                            />
-                            <div className="mt-2 flex items-center gap-3">
-                              <label className="text-sm font-medium text-gray-700">Color del icono:</label>
-                              <input
-                                type="color"
-                                value={branding.posIconColor}
-                                onChange={(e) => updateBranding({ posIconColor: e.target.value })}
-                                className="w-8 h-8 rounded cursor-pointer"
-                              />
-                              <span className="text-xs text-gray-500 font-mono">{branding.posIconColor}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="text-sm font-medium text-gray-700 mb-2">Vista Previa:</p>
-                        <div className="flex items-center gap-3">
-                          {branding.useCustomPosIcon && branding.posIconUrl ? (
-                            <img
-                              src={branding.posIconUrl}
-                              alt="POS Icon"
-                              className="w-10 h-10 object-contain"
-                              style={{ color: branding.posIconColor }}
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: branding.posIconColor }}>
-                              <ShoppingCart className="w-6 h-6 text-white" />
-                            </div>
-                          )}
-                          <span className="text-gray-500 text-sm">
-                            {branding.useCustomPosIcon ? 'Icono personalizado' : 'Icono por defecto'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Información de la Empresa */}
-                  <div className="bg-white rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Building2 className="w-5 h-5" />
-                      Información de la Empresa
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Negocio</label>
-                        <input
-                          type="text"
-                          value={branding.companyName}
-                          onChange={(e) => updateBranding({ companyName: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Eslogan / Tagline</label>
-                        <input
-                          type="text"
-                          value={branding.companyTagline}
-                          onChange={(e) => updateBranding({ companyTagline: e.target.value })}
-                          placeholder="Tu eslogan aquí..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Opciones de visibilidad */}
-                    <div className="mt-4 space-y-3">
-                      <p className="text-sm font-medium text-gray-700">Mostrar logo en:</p>
-                      <div className="flex flex-wrap gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={branding.showLogoInHeader}
-                            onChange={(e) => updateBranding({ showLogoInHeader: e.target.checked })}
-                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
-                          />
-                          <span className="text-sm text-gray-700">Encabezado</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={branding.showLogoInReceipt}
-                            onChange={(e) => updateBranding({ showLogoInReceipt: e.target.checked })}
-                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
-                          />
-                          <span className="text-sm text-gray-700">Tickets / Recibos</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={branding.showLogoInLogin}
-                            onChange={(e) => updateBranding({ showLogoInLogin: e.target.checked })}
-                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
-                          />
-                          <span className="text-sm text-gray-700">Pantalla de Login</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Estilo de Iconos */}
-                  <div className="bg-white rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-4">Estilo de Iconos</h3>
-                    <div className="grid grid-cols-3 gap-3">
-                      {(['outline', 'filled', 'two-tone'] as const).map((style) => (
-                        <button
-                          key={style}
-                          onClick={() => updateBranding({ iconStyle: style })}
-                          className={`p-4 rounded-lg border-2 text-center transition-all ${
-                            branding.iconStyle === style
-                              ? 'border-pink-500 bg-pink-50'
-                              : 'border-gray-200 hover:border-pink-300'
-                          }`}
-                        >
-                          <div className="text-2xl mb-2">
-                            {style === 'outline' && '○'}
-                            {style === 'filled' && '●'}
-                            {style === 'two-tone' && '◐'}
-                          </div>
-                          <span className="text-sm font-medium capitalize">
-                            {style === 'outline' && 'Contorno'}
-                            {style === 'filled' && 'Relleno'}
-                            {style === 'two-tone' && 'Dos Tonos'}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* App Icons (PWA) */}
-                  <div className="bg-white rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Smartphone className="w-5 h-5" />
-                      Iconos de App (PWA)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Icono 192x192px</label>
-                        <input
-                          type="text"
-                          value={branding.appIcon192}
-                          onChange={(e) => updateBranding({ appIcon192: e.target.value })}
-                          placeholder="https://.../icon-192.png"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Icono 512x512px</label>
-                        <input
-                          type="text"
-                          value={branding.appIcon512}
-                          onChange={(e) => updateBranding({ appIcon512: e.target.value })}
-                          placeholder="https://.../icon-512.png"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Estos iconos se usan cuando la app se instala en dispositivos móviles
-                    </p>
-                  </div>
-                </div>
-              </Section>
-            )}
-
-            {/* POS TAB */}
-            {activeTab === 'pos' && (
-              <Section title="Configuración POS" icon={<ShoppingCart className="w-5 h-5 text-indigo-600" />}>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Layout de Productos</label>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => updatePosConfig({ layout: 'grid' })}
-                          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors ${
-                            posConfig.layout === 'grid'
-                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <Grid3X3 className="w-5 h-5" />
-                          <span className="font-medium">Grilla</span>
-                        </button>
-                        <button
-                          onClick={() => updatePosConfig({ layout: 'list' })}
-                          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors ${
-                            posConfig.layout === 'list'
-                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <List className="w-5 h-5" />
-                          <span className="font-medium">Lista</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Productos por Fila</label>
-                      <select
-                        value={posConfig.productsPerRow}
-                        onChange={(e) => updatePosConfig({ productsPerRow: parseInt(e.target.value) })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      >
-                        <option value={3}>3</option>
-                        <option value={4}>4</option>
-                        <option value={5}>5</option>
-                        <option value={6}>6</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h4 className="font-medium text-gray-900 mb-4">Opciones de Visualización</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {[
-                        { key: 'showProductImages', label: 'Mostrar imágenes' },
-                        { key: 'showProductPrices', label: 'Mostrar precios' },
-                        { key: 'showProductStock', label: 'Mostrar stock' },
-                        { key: 'showCategories', label: 'Mostrar categorías' },
-                        { key: 'showQuickPayment', label: 'Pago rápido' },
-                        { key: 'showDiscountButton', label: 'Botón descuento' },
-                        { key: 'enableBarcodeScanner', label: 'Escáner código' },
-                        { key: 'enableComandas', label: 'Habilitar comandas' },
-                        { key: 'enableTips', label: 'Propinas' },
-                      ].map(({ key, label }) => (
-                        <label key={key} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={posConfig[key as keyof typeof posConfig] as boolean}
-                            onChange={(e) => updatePosConfig({ [key]: e.target.checked } as any)}
-                            className="w-4 h-4 text-indigo-600 rounded"
-                          />
-                          <span className="text-sm text-gray-700">{label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h4 className="font-medium text-gray-900 mb-4">Configuración de Impresoras</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm text-gray-700">Impresora de Recibos</span>
-                        <input
-                          type="checkbox"
-                          checked={posConfig.receiptPrinterEnabled}
-                          onChange={(e) => updatePosConfig({ receiptPrinterEnabled: e.target.checked })}
-                          className="w-4 h-4 text-indigo-600 rounded"
-                        />
-                      </label>
-                      <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm text-gray-700">Auto-imprimir Recibo</span>
-                        <input
-                          type="checkbox"
-                          checked={posConfig.autoPrintReceipt}
-                          onChange={(e) => updatePosConfig({ autoPrintReceipt: e.target.checked })}
-                          className="w-4 h-4 text-indigo-600 rounded"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </Section>
-            )}
-
-            {/* KDS TAB */}
-            {activeTab === 'kds' && (
-              <Section title="Configuración KDS" icon={<Monitor className="w-5 h-5 text-indigo-600" />}>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Layout</label>
-                      <select
-                        value={kdsConfig.layout}
-                        onChange={(e) => updateKdsConfig({ layout: e.target.value as any })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      >
-                        <option value="grid">Grilla</option>
-                        <option value="list">Lista</option>
-                        <option value="compact">Compacto</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Tamaño de Fuente</label>
-                      <select
-                        value={kdsConfig.fontSize}
-                        onChange={(e) => updateKdsConfig({ fontSize: e.target.value as any })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      >
-                        <option value="small">Pequeño</option>
-                        <option value="medium">Mediano</option>
-                        <option value="large">Grande</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h4 className="font-medium text-gray-900 mb-4">Tiempos de Alerta (segundos)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-1">Advertencia</label>
-                        <input
-                          type="number"
-                          value={kdsConfig.warningTime}
-                          onChange={(e) => updateKdsConfig({ warningTime: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-1">Peligro</label>
-                        <input
-                          type="number"
-                          value={kdsConfig.dangerTime}
-                          onChange={(e) => updateKdsConfig({ dangerTime: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-1">Auto-archivar (min)</label>
-                        <input
-                          type="number"
-                          value={kdsConfig.autoArchiveTime}
-                          onChange={(e) => updateKdsConfig({ autoArchiveTime: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h4 className="font-medium text-gray-900 mb-4">Opciones de Visualización</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { key: 'showImages', label: 'Mostrar imágenes' },
-                        { key: 'showTimer', label: 'Mostrar temporizador' },
-                        { key: 'showOrderNumber', label: 'Número de orden' },
-                        { key: 'showCustomerName', label: 'Nombre del cliente' },
-                        { key: 'soundEnabled', label: 'Sonido habilitado' },
-                        { key: 'desktopNotifications', label: 'Notificaciones escritorio' },
-                        { key: 'flashOnNewOrder', label: 'Destello en nueva orden' },
-                        { key: 'priorityEnabled', label: 'Prioridades habilitadas' },
-                      ].map(({ key, label }) => (
-                        <label key={key} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={kdsConfig[key as keyof typeof kdsConfig] as boolean}
-                            onChange={(e) => updateKdsConfig({ [key]: e.target.checked } as any)}
-                            className="w-4 h-4 text-indigo-600 rounded"
-                          />
-                          <span className="text-sm text-gray-700">{label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h4 className="font-medium text-gray-900 mb-4">Colores por Estación</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {Object.entries(kdsConfig.stationColors).map(([station, color]) => (
-                        <div key={station} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <span className="text-sm font-medium text-gray-700 capitalize">{station}</span>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="color"
-                              value={color}
-                              onChange={(e) => updateKdsConfig({
-                                stationColors: { ...kdsConfig.stationColors, [station]: e.target.value }
-                              })}
-                              className="w-8 h-8 rounded cursor-pointer border border-gray-300"
-                            />
-                            <input
-                              type="text"
-                              value={color}
-                              onChange={(e) => updateKdsConfig({
-                                stationColors: { ...kdsConfig.stationColors, [station]: e.target.value }
-                              })}
-                              className="w-20 px-2 py-1 text-sm border rounded"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Section>
-            )}
-          </div>
-
-          {/* Right Column - Preview */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-6 space-y-6">
-              <Section 
-                title={`Vista Previa - ${tabs.find(t => t.id === activeTab)?.label}`}
-                icon={<Eye className="w-5 h-5 text-indigo-600" />}
-              >
-                {/* Colors Preview */}
-                {activeTab === 'colors' && (
                   <div className="space-y-4">
-                    <div className="rounded-lg overflow-hidden border border-gray-200">
-                      <div className="px-3 py-2 text-sm font-medium bg-gray-50 border-b">Colores de Marca</div>
-                      <div className="p-3 space-y-2">
-                        <div className="flex gap-2">
-                          <div className="flex-1 py-2 px-3 rounded text-white text-center text-sm" style={{ backgroundColor: currentTheme.colors.primary }}>Primario</div>
-                          <div className="flex-1 py-2 px-3 rounded text-white text-center text-sm" style={{ backgroundColor: currentTheme.colors.secondary }}>Secundario</div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg overflow-hidden border border-gray-200">
-                      <div className="px-3 py-2 text-sm font-medium bg-gray-50 border-b">Estados</div>
-                      <div className="p-3 space-y-2">
-                        <div className="flex gap-2 text-xs">
-                          <span className="px-3 py-2 rounded flex-1 text-center text-white" style={{ backgroundColor: currentTheme.colors.success }}>Éxito</span>
-                          <span className="px-3 py-2 rounded flex-1 text-center text-white" style={{ backgroundColor: currentTheme.colors.error }}>Error</span>
-                        </div>
-                      </div>
-                    </div>
+                    <label className="block text-sm font-bold text-gray-700">Densidad de Interfaz</label>
+                    <select value={globalUi.density} onChange={(e) => updateGlobalUi({ density: e.target.value as any })} className="w-full h-12 px-4 border-2 border-gray-100 rounded-xl text-sm focus:border-indigo-500 outline-none">
+                      <option value="compact">Compacta (Más Datos)</option>
+                      <option value="comfortable">Cómoda (Estándar)</option>
+                      <option value="spacious">Espaciada (Táctil)</option>
+                    </select>
                   </div>
-                )}
-
-                {/* Typography Preview */}
-                {activeTab === 'typography' && (
                   <div className="space-y-4">
-                    <div className="rounded-lg border border-gray-200 p-4" style={{ fontFamily: currentTheme.typography.fontFamily }}>
-                      <p className="text-xs text-gray-500 mb-1">Fuente: {currentTheme.typography.fontFamily}</p>
-                      <h1 className="text-2xl font-bold mb-2" style={{ color: currentTheme.colors.textPrimary }}>Título H1</h1>
-                      <h2 className="text-xl font-semibold mb-2" style={{ color: currentTheme.colors.textPrimary }}>Título H2</h2>
-                      <p className="text-base mb-2" style={{ color: currentTheme.colors.textPrimary }}>Texto normal</p>
-                      <p className="text-sm" style={{ color: currentTheme.colors.textSecondary }}>Texto pequeño</p>
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-bold text-gray-700">Escala UI</label>
+                      <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">{globalUi.uiScale}%</span>
                     </div>
+                    <input type="range" min={90} max={125} step={5} value={globalUi.uiScale} onChange={(e) => updateGlobalUi({ uiScale: Number(e.target.value) as any })} className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
                   </div>
-                )}
-
-                {/* Layout Preview */}
-                {activeTab === 'layout' && (
-                  <div className="space-y-4">
-                    <div className={`rounded-lg overflow-hidden border border-gray-200 p-4 ${currentTheme.isDark ? 'bg-gray-900' : 'bg-white'}`}>
-                      <p className={`text-xs mb-3 ${currentTheme.isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Modo: {currentTheme.isDark ? 'Oscuro' : 'Claro'}
-                      </p>
-                      <div className="p-2 rounded" style={{ 
-                        backgroundColor: currentTheme.isDark ? '#374151' : currentTheme.colors.surface,
-                        color: currentTheme.isDark ? '#F9FAFB' : currentTheme.colors.textPrimary
-                      }}>
-                        Tarjeta de ejemplo
-                      </div>
-                    </div>
-                    {currentTheme.shadows && (
-                      <div className="rounded-lg border border-gray-200 p-4">
-                        <p className="text-xs text-gray-500 mb-3">Sombras Habilitadas</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="p-3 rounded bg-white shadow-sm text-xs text-center">Small</div>
-                          <div className="p-3 rounded bg-white shadow-md text-xs text-center">Medium</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* POS Preview */}
-                {activeTab === 'pos' && (
-                  <div className="rounded-lg overflow-hidden border-2 border-gray-200">
-                    <div className="px-3 py-2 text-sm font-medium text-white" style={{ backgroundColor: currentTheme.colors.posHeader || currentTheme.colors.primary }}>
-                      POS - Mostrador
-                    </div>
-                    <div className="p-4 space-y-3" style={{ backgroundColor: currentTheme.colors.background }}>
-                      {posConfig.showCategories && (
-                        <div className="flex gap-2 overflow-x-auto pb-2">
-                          {['Todos', 'Bebidas'].map((cat, i) => (
-                            <span key={cat} className="px-3 py-1 rounded-full text-xs whitespace-nowrap text-white" style={{ backgroundColor: i === 0 ? currentTheme.colors.primary : currentTheme.colors.surface }}>
-                              {cat}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="grid gap-2 grid-cols-2">
-                        <div className="p-2 rounded-lg border text-center" style={{ backgroundColor: currentTheme.colors.posProductCard || currentTheme.colors.surface, borderColor: currentTheme.colors.border }}>
-                          <p className="text-xs font-medium" style={{ color: currentTheme.colors.textPrimary }}>Café</p>
-                          {posConfig.showProductPrices && (
-                            <p className="text-xs" style={{ color: currentTheme.colors.primary }}>$45.00</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="p-2 rounded border" style={{ backgroundColor: currentTheme.colors.posCartBackground || currentTheme.colors.surface, borderColor: currentTheme.colors.border }}>
-                        <p className="text-xs font-medium mb-2" style={{ color: currentTheme.colors.textPrimary }}>Carrito</p>
-                        <button className="w-full py-1 px-2 rounded text-xs text-white" style={{ backgroundColor: currentTheme.colors.posButtonPrimary || currentTheme.colors.primary }}>
-                          {posConfig.showQuickPayment ? 'Pago Rápido' : 'Pagar'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Branding Preview */}
-                {activeTab === 'branding' && (
-                  <div className="space-y-3">
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-medium text-gray-900 mb-3">Vista Previa de Marca</h4>
-                      
-                      {/* Header Preview */}
-                      <div className="p-3 bg-gray-100 rounded-lg mb-3">
-                        <p className="text-xs text-gray-500 mb-2">Encabezado:</p>
-                        <div className="flex items-center gap-3 bg-white p-2 rounded shadow-sm">
-                          {branding.logoUrl ? (
-                            <img
-                              src={branding.logoUrl}
-                              alt="Logo"
-                              style={{ width: 40, height: 20 }}
-                              className="object-contain"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center">
-                              <Image className="w-4 h-4 text-gray-400" />
-                            </div>
-                          )}
-                          <span className="font-semibold text-sm">{branding.companyName}</span>
-                        </div>
-                      </div>
-
-                      {/* POS Icon Preview */}
-                      <div className="p-3 bg-gray-100 rounded-lg mb-3">
-                        <p className="text-xs text-gray-500 mb-2">Icono del POS:</p>
-                        <div className="flex items-center gap-3">
-                          {branding.useCustomPosIcon && branding.posIconUrl ? (
-                            <img
-                              src={branding.posIconUrl}
-                              alt="POS"
-                              className="w-10 h-10 object-contain"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: branding.posIconColor }}>
-                              <ShoppingCart className="w-6 h-6 text-white" />
-                            </div>
-                          )}
-                          <span className="text-sm text-gray-600">
-                            {branding.useCustomPosIcon ? 'Personalizado' : 'Por defecto'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Icon Style Preview */}
-                      <div className="p-3 bg-gray-100 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-2">Estilo de Iconos:</p>
-                        <div className="flex gap-2">
-                          {['outline', 'filled', 'two-tone'].map((style) => (
-                            <div
-                              key={style}
-                              className={`px-3 py-1 rounded text-xs ${
-                                branding.iconStyle === style
-                                  ? 'bg-pink-500 text-white'
-                                  : 'bg-white text-gray-600'
-                              }`}
-                            >
-                              {style === 'outline' && 'Contorno'}
-                              {style === 'filled' && 'Relleno'}
-                              {style === 'two-tone' && 'Dos Tonos'}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* KDS Preview */}
-                {activeTab === 'kds' && (
-                  <div className="space-y-3">
-                    <div className="rounded-lg overflow-hidden border-2 border-gray-200">
-                      <div className="px-3 py-2 bg-gray-800 text-white text-sm font-medium flex justify-between items-center">
-                        <span>KDS Display</span>
-                        {kdsConfig.showTimer && <span className="text-xs">⏱️ 05:23</span>}
-                      </div>
-                      <div className="p-3 space-y-2" style={{ backgroundColor: '#1F2937' }}>
-                        <div className="p-3 rounded border-l-4" style={{ backgroundColor: '#374151', borderLeftColor: kdsConfig.stationColors.cocina }}>
-                          <div className="flex justify-between items-start mb-2">
-                            {kdsConfig.showOrderNumber && <span className="text-white font-bold text-sm">#42</span>}
-                            {kdsConfig.showTimer && <span className="text-green-400 text-xs">02:15</span>}
-                          </div>
-                          <div className="text-gray-300 text-sm">2x Hamburguesa</div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-gray-200 p-3">
-                      <p className="text-xs text-gray-500 mb-2">Estaciones:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(kdsConfig.stationColors).map(([station, color]) => (
-                          <span key={station} className="px-2 py-1 rounded text-xs text-white capitalize" style={{ backgroundColor: color }}>
-                            {station}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    {kdsConfig.soundEnabled && (
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <Volume2 className="w-4 h-4" />
-                        <span>Sonido: {kdsConfig.soundType} ({kdsConfig.soundVolume}%)</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                </div>
               </Section>
+            )}
+
+            <div className="mt-12 pt-8 border-t flex flex-col gap-3">
+              <button onClick={() => { if(confirm(`¿Restablecer el módulo ${activeModule.toUpperCase()} a los valores predeterminados?`)) resetModule(activeModule); }} className="w-full flex items-center justify-center gap-2 px-6 py-4 text-sm font-black text-red-600 bg-red-50 rounded-2xl hover:bg-red-100 transition-all active:scale-95 shadow-sm">
+                <RotateCcw className="w-5 h-5" /> RESTABLECER {activeModule.toUpperCase()}
+              </button>
             </div>
           </div>
-        </div>
+        </aside>
+
+        <main className={`flex-1 p-8 bg-gray-100 overflow-y-auto transition-all duration-500 ${showPreview ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center">
+                  {activeModule === 'pos' ? <Smartphone className="w-6 h-6 text-indigo-600" /> : activeModule === 'kds' ? <Utensils className="w-6 h-6 text-indigo-600" /> : <Monitor className="w-6 h-6 text-indigo-600" />}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">Previsualización</h2>
+                  <p className="text-xs font-bold text-gray-400 tracking-widest">{activeModule.toUpperCase()} ISOLATED CONTEXT</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[var(--radius-base)] shadow-2xl overflow-hidden border transition-all duration-300 transform perspective-1000" style={{ 
+              backgroundColor: 'var(--background)',
+              color: 'var(--foreground)',
+              borderColor: 'var(--border)',
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--font-size-base)',
+              borderRadius: 'var(--radius-base)'
+            }}>
+              <div className="h-16 border-b flex items-center px-6 gap-6" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}>
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div className="text-base font-black tracking-tight">{config.branding.companyName}</div>
+                <div className="ml-auto flex gap-3">
+                  <div className="px-4 py-2 rounded-lg font-bold text-xs" style={{ backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}>
+                    Turno: Abierto
+                  </div>
+                  <div className="w-10 h-10 rounded-full" style={{ backgroundColor: 'var(--primary)' }} />
+                </div>
+              </div>
+
+              <div className="p-10 space-y-10">
+                <div className="space-y-3">
+                  <h1 className="text-4xl font-black tracking-tight" style={{ color: 'var(--foreground)' }}>Panel de Control</h1>
+                  <p className="text-lg font-medium opacity-70" style={{ color: 'var(--muted-foreground)' }}>Personalización de {activeModule} con tokens semánticos.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <button className="px-6 py-4 font-black transition-all hover:brightness-110 active:scale-95 flex items-center justify-center gap-2 shadow-lg" style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', borderRadius: 'var(--radius-base)' }}>
+                    PRINCIPAL
+                  </button>
+                  <button className="px-6 py-4 font-black border-2 transition-all hover:bg-gray-100 active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)', borderColor: 'var(--border)', borderRadius: 'var(--radius-base)' }}>
+                    SECUNDARIO
+                  </button>
+                  <button className="px-6 py-4 font-black border-2 opacity-30 cursor-not-allowed flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)', borderColor: 'var(--border)', borderRadius: 'var(--radius-base)' }}>
+                    BLOQUEADO
+                  </button>
+                  <button className="px-6 py-4 font-black transition-all hover:brightness-110 active:scale-95 flex items-center justify-center gap-2 shadow-lg" style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)', borderRadius: 'var(--radius-base)' }}>
+                    PELIGRO
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="p-8 border-2 shadow-xl transition-all" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--card-foreground)', borderRadius: 'var(--radius-base)' }}>
+                    <div className="flex justify-between items-start mb-6">
+                      <h3 className="text-xl font-black uppercase tracking-tight">Métricas de Venta</h3>
+                      <div className="w-12 h-6 rounded-full p-1" style={{ backgroundColor: 'var(--primary)' }}>
+                        <div className="w-4 h-4 bg-white rounded-full ml-auto shadow-sm" />
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="h-3 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--muted)' }}>
+                        <div className="h-full w-4/5" style={{ backgroundColor: 'var(--primary)' }} />
+                      </div>
+                      <div className="flex justify-between text-sm font-bold opacity-60">
+                        <span>Progreso Diario</span>
+                        <span>80%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-8 border-2 shadow-xl transition-all" style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', borderRadius: 'var(--radius-base)' }}>
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-foreground)' }}>
+                        <Settings className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="h-4 w-32 rounded-full mb-1" style={{ backgroundColor: 'var(--foreground)' }} />
+                        <div className="h-3 w-20 rounded-full opacity-40" style={{ backgroundColor: 'var(--muted-foreground)' }} />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="h-3 w-full rounded-full" style={{ backgroundColor: 'var(--muted)' }} />
+                      <div className="h-3 w-3/4 rounded-full" style={{ backgroundColor: 'var(--muted)' }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="max-w-sm space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Input de Formulario</label>
+                    <input type="text" placeholder="Previsualización de input..." className="w-full h-14 px-5 border-2 outline-none transition-all focus:ring-4 font-medium" style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--foreground)', borderRadius: 'var(--radius-base)', '--tw-ring-color': 'var(--primary)' } as any} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-10 p-6 bg-white border-2 border-dashed border-gray-300 rounded-[var(--radius-base)] flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-200">
+                <Check className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h4 className="text-lg font-black text-gray-900 tracking-tight">Accesibilidad Garantizada</h4>
+                <p className="text-sm font-medium text-gray-500 mt-1">
+                  Los tokens semánticos (Foreground/Background) aseguran el contraste perfecto. Al configurar {activeModule.toUpperCase()}, el Admin Panel sigue utilizando sus propias variables aisladas.
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

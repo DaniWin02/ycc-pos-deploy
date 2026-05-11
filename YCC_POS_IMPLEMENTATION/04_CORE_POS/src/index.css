@@ -2,34 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Importar sistema responsive completo */
-@import './styles/responsive.css';
-
-/* Importar sistema de temas dinámicos */
-@import './styles/theme.css';
-
-/* Estilos base adicionales */
+/* Map Semantic Tokens to Root */
 @layer base {
-  * {
-    box-sizing: border-box;
+  :root {
+    /* Default Fallbacks */
+    --background: #ffffff;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #059669; /* emerald-600 - Verde Country Club */
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #f1f5f9;
+    --accent-foreground: #0f172a;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #059669; /* emerald-600 */
+
+    --radius-base: 0.5rem;
   }
-  
-  html, body, #root {
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-  }
-  
+
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    touch-action: manipulation;
-    -webkit-text-size-adjust: 100%;
-    overscroll-behavior-y: none;
-    background-color: #f3f4f6;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-family, Inter, system-ui, sans-serif);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Accessible Component Styles */
+  .btn-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border-radius: var(--radius-base);
+  }
+
+  .btn-secondary {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-base);
+  }
+
+  .btn-destructive {
+    background-color: var(--destructive);
+    color: var(--destructive-foreground);
+    border-radius: var(--radius-base);
+  }
+
+  .btn-disabled {
+    background-color: var(--muted);
+    color: var(--muted-foreground);
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-radius: var(--radius-base);
+  }
+
+  .input-base {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    border-radius: var(--radius-base);
+  }
+
+  .card-base {
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-base);
   }
 }
 
+/* Importar sistema de tokens semánticos compartido */
+@import '../../shared/styles/semantic-theme.css';
+
+/* Importar sistema responsive completo */
+@import './styles/theme.css';
+@import './styles/responsive.css';

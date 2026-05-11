@@ -8,12 +8,26 @@
 
 @layer base {
   :root {
-    /* Variables CSS con unidades relativas */
-    --spacing-unit: clamp(0.25rem, 1vw, 0.5rem);
-    --font-base: clamp(14px, 2vw, 16px);
-    --font-lg: clamp(16px, 2.5vw, 18px);
-    --font-xl: clamp(18px, 3vw, 20px);
-    --font-2xl: clamp(20px, 4vw, 24px);
+    /* Multiplicadores dinámicos (setted by JS) */
+    --ui-scale-factor: var(--ui-scale, 1);
+    --radius-scale-factor: var(--radius-scale, 1);
+    
+    /* Variables para densidad */
+    --density-spacing-multiplier: 1;
+  }
+
+  /* Overrides por densidad */
+  [data-density="compact"] { --density-spacing-multiplier: 0.75; }
+  [data-density="comfortable"] { --density-spacing-multiplier: 1; }
+  [data-density="spacious"] { --density-spacing-multiplier: 1.25; }
+
+  :root {
+    /* Variables CSS con unidades relativas y escalado dinámico */
+    --spacing-unit: calc(clamp(0.25rem, 1vw, 0.5rem) * var(--density-spacing-multiplier));
+    --font-base: calc(clamp(14px, 2vw, 16px) * var(--ui-scale-factor));
+    --font-lg: calc(clamp(16px, 2.5vw, 18px) * var(--ui-scale-factor));
+    --font-xl: calc(clamp(18px, 3vw, 20px) * var(--ui-scale-factor));
+    --font-2xl: calc(clamp(20px, 4vw, 24px) * var(--ui-scale-factor));
     
     /* Breakpoints CSS variables */
     --breakpoint-sm: 640px;
@@ -22,13 +36,13 @@
     --breakpoint-xl: 1280px;
     --breakpoint-2xl: 1536px;
     
-    /* Touch target sizes */
-    --touch-target-min: 44px;
-    --touch-target-comfortable: 48px;
-    --touch-target-large: 56px;
+    /* Touch target sizes - scaled for density and UI scale */
+    --touch-target-min: calc(44px * var(--ui-scale-factor));
+    --touch-target-comfortable: calc(48px * var(--ui-scale-factor));
+    --touch-target-large: calc(56px * var(--ui-scale-factor));
     
     /* Grid configurations */
-    --grid-gap: clamp(0.5rem, 1.5vw, 1rem);
+    --grid-gap: calc(clamp(0.5rem, 1.5vw, 1rem) * var(--density-spacing-multiplier));
     --card-min-width: min(280px, 90vw);
     
     /* Safe area for notched devices */
@@ -37,28 +51,21 @@
     --safe-left: env(safe-area-inset-left);
     --safe-right: env(safe-area-inset-right);
     
-    /* Colors - YCC Theme */
-    --color-primary: #059669;
-    --color-primary-dark: #047857;
-    --color-primary-light: #d1fae5;
-    --color-secondary: #0d9488;
-    --color-accent: #f59e0b;
-    --color-danger: #ef4444;
-    --color-warning: #f59e0b;
-    --color-success: #10b981;
+    /* Colors - YCC Theme (moved to theme.css, but kept as fallbacks) */
+    --color-primary-fallback: #059669;
     
     /* Spacing scale fluid */
-    --space-xs: clamp(0.25rem, 1vw, 0.5rem);
-    --space-sm: clamp(0.5rem, 1.5vw, 0.75rem);
-    --space-md: clamp(0.75rem, 2vw, 1rem);
-    --space-lg: clamp(1rem, 3vw, 1.5rem);
-    --space-xl: clamp(1.5rem, 4vw, 2rem);
+    --space-xs: calc(clamp(0.25rem, 1vw, 0.5rem) * var(--density-spacing-multiplier));
+    --space-sm: calc(clamp(0.5rem, 1.5vw, 0.75rem) * var(--density-spacing-multiplier));
+    --space-md: calc(clamp(0.75rem, 2vw, 1rem) * var(--density-spacing-multiplier));
+    --space-lg: calc(clamp(1rem, 3vw, 1.5rem) * var(--density-spacing-multiplier));
+    --space-xl: calc(clamp(1.5rem, 4vw, 2rem) * var(--density-spacing-multiplier));
     
-    /* Border radius fluid */
-    --radius-sm: clamp(0.25rem, 1vw, 0.375rem);
-    --radius-md: clamp(0.375rem, 1.5vw, 0.5rem);
-    --radius-lg: clamp(0.5rem, 2vw, 0.75rem);
-    --radius-xl: clamp(0.75rem, 2.5vw, 1rem);
+    /* Border radius fluid with dynamic scale */
+    --radius-sm: calc(clamp(0.25rem, 1vw, 0.375rem) * var(--radius-scale-factor));
+    --radius-md: calc(clamp(0.375rem, 1.5vw, 0.5rem) * var(--radius-scale-factor));
+    --radius-lg: calc(clamp(0.5rem, 2vw, 0.75rem) * var(--radius-scale-factor));
+    --radius-xl: calc(clamp(0.75rem, 2.5vw, 1rem) * var(--radius-scale-factor));
   }
   
   * {
@@ -150,21 +157,48 @@
     font-size: clamp(1rem, 3vw, 1.125rem);
   }
   
-  /* Button variants */
+  /* Button variants - Using Semantic Tokens */
   .btn-primary {
-    @apply bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500;
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--primary-hover);
+    filter: brightness(1.1);
   }
   
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-400;
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--secondary-hover);
+    border-color: var(--border-hover);
   }
   
   .btn-danger {
-    @apply bg-red-500 text-white hover:bg-red-600 focus:ring-red-400;
+    background-color: var(--danger);
+    color: var(--danger-foreground);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-danger:hover {
+    filter: brightness(1.1);
   }
   
   .btn-success {
-    @apply bg-green-500 text-white hover:bg-green-600 focus:ring-green-400;
+    background-color: var(--success);
+    color: var(--success-foreground);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-success:hover {
+    filter: brightness(1.1);
   }
   
   /* ============================================
@@ -250,7 +284,11 @@
      CARDS RESPONSIVE
      ============================================ */
   .card-responsive {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200;
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
     padding: var(--space-md);
     transition: all 0.2s ease;
   }
@@ -394,8 +432,15 @@
   }
   
   .fullscreen-btn {
-    @apply touch-target p-2 rounded-lg bg-gray-700 text-white;
-    @apply hover:bg-gray-600 transition-colors;
+    @apply touch-target p-2 rounded-lg;
+    background-color: var(--muted);
+    color: var(--muted-foreground);
+    transition: all 0.2s ease;
+  }
+  
+  .fullscreen-btn:hover {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
   }
 }
 
@@ -495,18 +540,18 @@
   }
   
   /* Responsive padding utilities */
-  .p-fluid-xs { padding: var(--space-xs); }
-  .p-fluid-sm { padding: var(--space-sm); }
-  .p-fluid-md { padding: var(--space-md); }
-  .p-fluid-lg { padding: var(--space-lg); }
-  .p-fluid-xl { padding: var(--space-xl); }
+  .p-fluid-xs { padding: calc(var(--space-xs) * var(--density-spacing-multiplier)); }
+  .p-fluid-sm { padding: calc(var(--space-sm) * var(--density-spacing-multiplier)); }
+  .p-fluid-md { padding: calc(var(--space-md) * var(--density-spacing-multiplier)); }
+  .p-fluid-lg { padding: calc(var(--space-lg) * var(--density-spacing-multiplier)); }
+  .p-fluid-xl { padding: calc(var(--space-xl) * var(--density-spacing-multiplier)); }
   
   /* Responsive gap utilities */
-  .gap-fluid-xs { gap: var(--space-xs); }
-  .gap-fluid-sm { gap: var(--space-sm); }
-  .gap-fluid-md { gap: var(--space-md); }
-  .gap-fluid-lg { gap: var(--space-lg); }
-  .gap-fluid-xl { gap: var(--space-xl); }
+  .gap-fluid-xs { gap: calc(var(--space-xs) * var(--density-spacing-multiplier)); }
+  .gap-fluid-sm { gap: calc(var(--space-sm) * var(--density-spacing-multiplier)); }
+  .gap-fluid-md { gap: calc(var(--space-md) * var(--density-spacing-multiplier)); }
+  .gap-fluid-lg { gap: calc(var(--space-lg) * var(--density-spacing-multiplier)); }
+  .gap-fluid-xl { gap: calc(var(--space-xl) * var(--density-spacing-multiplier)); }
   
   /* Landscape / Portrait utilities */
   @media (orientation: landscape) {
@@ -590,11 +635,27 @@
   }
 }
 
-/* Reduced motion preference */
+/* Reduced motion preference and Global UI override */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+[data-motion-level="off"] *,
+[data-motion-level="off"] *::before,
+[data-motion-level="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+[data-motion-level="reduced"] *,
+[data-motion-level="reduced"] *::before,
+[data-motion-level="reduced"] *::after {
+  animation-duration: 100ms !important;
+  transition-duration: 100ms !important;
 }

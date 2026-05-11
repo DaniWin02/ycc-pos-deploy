@@ -23,6 +23,7 @@ import { PrinterConfigModal } from './components/PrinterConfigModal';
 import { ProductCustomizationModal } from './components/ProductCustomizationModal';
 import { api, endpoints } from './lib/apiClient';
 import { Logo, useBranding } from './hooks/useBranding';
+import { useThemeContext } from './components/ThemeProvider';
 
 // ===================== HELPERS =====================
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
@@ -41,6 +42,9 @@ type Screen = 'mode-select' | 'login' | 'pos' | 'payment' | 'complete' | 'cash-o
 
 // ===================== APP =====================
 export const App: React.FC = () => {
+  // Theme context
+  const { theme, cssVar, getColor } = useThemeContext();
+
   // Mode
   const [posMode, setPosMode] = useState<POSMode>('COUNTER');
   const [showModeSelector, setShowModeSelector] = useState(false);
@@ -1044,20 +1048,25 @@ export const App: React.FC = () => {
   // --- LOGIN ---
   if (screen === 'login') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-600 flex items-center justify-center p-4">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
+      <div className="min-h-screen flex items-center justify-center p-4 transition-colors duration-500" style={{ backgroundColor: 'var(--primary)' }}>
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="shadow-2xl p-8 w-full max-w-sm" style={{ backgroundColor: 'var(--card)', color: 'var(--card-foreground)', borderRadius: 'var(--radius-base)' }}>
           <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-10 h-10 text-emerald-600" />
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--muted)' }}>
+              <Lock className="w-10 h-10" style={{ color: 'var(--primary)' }} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">YCC Country Club</h1>
-            <p className="text-gray-500 mt-1">Punto de Venta</p>
+            <h1 className="text-2xl font-bold">{branding.companyName || 'YCC Country Club'}</h1>
+            <p className="mt-1 opacity-70">Punto de Venta</p>
           </div>
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Ingresa tu PIN</label>
+            <label className="block text-sm font-medium mb-2 opacity-70">Ingresa tu PIN</label>
             <div className="flex justify-center gap-3 mb-4">
               {[0,1,2,3].map(i => (
-                <div key={i} className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center text-2xl font-bold transition-all ${pin.length > i ? 'border-emerald-500 bg-emerald-50 text-emerald-600' : 'border-gray-200'}`}>
+                <div key={i} className={`w-12 h-12 border-2 flex items-center justify-center text-2xl font-bold transition-all`} style={{ 
+                  borderRadius: 'var(--radius-base)',
+                  borderColor: pin.length > i ? 'var(--primary)' : 'var(--border)',
+                  backgroundColor: pin.length > i ? 'var(--accent)' : 'transparent',
+                  color: pin.length > i ? 'var(--primary)' : 'var(--muted-foreground)'
+                }}>
                   {pin.length > i ? '*' : ''}
                 </div>
               ))}
@@ -1067,13 +1076,13 @@ export const App: React.FC = () => {
                 <button key={i} disabled={n === ''} onClick={() => {
                   if (n === 'del') setPin(p => p.slice(0, -1));
                   else if (pin.length < 4 && n !== '') setPin(p => p + n);
-                }} className={`h-14 rounded-xl text-lg font-semibold transition-all ${n === '' ? 'invisible' : n === 'del' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-gray-100 hover:bg-gray-200 text-gray-800 active:scale-95'}`}>
+                }} className={`h-14 text-lg font-semibold transition-all ${n === '' ? 'invisible' : n === 'del' ? 'bg-[var(--danger-light)] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-[var(--danger-foreground)]' : 'bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-80 active:scale-95'}`}>
                   {n === 'del' ? 'DEL' : n}
                 </button>
               ))}
             </div>
           </div>
-          <button onClick={handleLogin} disabled={pin.length !== 4} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
+          <button onClick={handleLogin} disabled={pin.length !== 4} className="w-full py-3 font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-lg" style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', borderRadius: 'var(--radius-base)' }}>
             Ingresar
           </button>
         </motion.div>
@@ -1084,20 +1093,20 @@ export const App: React.FC = () => {
   // --- CASH OPEN ---
   if (screen === 'cash-open') {
     return (
-      <div className="h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-600 flex items-center justify-center p-3 sm:p-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-sm">
+      <div className="h-screen flex items-center justify-center p-3 sm:p-4 transition-colors duration-500" style={{ backgroundColor: 'var(--primary)' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="shadow-2xl p-4 sm:p-6 w-full max-w-sm" style={{ backgroundColor: 'var(--card)', color: 'var(--card-foreground)', borderRadius: 'var(--radius-base)' }}>
           <div className="text-center mb-4 sm:mb-6">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-              <Banknote className="w-6 h-6 sm:w-8 sm:h-8 text-amber-600" />
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4" style={{ backgroundColor: 'var(--accent)' }}>
+              <Banknote className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: 'var(--primary)' }} />
             </div>
-            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Apertura de Caja</h2>
-            <p className="text-gray-500 text-xs sm:text-sm">Hola, {user}</p>
+            <h2 className="text-lg sm:text-2xl font-bold mb-1 sm:mb-2">Apertura de Caja</h2>
+            <p className="text-xs sm:text-sm opacity-70">Hola, {user}</p>
           </div>
           <div className="mb-4 sm:mb-6">
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Fondo de caja inicial ($MXN)</label>
-            <input type="number" value={openingFloat} onChange={e => setOpeningFloat(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl text-xl sm:text-2xl text-center font-bold focus:border-emerald-500 focus:outline-none" autoFocus />
+            <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 opacity-70">Fondo de caja inicial ($MXN)</label>
+            <input type="number" value={openingFloat} onChange={e => setOpeningFloat(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 sm:px-4 sm:py-3 border-2 text-xl sm:text-2xl text-center font-bold focus:outline-none transition-all" style={{ borderRadius: 'var(--radius-base)', borderColor: 'var(--border)', backgroundColor: 'var(--background)', color: 'var(--foreground)' }} autoFocus />
           </div>
-          <button onClick={handleOpenCash} disabled={!openingFloat || parseFloat(openingFloat) <= 0} className="w-full py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-emerald-700 disabled:opacity-40 transition-all">
+          <button onClick={handleOpenCash} disabled={!openingFloat || parseFloat(openingFloat) <= 0} className="w-full py-2 sm:py-3 font-semibold text-sm sm:text-base disabled:opacity-40 transition-all shadow-md" style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', borderRadius: 'var(--radius-base)' }}>
             Abrir Caja
           </button>
           <button 
@@ -1110,7 +1119,8 @@ export const App: React.FC = () => {
               localStorage.removeItem('pos_userId');
               localStorage.removeItem('pos_screen');
             }} 
-            className="w-full mt-3 py-2 sm:py-2.5 border-2 border-gray-300 text-gray-600 rounded-lg sm:rounded-xl font-medium text-sm sm:text-base hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2"
+            className="w-full mt-3 py-2 sm:py-2.5 border-2 font-medium text-sm sm:text-base hover:opacity-80 transition-all flex items-center justify-center gap-2"
+            style={{ borderRadius: 'var(--radius-base)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
           >
             <ArrowLeft className="w-4 h-4" />
             Cambiar Usuario
@@ -1123,28 +1133,28 @@ export const App: React.FC = () => {
   // --- SALE COMPLETE ---
   if (screen === 'complete' && lastSale) {
     return (
-      <div className="h-screen bg-gray-50 flex items-center justify-center p-3 sm:p-4">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 w-full max-w-sm text-center">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="w-12 h-12 sm:w-16 sm:h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-            <Check className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />
+      <div className="h-screen flex items-center justify-center p-3 sm:p-4 transition-colors duration-500" style={{ backgroundColor: 'var(--background)' }}>
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="shadow-xl p-4 sm:p-6 w-full max-w-sm text-center" style={{ backgroundColor: 'var(--card)', color: 'var(--card-foreground)', borderRadius: 'var(--radius-base)' }}>
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4" style={{ backgroundColor: 'var(--accent)' }}>
+            <Check className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: 'var(--primary)' }} />
           </motion.div>
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">Venta Completada</h2>
-          <p className="text-gray-500 mb-3 sm:mb-4 text-xs sm:text-sm">Folio: {displayFolio(lastSale.folio)}</p>
-          <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 text-left space-y-1 sm:space-y-2 text-xs sm:text-sm">
-            <div className="flex justify-between font-bold text-base"><span>Total</span><span className="text-emerald-600">{fmt(lastSale.total)}</span></div>
-            <div className="border-t pt-2 mt-2 space-y-1">
-              <div className="flex justify-between text-xs text-gray-500"><span>Subtotal</span><span>{fmt(lastSale.subtotal)}</span></div>
-              <div className="flex justify-between text-xs text-gray-500"><span>IVA 16% (incluido)</span><span>{fmt(lastSale.taxAmount)}</span></div>
+          <h2 className="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Venta Completada</h2>
+          <p className="mb-3 sm:mb-4 text-xs sm:text-sm opacity-70">Folio: {displayFolio(lastSale.folio)}</p>
+          <div className="p-3 sm:p-4 mb-3 sm:mb-4 text-left space-y-1 sm:space-y-2 text-xs sm:text-sm" style={{ backgroundColor: 'var(--muted)', borderRadius: 'var(--radius-base)' }}>
+            <div className="flex justify-between font-bold text-base"><span>Total</span><span style={{ color: 'var(--primary)' }}>{fmt(lastSale.total)}</span></div>
+            <div className="border-t pt-2 mt-2 space-y-1" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex justify-between text-xs opacity-70"><span>Subtotal</span><span>{fmt(lastSale.subtotal)}</span></div>
+              <div className="flex justify-between text-xs opacity-70"><span>IVA 16% (incluido)</span><span>{fmt(lastSale.taxAmount)}</span></div>
             </div>
             {lastSale.paymentMethod === 'CASH' && (
               <>
-                <div className="flex justify-between"><span className="text-gray-600">Recibido</span><span>{fmt(lastSale.amountPaid)}</span></div>
-                <div className="flex justify-between text-amber-600 font-semibold"><span>Cambio</span><span>{fmt(lastSale.changeAmount)}</span></div>
+                <div className="flex justify-between opacity-70"><span>Recibido</span><span>{fmt(lastSale.amountPaid)}</span></div>
+                <div className="font-semibold" style={{ color: 'var(--primary)' }}><span>Cambio</span><span>{fmt(lastSale.changeAmount)}</span></div>
               </>
             )}
-            <div className="flex justify-between"><span className="text-gray-500">Metodo</span><span className="capitalize">{lastSale.paymentMethod === 'CASH' ? 'Efectivo' : lastSale.paymentMethod === 'CREDIT_CARD' ? 'Tarjeta' : lastSale.paymentMethod === 'DEBIT_CARD' ? 'Debito' : 'Socio'}</span></div>
+            <div className="flex justify-between opacity-70"><span>Metodo</span><span className="capitalize">{lastSale.paymentMethod === 'CASH' ? 'Efectivo' : lastSale.paymentMethod === 'CREDIT_CARD' ? 'Tarjeta' : lastSale.paymentMethod === 'DEBIT_CARD' ? 'Debito' : 'Socio'}</span></div>
           </div>
-          <button onClick={() => setScreen('pos')} className="w-full py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-emerald-700 transition-all">
+          <button onClick={() => setScreen('pos')} className="w-full py-2 sm:py-3 font-semibold text-sm sm:text-base transition-all shadow-md" style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', borderRadius: 'var(--radius-base)' }}>
             Nueva Venta
           </button>
         </motion.div>
@@ -1175,14 +1185,14 @@ export const App: React.FC = () => {
       : paymentMethod === 'CASH' ? cashAmount >= displayTotals.total : true);
 
     return (
-      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-        <header className="bg-white border-b px-3 md:px-5 py-2 md:py-3 flex items-center justify-between flex-shrink-0">
-          <button onClick={() => { setSplitPayments([]); setScreen('pos'); }} className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 min-h-[44px] px-2">
+      <div className="h-screen bg-muted flex flex-col overflow-hidden">
+        <header className="bg-card border-b px-3 md:px-5 py-2 md:py-3 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => { setSplitPayments([]); setScreen('pos'); }} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground min-h-[44px] px-2">
             <ArrowLeft className="w-5 h-5" />
             <span className="text-sm">Volver</span>
           </button>
-          <h1 className="text-base md:text-lg font-bold text-gray-900">Cobrar</h1>
-          <div className="text-base md:text-lg font-bold text-emerald-600">{fmt(displayTotals.total)}</div>
+          <h1 className="text-base md:text-lg font-bold text-foreground">Cobrar</h1>
+          <div className="text-base md:text-lg font-bold text-primary">{fmt(displayTotals.total)}</div>
         </header>
         
         <div className="flex-1 overflow-hidden p-2 md:p-4">
@@ -1203,25 +1213,25 @@ export const App: React.FC = () => {
               </div>
 
               {/* Payment methods - compacto */}
-              <div className="bg-white rounded-lg shadow-sm p-2.5 md:p-3 flex-shrink-0">
+              <div className="bg-card rounded-lg shadow-sm p-2.5 md:p-3 flex-shrink-0">
                 {isSplitMode ? (
                   <div className="space-y-2">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 md:p-3">
+                    <div className="bg-[var(--info-light)] border border-[var(--info)] rounded-lg p-2 md:p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-blue-900 text-sm">Pago Dividido</span>
+                        <span className="font-semibold text-[var(--info)] text-sm">Pago Dividido</span>
                         <span className={`text-xs font-semibold ${
-                          Math.abs(splitTotal - displayTotals.total) < 0.01 ? 'text-green-600' : 'text-red-600'
+                          Math.abs(splitTotal - displayTotals.total) < 0.01 ? 'text-[var(--success)]' : 'text-[var(--danger)]'
                         }`}>
                           {fmt(splitTotal)} / {fmt(displayTotals.total)}
                         </span>
                       </div>
                       {splitPayments.map((payment, index) => (
                         <div key={index} className="flex items-center gap-2 mb-2 last:mb-0">
-                          <span className="text-xs font-semibold text-gray-500 w-6">#{index + 1}</span>
+                          <span className="text-xs font-semibold text-muted-foreground w-6">#{index + 1}</span>
                           <select
                             value={payment.method}
                             onChange={(e) => handleUpdateSplitPayment(index, 'method', e.target.value as PaymentMethod)}
-                            className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[36px] bg-white"
+                            className="flex-1 px-2 py-1.5 border border-[var(--border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] min-h-[36px] bg-[var(--card)]"
                           >
                             <option value="CASH">💵 Efectivo</option>
                             <option value="CREDIT_CARD">💳 T. Crédito</option>
@@ -1232,7 +1242,7 @@ export const App: React.FC = () => {
                             type="number"
                             value={payment.amount}
                             onChange={(e) => handleUpdateSplitPayment(index, 'amount', Number(e.target.value) || 0)}
-                            className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-right font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[36px]"
+                            className="w-24 px-2 py-1.5 border border-[var(--border)] rounded-lg text-sm text-right font-medium focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] min-h-[36px]"
                             step="0.01"
                             min="0"
                           />
@@ -1260,7 +1270,7 @@ export const App: React.FC = () => {
                             { method: 'CREDIT_CARD', amount: other }
                           ]);
                         }}
-                        className="p-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors min-h-[36px]"
+                        className="p-1.5 bg-card border border-border rounded-lg text-xs font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors min-h-[36px]"
                       >
                         50/50
                       </button>
@@ -1274,20 +1284,20 @@ export const App: React.FC = () => {
                             { method: 'DEBIT_CARD', amount: rest }
                           ]);
                         }}
-                        className="p-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors min-h-[36px]"
+                        className="p-1.5 bg-card border border-border rounded-lg text-xs font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors min-h-[36px]"
                       >
                         3 partes
                       </button>
                       <button
                         onClick={handleAddSplitPayment}
-                        className="p-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors min-h-[36px] flex items-center justify-center gap-0.5"
+                        className="p-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs font-medium text-[var(--muted-foreground)] hover:border-[var(--info)] hover:text-[var(--info)] transition-colors min-h-[36px] flex items-center justify-center gap-0.5"
                       >
                         <Plus className="w-3 h-3" />
                         Agregar
                       </button>
                       <button
                         onClick={handleCancelSplitPayment}
-                        className="p-1.5 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-400 transition-colors min-h-[36px] flex items-center justify-center gap-0.5"
+                        className="p-1.5 bg-[var(--danger-light)] border border-[var(--danger)] rounded-lg text-xs font-medium text-[var(--danger)] hover:bg-[var(--danger)] hover:text-[var(--danger-foreground)] hover:border-[var(--danger)] transition-colors min-h-[36px] flex items-center justify-center gap-0.5"
                       >
                         <X className="w-3 h-3" />
                         Cancelar
@@ -1303,12 +1313,12 @@ export const App: React.FC = () => {
                           onClick={() => setPaymentMethod(method)} 
                           className={`p-2 md:p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all min-h-[52px] md:min-h-[60px] ${
                             paymentMethod === method 
-                              ? 'border-emerald-500 bg-emerald-50' 
-                              : 'border-gray-200 hover:border-gray-300'
+                              ? 'border-primary bg-accent' 
+                              : 'border-border hover:border-border'
                           }`}
                         >
-                          <Icon className={`w-5 h-5 md:w-6 md:h-6 ${paymentMethod === method ? 'text-emerald-600' : 'text-gray-400'}`} />
-                          <span className={`font-medium text-xs md:text-sm ${paymentMethod === method ? 'text-emerald-700' : 'text-gray-600'}`}>
+                          <Icon className={`w-5 h-5 md:w-6 md:h-6 ${paymentMethod === method ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <span className={`font-medium text-xs md:text-sm ${paymentMethod === method ? 'text-primary' : 'text-muted-foreground'}`}>
                             {label}
                           </span>
                         </button>
@@ -1365,13 +1375,13 @@ export const App: React.FC = () => {
 
               {/* Cash input - compacto */}
               {(paymentMethod === 'CASH' || (isSplitMode && splitPayments.some(p => p.method === 'CASH'))) && (
-                <div className="bg-white rounded-lg shadow-sm p-2.5 md:p-3 flex-shrink-0">
+                <div className="bg-card rounded-lg shadow-sm p-2.5 md:p-3 flex-shrink-0">
                   <input 
                     type="number" 
                     value={cashReceived} 
                     onChange={e => setCashReceived(e.target.value)} 
                     placeholder="Efectivo recibido" 
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-xl md:text-2xl text-center font-bold focus:border-emerald-500 focus:outline-none min-h-[48px]" 
+                    className="w-full px-3 py-2 border-2 border-border rounded-lg text-xl md:text-2xl text-center font-bold focus:border-primary focus:outline-none min-h-[48px]" 
                     autoFocus 
                   />
                   <div className="grid grid-cols-4 gap-1.5 mt-2">
@@ -1379,21 +1389,21 @@ export const App: React.FC = () => {
                       <button 
                         key={n} 
                         onClick={() => setCashReceived(String(n))} 
-                        className="py-2 px-1 bg-gray-100 rounded-lg font-medium text-sm md:text-base hover:bg-gray-200 transition-colors min-h-[40px] active:scale-95"
+                        className="py-2 px-1 bg-[var(--muted)] rounded-lg font-medium text-sm md:text-base hover:bg-[var(--accent)] transition-colors min-h-[40px] active:scale-95"
                       >
                         ${n}
                       </button>
                     ))}
                     <button 
                       onClick={() => setCashReceived(String(Math.ceil(displayTotals.total / 10) * 10))} 
-                      className="py-2 px-1 bg-emerald-100 text-emerald-700 rounded-lg font-medium text-sm md:text-base hover:bg-emerald-200 transition-colors min-h-[40px] active:scale-95 col-span-1 md:col-span-1"
+                      className="py-2 px-1 bg-accent text-primary rounded-lg font-medium text-sm md:text-base hover:bg-accent transition-colors min-h-[40px] active:scale-95 col-span-1 md:col-span-1"
                     >
                       Exacto
                     </button>
                   </div>
                   {cashAmount > 0 && (
                     <div className={`mt-2 p-2 rounded-lg text-center text-lg md:text-xl font-bold ${
-                      change >= 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'
+                      change >= 0 ? 'bg-[var(--warning-light)] text-[var(--warning)]' : 'bg-[var(--danger-light)] text-[var(--danger)]'
                     }`}>
                       Cambio: {fmt(change)}
                     </div>
@@ -1405,28 +1415,28 @@ export const App: React.FC = () => {
             {/* Columna derecha: Resumen */}
             <div className="flex flex-col gap-2 md:gap-3 min-h-0 flex-1 md:flex-none">
               {/* Order summary - compacto */}
-              <div className="bg-white rounded-lg shadow-sm p-2.5 md:p-3 flex-1 min-h-0 flex flex-col">
-                <h3 className="font-semibold text-gray-900 mb-1.5 text-sm">Resumen</h3>
+              <div className="bg-card rounded-lg shadow-sm p-2.5 md:p-3 flex-1 min-h-0 flex flex-col">
+                <h3 className="font-semibold text-foreground mb-1.5 text-sm">Resumen</h3>
                 <div className="flex-1 overflow-y-auto space-y-0.5 text-sm min-h-0">
                   {displayItems.map(item => (
                     <div key={item.productId} className="flex justify-between py-0.5">
-                      <span className="text-gray-600 truncate flex-1 mr-2">
+                      <span className="text-muted-foreground truncate flex-1 mr-2">
                         <span className="font-semibold">{item.quantity}x</span> {item.name}
                       </span>
                       <span className="font-medium flex-shrink-0">{fmt(item.totalPrice)}</span>
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-gray-200 pt-2 mt-2 space-y-1 flex-shrink-0">
+                <div className="border-t border-border pt-2 mt-2 space-y-1 flex-shrink-0">
                   <div className="flex justify-between font-bold text-base md:text-lg">
                     <span>TOTAL</span>
-                    <span className="text-emerald-600">{fmt(displayTotals.total)}</span>
+                    <span className="text-primary">{fmt(displayTotals.total)}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-gray-500">
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Subtotal</span>
                     <span>{fmt(displayTotals.subtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-gray-500">
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>IVA 16% (incluido)</span>
                     <span>{fmt(displayTotals.taxAmount)}</span>
                   </div>
@@ -1437,7 +1447,7 @@ export const App: React.FC = () => {
               <button 
                 onClick={handlePay} 
                 disabled={!canPay || isProcessing} 
-                className="w-full py-3 md:py-4 bg-emerald-600 text-white rounded-lg font-bold text-sm md:text-base hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg min-h-[48px] md:min-h-[56px] flex-shrink-0"
+                className="w-full py-3 md:py-4 bg-primary text-primary-foreground rounded-lg font-bold text-sm md:text-base hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg min-h-[48px] md:min-h-[56px] flex-shrink-0"
               >
                 {isProcessing ? (
                   <>
@@ -1471,52 +1481,52 @@ export const App: React.FC = () => {
     const countedAmount = parseFloat(countedCash) || 0;
     const difference = countedAmount - expectedCash;
     return (
-      <div className="h-screen bg-gray-50 flex flex-col">
-        <header className="bg-white border-b px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
-          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline text-xs sm:text-sm">Volver</span></button>
-          <h1 className="text-base sm:text-lg font-bold text-gray-900">Cierre de Caja</h1>
+      <div className="h-screen bg-muted flex flex-col">
+        <header className="bg-card border-b px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 sm:gap-2 text-muted-foreground hover:text-foreground"><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline text-xs sm:text-sm">Volver</span></button>
+          <h1 className="text-base sm:text-lg font-bold text-foreground">Cierre de Caja</h1>
           <div />
         </header>
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
-          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 space-y-3">
-            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Resumen del Turno</h3>
+          <div className="bg-card rounded-xl shadow-sm p-3 sm:p-4 space-y-3">
+            <h3 className="font-semibold text-foreground text-base sm:text-lg">Resumen del Turno</h3>
             <div className="space-y-2">
-              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Cajero</span><span className="font-medium">{user}</span></div>
-              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Fondo Inicial</span><span className="font-medium">{fmt(parseFloat(openingFloat) || 0)}</span></div>
-              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Ventas Totales</span><span className="font-bold text-emerald-600">{fmt(totalSales)}</span></div>
-              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Total Efectivo</span><span className="font-medium">{fmt(totalCash)}</span></div>
-              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Total Tarjetas</span><span className="font-medium">{fmt(totalCard)}</span></div>
-              <div className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs sm:text-sm"><span className="text-gray-600">Transacciones</span><span className="font-medium">{salesHistory.length}</span></div>
-              <div className="flex justify-between p-2 bg-amber-50 rounded-lg border border-amber-200 text-xs sm:text-sm"><span className="text-amber-700 font-medium">Efectivo Esperado</span><span className="font-bold text-amber-700">{fmt(expectedCash)}</span></div>
+              <div className="flex justify-between p-2 bg-muted rounded-lg text-xs sm:text-sm"><span className="text-muted-foreground">Cajero</span><span className="font-medium">{user}</span></div>
+              <div className="flex justify-between p-2 bg-muted rounded-lg text-xs sm:text-sm"><span className="text-muted-foreground">Fondo Inicial</span><span className="font-medium">{fmt(parseFloat(openingFloat) || 0)}</span></div>
+              <div className="flex justify-between p-2 bg-muted rounded-lg text-xs sm:text-sm"><span className="text-muted-foreground">Ventas Totales</span><span className="font-bold text-primary">{fmt(totalSales)}</span></div>
+              <div className="flex justify-between p-2 bg-muted rounded-lg text-xs sm:text-sm"><span className="text-muted-foreground">Total Efectivo</span><span className="font-medium">{fmt(totalCash)}</span></div>
+              <div className="flex justify-between p-2 bg-muted rounded-lg text-xs sm:text-sm"><span className="text-muted-foreground">Total Tarjetas</span><span className="font-medium">{fmt(totalCard)}</span></div>
+              <div className="flex justify-between p-2 bg-muted rounded-lg text-xs sm:text-sm"><span className="text-muted-foreground">Transacciones</span><span className="font-medium">{salesHistory.length}</span></div>
+              <div className="flex justify-between p-2 bg-[var(--warning-light)] rounded-lg border border-[var(--warning)] text-xs sm:text-sm"><span className="text-[var(--warning)] font-medium">Efectivo Esperado</span><span className="font-bold text-[var(--warning)]">{fmt(expectedCash)}</span></div>
             </div>
           </div>
           
           {/* Input de Efectivo Contado */}
-          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 space-y-3">
-            <label className="block text-sm font-medium text-gray-700">Efectivo Contado en Caja ($)</label>
+          <div className="bg-card rounded-xl shadow-sm p-3 sm:p-4 space-y-3">
+            <label className="block text-sm font-medium text-[var(--foreground)]">Efectivo Contado en Caja ($)</label>
             <input 
               type="number" 
               value={countedCash} 
               onChange={e => setCountedCash(e.target.value)} 
               placeholder="0.00" 
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl text-xl sm:text-2xl text-center font-bold focus:border-emerald-500 focus:outline-none min-h-[44px]"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 border-2 border-border rounded-lg sm:rounded-xl text-xl sm:text-2xl text-center font-bold focus:border-primary focus:outline-none min-h-[44px]"
             />
             {countedAmount > 0 && (
-              <div className={`p-2 rounded-lg text-center text-sm font-bold ${difference === 0 ? 'bg-emerald-100 text-emerald-700' : difference > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+              <div className={`p-2 rounded-lg text-center text-sm font-bold ${difference === 0 ? 'bg-[var(--accent)] text-[var(--primary)]' : difference > 0 ? 'bg-[var(--info-light)] text-[var(--info)]' : 'bg-[var(--danger-light)] text-[var(--danger)]'}`}>
                 Diferencia: {difference === 0 ? 'Cuadre perfecto' : difference > 0 ? `Sobrante: ${fmt(difference)}` : `Faltante: ${fmt(Math.abs(difference))}`}
               </div>
             )}
           </div>
           
           {/* Notas de cierre */}
-          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 space-y-3">
-            <label className="block text-sm font-medium text-gray-700">Notas (opcional)</label>
+          <div className="bg-card rounded-xl shadow-sm p-3 sm:p-4 space-y-3">
+            <label className="block text-sm font-medium text-[var(--foreground)]">Notas (opcional)</label>
             <textarea 
               value={closeNotes} 
               onChange={e => setCloseNotes(e.target.value)} 
               placeholder="Observaciones del cierre..." 
               rows={3}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-emerald-500 focus:outline-none resize-none min-h-[44px]"
+              className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary focus:outline-none resize-none min-h-[44px]"
             />
           </div>
           
@@ -1528,7 +1538,7 @@ export const App: React.FC = () => {
               }
               handleCloseCash();
             }} 
-            className="w-full py-3 sm:py-4 bg-red-600 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base hover:bg-red-700 transition-all min-h-[44px]"
+            className="w-full py-3 sm:py-4 bg-[var(--danger)] text-[var(--danger-foreground)] rounded-lg sm:rounded-xl font-bold text-sm sm:text-base hover:bg-[var(--danger)] transition-all min-h-[44px]"
           >
             Cerrar Caja y Salir
           </button>
@@ -1556,43 +1566,43 @@ export const App: React.FC = () => {
     });
     
     return (
-      <div className="h-screen bg-gray-50 flex flex-col">
-        <header className="bg-white border-b px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
-          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline text-xs sm:text-sm">Volver</span></button>
-          <h1 className="text-base sm:text-lg font-bold text-gray-900">Historial de Ventas</h1>
-          <div className="text-xs sm:text-sm text-gray-500">{filteredSales.length} ventas</div>
+      <div className="h-screen bg-muted flex flex-col">
+        <header className="bg-card border-b px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => setScreen('pos')} className="flex items-center gap-1 sm:gap-2 text-muted-foreground hover:text-foreground"><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline text-xs sm:text-sm">Volver</span></button>
+          <h1 className="text-base sm:text-lg font-bold text-foreground">Historial de Ventas</h1>
+          <div className="text-xs sm:text-sm text-muted-foreground">{filteredSales.length} ventas</div>
         </header>
         
         {/* Date and Search bar */}
-        <div className="bg-white border-b px-3 sm:px-4 py-2 space-y-2">
+        <div className="bg-card border-b px-3 sm:px-4 py-2 space-y-2">
           {/* Date selector */}
           <div className="flex items-center gap-2">
             <input
               type="date"
               value={historyDate}
               onChange={(e) => setHistoryDate(e.target.value)}
-              className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white min-h-[44px]"
+              className="flex-1 px-3 py-2 bg-muted rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card min-h-[44px]"
             />
             <button
               onClick={() => setHistoryDate(new Date().toISOString().split('T')[0])}
-              className="px-3 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors whitespace-nowrap"
+              className="px-3 py-2 bg-accent text-primary rounded-lg text-sm font-medium hover:bg-accent transition-colors whitespace-nowrap"
             >
               Hoy
             </button>
           </div>
           {/* Search input */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input 
               type="text" 
               value={historySearch} 
               onChange={e => setHistorySearch(e.target.value)} 
               placeholder="Buscar por folio..." 
-              className="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white min-h-[44px]"
+              className="w-full pl-10 pr-10 py-2 bg-muted rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card min-h-[44px]"
             />
             {historySearch && (
               <button onClick={() => setHistorySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-                <X className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
           </div>
@@ -1600,7 +1610,7 @@ export const App: React.FC = () => {
         
         <div className="flex-1 overflow-y-auto p-3 sm:p-4">
           {filteredSales.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
+            <div className="text-center py-16 text-muted-foreground">
               <Receipt className="w-16 h-16 mx-auto mb-4 opacity-30" />
               <p className="text-lg">No hay ventas registradas</p>
             </div>
@@ -1610,17 +1620,17 @@ export const App: React.FC = () => {
                 <div 
                   key={sale.id} 
                   onClick={() => handleOpenSaleDetail(sale)}
-                  className="bg-white rounded-lg shadow-sm p-2 sm:p-3 flex items-center justify-between gap-2 cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="bg-card rounded-lg shadow-sm p-2 sm:p-3 flex items-center justify-between gap-2 cursor-pointer hover:bg-muted transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{displayFolio(sale.folio)}</div>
-                    <div className="text-xs text-gray-500">{sale.items.length} articulos - {sale.createdAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div className="font-semibold text-foreground text-xs sm:text-sm truncate">{displayFolio(sale.folio)}</div>
+                    <div className="text-xs text-muted-foreground">{sale.items.length} articulos - {sale.createdAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="font-bold text-emerald-600 text-xs sm:text-sm">{fmt(sale.total)}</div>
-                    <div className="text-xs text-gray-400 capitalize">{sale.paymentMethod === 'CASH' ? 'Efectivo' : 'Tarjeta'}</div>
+                    <div className="font-bold text-primary text-xs sm:text-sm">{fmt(sale.total)}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{sale.paymentMethod === 'CASH' ? 'Efectivo' : 'Tarjeta'}</div>
                     {sale.orderType && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         {sale.orderType === 'MESA' && '🍽️ Mesa'}
                         {sale.orderType === 'DOMICILIO' && '📦 Domicilio'}
                         {sale.orderType === 'LLEVAR' && '🥡 Llevar'}
@@ -1638,7 +1648,7 @@ export const App: React.FC = () => {
                         handleUpdatePaymentMethod(sale.id, e.target.value as PaymentMethod);
                       }}
                       onClick={(e) => e.stopPropagation()}
-                      className="text-xs bg-white border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="text-xs bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1 focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
                       title="Cambiar método de pago"
                     >
                       <option value="CASH">💵 Efectivo</option>
@@ -1655,7 +1665,7 @@ export const App: React.FC = () => {
                         handleUpdateOrderType(sale.id, e.target.value as OrderType);
                       }}
                       onClick={(e) => e.stopPropagation()}
-                      className="text-xs bg-white border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      className="text-xs bg-card border border-border rounded px-2 py-1 focus:ring-2 focus:ring-primary focus:border-primary"
                       title="Cambiar tipo de comanda"
                     >
                       <option value="MESA">🍽️ Mesa</option>
@@ -1671,7 +1681,7 @@ export const App: React.FC = () => {
                           e.stopPropagation();
                           handleCancelOrder(sale.id);
                         }}
-                        className="p-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded transition-colors"
+                        className="p-1.5 bg-[var(--danger-light)] hover:bg-[var(--danger)] text-[var(--danger)] rounded transition-colors"
                         title="Cancelar pedido"
                       >
                         <X className="w-4 h-4" />
@@ -1684,7 +1694,7 @@ export const App: React.FC = () => {
                         e.stopPropagation();
                         handlePrintSaleTicket(sale);
                       }}
-                      className="p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded transition-colors"
+                      className="p-1.5 bg-[var(--info-light)] hover:bg-[var(--info)] text-[var(--info)] rounded transition-colors"
                       title="Imprimir ticket"
                     >
                       <Printer className="w-4 h-4" />
@@ -1702,19 +1712,19 @@ export const App: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden"
+              className="bg-card rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden"
             >
               {/* Header */}
-              <div className="bg-emerald-600 text-white px-6 py-4 flex items-center justify-between">
+              <div className="bg-primary text-primary-foreground px-6 py-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold">{displayFolio(selectedSale.folio)}</h2>
-                  <p className="text-emerald-100 text-sm">
+                  <p className="text-primary-foreground/80 text-sm">
                     {selectedSale.createdAt.toLocaleDateString('es-MX')} - {selectedSale.createdAt.toLocaleTimeString('es-MX')}
                   </p>
                 </div>
                 <button
                   onClick={() => setShowSaleDetail(false)}
-                  className="text-emerald-100 hover:text-white p-1"
+                  className="text-primary-foreground/80 hover:text-white p-1"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -1724,54 +1734,54 @@ export const App: React.FC = () => {
               <div className="p-6 overflow-y-auto max-h-[60vh]">
                 {/* Items list */}
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-3">Productos</h3>
+                  <h3 className="font-semibold text-foreground mb-3">Productos</h3>
                   <div className="space-y-2">
                     {selectedSale.items.map((item, index) => (
-                      <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <div key={index} className="flex justify-between items-center py-2 border-b border-border">
                         <div>
-                          <span className="font-medium text-gray-900">{item.quantity}x</span>{' '}
-                          <span className="text-gray-700">{item.name}</span>
+                          <span className="font-medium text-foreground">{item.quantity}x</span>{' '}
+                          <span className="text-[var(--foreground)]">{item.name}</span>
                         </div>
-                        <span className="text-gray-900 font-medium">{fmt(item.totalPrice)}</span>
+                        <span className="text-foreground font-medium">{fmt(item.totalPrice)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Totals */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="bg-muted rounded-lg p-4 mb-6">
                   <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">Subtotal</span>
+                    <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium">{fmt(selectedSale.subtotal)}</span>
                   </div>
                   <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">IVA 16%</span>
+                    <span className="text-muted-foreground">IVA 16%</span>
                     <span className="font-medium">{fmt(selectedSale.taxAmount)}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-2">
+                  <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
                     <span>Total</span>
-                    <span className="text-emerald-600">{fmt(selectedSale.total)}</span>
+                    <span className="text-primary">{fmt(selectedSale.total)}</span>
                   </div>
                 </div>
 
                 {/* Payment Method Section */}
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-3">Método de Pago</h3>
+                  <h3 className="font-semibold text-foreground mb-3">Método de Pago</h3>
                   
                   {selectedSale.splitPayments && selectedSale.splitPayments.length > 0 ? (
-                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                    <div className="bg-[var(--info-light)] border-2 border-[var(--info)] rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-blue-900">Pago Dividido</span>
+                        <span className="font-semibold text-[var(--info)]">Pago Dividido</span>
                       </div>
                       {selectedSale.splitPayments.map((payment, index) => (
                         <div key={index} className="flex justify-between text-sm py-1">
-                          <span className="text-gray-700">
+                          <span className="text-[var(--foreground)]">
                             {payment.method === 'CASH' && 'Efectivo'}
                             {payment.method === 'CREDIT_CARD' && 'Tarjeta Crédito'}
                             {payment.method === 'DEBIT_CARD' && 'Tarjeta Débito'}
                             {payment.method === 'MEMBER_ACCOUNT' && 'Cuenta Socio'}
                           </span>
-                          <span className="font-medium text-gray-900">{fmt(payment.amount)}</span>
+                          <span className="font-medium text-foreground">{fmt(payment.amount)}</span>
                         </div>
                       ))}
                     </div>
@@ -1784,8 +1794,8 @@ export const App: React.FC = () => {
                           disabled={selectedSale.paymentMethod === method}
                           className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
                             selectedSale.paymentMethod === method
-                              ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                              : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                              ? 'border-[var(--primary)] bg-[var(--accent)] text-[var(--primary)]'
+                              : 'border-[var(--border)] hover:border-[var(--border)] text-[var(--foreground)]'
                           }`}
                         >
                           {method === 'CASH' && 'Efectivo'}
@@ -1800,10 +1810,10 @@ export const App: React.FC = () => {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 bg-gray-50 border-t flex gap-3">
+              <div className="px-6 py-4 bg-muted border-t flex gap-3">
                 <button
                   onClick={() => setShowSaleDetail(false)}
-                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-[var(--muted)] text-[var(--muted-foreground)] rounded-lg hover:bg-[var(--accent)] transition-colors"
                 >
                   Cerrar
                 </button>
@@ -1812,7 +1822,7 @@ export const App: React.FC = () => {
                     handlePrintSaleTicket(selectedSale);
                     setShowSaleDetail(false);
                   }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-[var(--info)] text-[var(--info-foreground)] rounded-lg hover:bg-[var(--info)] transition-colors flex items-center justify-center gap-2"
                 >
                   <Printer className="w-4 h-4" />
                   Imprimir
@@ -1828,37 +1838,37 @@ export const App: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col"
+              className="bg-card rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col"
             >
               {/* Header */}
-              <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-between flex-shrink-0">
+              <div className="px-4 py-3 border-b border-[var(--border)] bg-gradient-to-r from-[var(--primary)] to-[var(--primary)] flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <Scissors className="w-5 h-5 text-white" />
                   <h2 className="text-lg font-bold text-white">Pago Dividido</h2>
                 </div>
-                <button onClick={handleCancelSplitPayment} className="text-white hover:bg-white hover:bg-opacity-20 p-1.5 rounded-lg">
+                <button onClick={handleCancelSplitPayment} className="text-white hover:bg-card hover:bg-opacity-20 p-1.5 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Content */}
               <div className="px-4 py-3 flex-1 overflow-y-auto">
-                <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                <div className="bg-muted rounded-lg p-3 mb-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 text-sm">Total a pagar:</span>
-                    <span className="text-xl font-bold text-gray-900">{fmt(displayTotals.total)}</span>
+                    <span className="text-muted-foreground text-sm">Total a pagar:</span>
+                    <span className="text-xl font-bold text-foreground">{fmt(displayTotals.total)}</span>
                   </div>
                   <div className="mt-1.5 flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Total dividido:</span>
+                    <span className="text-muted-foreground">Total dividido:</span>
                     <span className={`font-semibold ${
                       Math.abs(splitPayments.reduce((sum, p) => sum + p.amount, 0) - displayTotals.total) < 0.01
-                        ? 'text-green-600' : 'text-red-600'
+                        ? 'text-[var(--success)]' : 'text-[var(--danger)]'
                     }`}>
                       {fmt(splitPayments.reduce((sum, p) => sum + p.amount, 0))}
                     </span>
                   </div>
                   {Math.abs(splitPayments.reduce((sum, p) => sum + p.amount, 0) - displayTotals.total) > 0.01 && (
-                    <div className="mt-1.5 text-xs text-red-600 font-semibold">
+                    <div className="mt-1.5 text-xs text-[var(--danger)] font-semibold">
                       Diferencia: {fmt(Math.abs(splitPayments.reduce((sum, p) => sum + p.amount, 0) - displayTotals.total))}
                     </div>
                   )}
@@ -1866,7 +1876,7 @@ export const App: React.FC = () => {
 
                 {/* Quick Split Presets */}
                 <div className="mb-3">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">División rápida</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">División rápida</span>
                   <div className="grid grid-cols-3 gap-1.5 mt-1.5">
                     <button
                       onClick={() => {
@@ -1877,7 +1887,7 @@ export const App: React.FC = () => {
                           { method: 'CREDIT_CARD', amount: other }
                         ]);
                       }}
-                      className="p-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors min-h-[40px]"
+                      className="p-2 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs font-medium text-[var(--muted-foreground)] hover:border-[var(--info)] hover:text-[var(--info)] transition-colors min-h-[40px]"
                     >
                       50% / 50%
                     </button>
@@ -1891,7 +1901,7 @@ export const App: React.FC = () => {
                           { method: 'DEBIT_CARD', amount: rest }
                         ]);
                       }}
-                      className="p-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors min-h-[40px]"
+                      className="p-2 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs font-medium text-[var(--muted-foreground)] hover:border-[var(--info)] hover:text-[var(--info)] transition-colors min-h-[40px]"
                     >
                       3 partes iguales
                     </button>
@@ -1902,7 +1912,7 @@ export const App: React.FC = () => {
                           { method: 'CREDIT_CARD', amount: 0 }
                         ]);
                       }}
-                      className="p-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors min-h-[40px]"
+                      className="p-2 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs font-medium text-[var(--muted-foreground)] hover:border-[var(--info)] hover:text-[var(--info)] transition-colors min-h-[40px]"
                     >
                       Personalizado
                     </button>
@@ -1911,9 +1921,9 @@ export const App: React.FC = () => {
 
                 <div className="space-y-2 mb-3">
                   {splitPayments.map((payment, index) => (
-                    <div key={index} className="bg-white border border-gray-200 rounded-lg p-2.5">
+                    <div key={index} className="bg-card border border-border rounded-lg p-2.5">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-xs font-semibold text-gray-600">Pago {index + 1}</span>
+                        <span className="text-xs font-semibold text-muted-foreground">Pago {index + 1}</span>
                         {splitPayments.length > 1 && (
                           <button onClick={() => handleRemoveSplitPayment(index)} className="ml-auto text-red-500 hover:text-red-600 p-1">
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1924,7 +1934,7 @@ export const App: React.FC = () => {
                         <select
                           value={payment.method}
                           onChange={(e) => handleUpdateSplitPayment(index, 'method', e.target.value as PaymentMethod)}
-                          className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[40px]"
+                          className="px-2 py-1.5 border border-border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[40px]"
                         >
                           <option value="CASH">💵 Efectivo</option>
                           <option value="CREDIT_CARD">💳 T. Crédito</option>
@@ -1935,7 +1945,7 @@ export const App: React.FC = () => {
                           type="number"
                           value={payment.amount}
                           onChange={(e) => handleUpdateSplitPayment(index, 'amount', Number(e.target.value) || 0)}
-                          className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[40px]"
+                          className="px-2 py-1.5 border border-border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[40px]"
                           step="0.01"
                           min="0"
                         />
@@ -1946,7 +1956,7 @@ export const App: React.FC = () => {
 
                 <button
                   onClick={handleAddSplitPayment}
-                  className="w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-1.5 text-sm min-h-[40px]"
+                  className="w-full p-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-1.5 text-sm min-h-[40px]"
                 >
                   <Plus className="w-4 h-4" />
                   Agregar Método
@@ -1954,7 +1964,7 @@ export const App: React.FC = () => {
               </div>
 
               {/* Footer */}
-              <div className="px-4 py-3 bg-gray-50 border-t flex gap-2 flex-shrink-0">
+              <div className="px-4 py-3 bg-muted border-t flex gap-2 flex-shrink-0">
                 <button
                   onClick={handleCancelSplitPayment}
                   className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm min-h-[40px] flex items-center justify-center gap-1.5"
@@ -1989,26 +1999,26 @@ export const App: React.FC = () => {
 
   // ===================== MAIN POS SCREEN =====================
   return (
-    <div className="h-screen bg-gray-100 flex flex-col">
+    <div className="h-screen bg-muted flex flex-col">
       {/* HEADER */}
-      <header className="bg-white shadow-sm border-b border-gray-200 px-3 md:px-6 h-14 md:h-16 flex items-center justify-between flex-shrink-0">
+      <header className="bg-card shadow-sm border-b border-border px-3 md:px-6 h-14 md:h-16 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2 md:gap-4">
           <Logo width={40} height={40} className="rounded-lg overflow-hidden" />
-          <h1 className="font-bold text-gray-900 text-lg md:text-xl">
-            {branding.companyName || 'YCC Country Club'}
-          </h1>
           <div className="hidden md:block">
-            <h1 className="text-base md:text-lg font-bold text-gray-900 leading-tight">YCC POS</h1>
+            <h1 className="font-bold text-foreground text-lg md:text-xl leading-tight">
+              {branding.companyName || 'YCC Country Club'}
+            </h1>
+            <p className="text-xs text-muted-foreground">Punto de Venta</p>
             <div className="flex items-center gap-2">
-              <p className="text-sm text-gray-500">{user}</p>
+              <p className="text-sm text-muted-foreground">{user}</p>
               {currentShift && (
-                <span className="text-sm bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-sm bg-[var(--info-light)] text-[var(--info)] px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5" />
                   Turno activo
                 </span>
               )}
               {cashOpen && (
-                <span className="text-sm bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-sm bg-[var(--success-light)] text-[var(--success)] px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <DollarSign className="w-3.5 h-3.5" />
                   Caja abierta
                 </span>
@@ -2016,7 +2026,7 @@ export const App: React.FC = () => {
             </div>
           </div>
           <div className="md:hidden">
-            <h1 className="text-sm font-bold text-gray-900">POS</h1>
+            <h1 className="text-sm font-bold text-foreground">{branding.companyName || 'POS'}</h1>
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
@@ -2035,9 +2045,9 @@ export const App: React.FC = () => {
               <span className="hidden md:inline">Corte</span>
             </button>
           )}
-          <button onClick={() => setScreen('history')} className="p-2.5 md:p-3 rounded-lg hover:bg-gray-100 text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center" title="Historial"><Receipt className="w-5 h-5 md:w-6 md:h-6" /></button>
-          <button onClick={() => setShowPrinterConfig(true)} className="p-2.5 md:p-3 rounded-lg hover:bg-gray-100 text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center" title="Configurar Impresora"><Printer className="w-5 h-5 md:w-6 md:h-6" /></button>
-          <button onClick={() => setScreen('cash-close')} className="p-2.5 md:p-3 rounded-lg hover:bg-gray-100 text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center" title="Cerrar Sesión"><LogOut className="w-5 h-5 md:w-6 md:h-6" /></button>
+          <button onClick={() => setScreen('history')} className="p-2.5 md:p-3 rounded-lg hover:bg-muted text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center" title="Historial"><Receipt className="w-5 h-5 md:w-6 md:h-6" /></button>
+          <button onClick={() => setShowPrinterConfig(true)} className="p-2.5 md:p-3 rounded-lg hover:bg-muted text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center" title="Configurar Impresora"><Printer className="w-5 h-5 md:w-6 md:h-6" /></button>
+          <button onClick={() => setScreen('cash-close')} className="p-2.5 md:p-3 rounded-lg hover:bg-muted text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center" title="Cerrar Sesión"><LogOut className="w-5 h-5 md:w-6 md:h-6" /></button>
         </div>
       </header>
 
@@ -2050,23 +2060,23 @@ export const App: React.FC = () => {
         {/* LEFT: PRODUCT CATALOG */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Search + Categories - Chips mejorados */}
-          <div className="p-3 md:p-4 space-y-3 bg-white border-b shadow-sm z-10">
+          <div className="p-3 md:p-4 space-y-3 bg-card border-b shadow-sm z-10">
             {/* Búsqueda */}
             <div className="relative max-w-xl">
-              <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input 
                 type="text" 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
                 placeholder="Buscar productos, categorías..." 
-                className="w-full pl-11 pr-11 py-3 bg-gray-100 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all" 
+                className="w-full pl-11 pr-11 py-3 bg-muted rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition-all" 
               />
               {searchTerm && (
                 <button 
                   onClick={() => setSearchTerm('')} 
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center transition-colors"
                 >
-                  <X className="w-4 h-4 text-gray-500" />
+                  <X className="w-4 h-4 text-muted-foreground" />
                 </button>
               )}
             </div>
@@ -2084,8 +2094,8 @@ export const App: React.FC = () => {
                       transition-all duration-150 min-h-[44px] flex-shrink-0
                       active:scale-95
                       ${isSelected 
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 ring-2 ring-emerald-600 ring-offset-2' 
-                        : 'bg-white text-gray-600 border-2 border-gray-200 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50/50'
+                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 ring-2 ring-primary ring-offset-2' 
+                        : 'bg-card text-muted-foreground border-2 border-border hover:border-accent hover:text-primary hover:bg-accent/50'
                       }
                     `}
                   >
@@ -2099,16 +2109,16 @@ export const App: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-3 md:p-4">
             {!activeComanda ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <ShoppingCart className="w-10 h-10 text-gray-400" />
+                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+                  <ShoppingCart className="w-10 h-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">No hay comanda activa</h3>
-                <p className="text-gray-500 mb-4 max-w-xs">
+                <h3 className="text-lg font-bold text-foreground mb-2">No hay comanda activa</h3>
+                <p className="text-muted-foreground mb-4 max-w-xs">
                   Para agregar productos, primero debes crear o seleccionar una comanda
                 </p>
                 <button
                   onClick={() => setShowNewComandaModal(true)}
-                  className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary transition-colors flex items-center gap-2"
                 >
                   <Plus className="w-5 h-5" />
                   Nueva Comanda
@@ -2130,23 +2140,23 @@ export const App: React.FC = () => {
                     onClick={() => handleProductClick(product)} 
                     disabled={!canAddProduct}
                     className={`
-                      bg-white rounded-xl shadow-sm border-2 p-3 md:p-4 text-left 
+                      bg-card rounded-xl shadow-sm border-2 p-3 md:p-4 text-left 
                       transition-all duration-150 relative overflow-hidden
                       ${canAddProduct 
                         ? 'active:shadow-inner cursor-pointer' 
                         : 'opacity-50 cursor-not-allowed grayscale'
                       }
                       ${inCart && canAddProduct
-                        ? 'border-emerald-300 shadow-md shadow-emerald-100' 
+                        ? 'border-accent shadow-md shadow-accent/20' 
                         : canAddProduct 
-                          ? 'border-gray-100 hover:border-emerald-200 hover:shadow-md'
-                          : 'border-gray-200'
+                          ? 'border-border hover:border-accent hover:shadow-md'
+                          : 'border-border'
                       }
                     `}
                   >
                     {/* Badge de cantidad en carrito */}
                     {inCart && (
-                      <div className="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-black rounded-full w-6 h-6 flex items-center justify-center shadow-md animate-pulse">
+                      <div className="absolute top-2 right-2 bg-accent0 text-white text-xs font-black rounded-full w-6 h-6 flex items-center justify-center shadow-md animate-pulse">
                         {inCart.quantity}
                       </div>
                     )}
@@ -2165,14 +2175,14 @@ export const App: React.FC = () => {
 
                     {/* Indicador de categoría */}
                     <div className="flex items-center gap-1 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">
+                      <div className="w-2 h-2 rounded-full bg-primary" />
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                         {product.categoryName}
                       </span>
                     </div>
 
                     {/* Nombre del producto */}
-                    <h3 className="font-bold text-gray-900 text-sm md:text-base leading-snug mb-2 line-clamp-2 min-h-[2.5rem]">
+                    <h3 className="font-bold text-foreground text-sm md:text-base leading-snug mb-2 line-clamp-2 min-h-[2.5rem]">
                       {product.name}
                     </h3>
 
@@ -2186,27 +2196,27 @@ export const App: React.FC = () => {
                       </div>
                     ) : product.modifierGroups && product.modifierGroups.length > 0 ? (
                       <div className="flex items-baseline justify-between mt-auto">
-                        <span className="text-lg md:text-xl font-black text-emerald-600">
+                        <span className="text-lg md:text-xl font-black text-primary">
                           {fmt(product.price)}
                         </span>
-                        <span className="text-xs text-gray-400">MXN</span>
+                        <span className="text-xs text-muted-foreground">MXN</span>
                       </div>
                     ) : (
                       <div className="flex items-baseline justify-between mt-auto">
-                        <span className="text-lg md:text-xl font-black text-emerald-600">
+                        <span className="text-lg md:text-xl font-black text-primary">
                           {fmt(product.price)}
                         </span>
-                        <span className="text-xs text-gray-400">MXN</span>
+                        <span className="text-xs text-muted-foreground">MXN</span>
                       </div>
                     )}
                     
                     {/* Efecto de ripple al tocar */}
-                    <div className="absolute inset-0 bg-emerald-500/0 active:bg-emerald-500/10 transition-colors pointer-events-none" />
+                    <div className="absolute inset-0 bg-accent0/0 active:bg-accent0/10 transition-colors pointer-events-none" />
                   </motion.button>
                 );
               })}
               {filteredProducts.length === 0 && (
-                <div className="col-span-full text-center py-8 lg:py-16 text-gray-400">
+                <div className="col-span-full text-center py-8 lg:py-16 text-muted-foreground">
                   <Search className="w-8 h-8 sm:w-12 sm:h-12 lg:w-16 lg:h-16 mx-auto mb-2 sm:mb-3 opacity-30" />
                   <p className="text-xs sm:text-sm lg:text-base">No se encontraron productos</p>
                 </div>
@@ -2217,19 +2227,19 @@ export const App: React.FC = () => {
         </div>
 
         {/* RIGHT: CART SIDEBAR - Optimizado para tablet con jerarquía visual mejorada */}
-        <div className="w-full md:w-80 lg:w-96 xl:w-[420px] 2xl:w-[480px] bg-white border-l border-gray-200 flex flex-col flex-shrink-0 relative">
+        <div className="w-full md:w-80 lg:w-96 xl:w-[420px] 2xl:w-[480px] bg-card border-l border-border flex flex-col flex-shrink-0 relative">
           {/* Cart header - Muestra el nombre de la comanda activa */}
-          <div className="p-3 md:p-4 border-b flex items-center justify-between bg-white">
+          <div className="p-3 md:p-4 border-b flex items-center justify-between bg-card">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <ShoppingCart className="w-4 h-4 md:w-5 md:h-5 text-emerald-600" />
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-accent rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900 text-sm md:text-base">
+                <h2 className="font-bold text-foreground text-sm md:text-base">
                   {activeComanda ? activeComanda.nombre : 'Selecciona comanda'}
                 </h2>
                 {activeComanda && displayItemCount > 0 && (
-                  <span className="text-xs text-gray-500">{displayItemCount} {displayItemCount === 1 ? 'item' : 'items'}</span>
+                  <span className="text-xs text-muted-foreground">{displayItemCount} {displayItemCount === 1 ? 'item' : 'items'}</span>
                 )}
               </div>
             </div>
@@ -2240,7 +2250,7 @@ export const App: React.FC = () => {
                     displayItems.forEach(i => removeItemFromComanda(activeComanda.id, i.productId));
                   }
                 }} 
-                className="text-xs md:text-sm text-gray-400 hover:text-red-500 font-medium px-2 py-1 min-h-[36px] transition-colors"
+                className="text-xs md:text-sm text-muted-foreground hover:text-red-500 font-medium px-2 py-1 min-h-[36px] transition-colors"
               >
                 Vaciar
               </button>
@@ -2254,24 +2264,24 @@ export const App: React.FC = () => {
             className="flex-1 overflow-y-auto"
           >
             {!activeComanda ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 p-4 md:p-6">
-                <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-full flex items-center justify-center mb-3 md:mb-4">
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4 md:p-6">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-muted rounded-full flex items-center justify-center mb-3 md:mb-4">
                   <ShoppingCart className="w-8 h-8 md:w-10 md:h-10 text-gray-300" />
                 </div>
-                <p className="text-sm md:text-base text-gray-500 font-medium">
+                <p className="text-sm md:text-base text-muted-foreground font-medium">
                   Selecciona una comanda
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Toca una pestaña arriba</p>
+                <p className="text-xs text-muted-foreground mt-1">Toca una pestaña arriba</p>
               </div>
             ) : displayItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 p-4 md:p-6">
-                <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-full flex items-center justify-center mb-3 md:mb-4">
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4 md:p-6">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-muted rounded-full flex items-center justify-center mb-3 md:mb-4">
                   <ShoppingCart className="w-8 h-8 md:w-10 md:h-10 text-gray-300" />
                 </div>
-                <p className="text-sm md:text-base text-gray-500 font-medium">
+                <p className="text-sm md:text-base text-muted-foreground font-medium">
                   {activeComanda.nombre}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Agrega productos a esta comanda</p>
+                <p className="text-xs text-muted-foreground mt-1">Agrega productos a esta comanda</p>
               </div>
             ) : (
               <AnimatePresence>
@@ -2281,13 +2291,13 @@ export const App: React.FC = () => {
                     initial={{ opacity: 0, y: -10 }} 
                     animate={{ opacity: 1, y: 0 }} 
                     exit={{ opacity: 0, y: 10 }}
-                    className="p-3 md:p-4 border-b border-gray-100 hover:bg-gray-50/80 transition-colors"
+                    className="p-3 md:p-4 border-b border-border hover:bg-muted/80 transition-colors"
                   >
                     {/* Nombre y eliminar */}
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0 pr-2">
-                        <h4 className="font-semibold text-gray-900 text-sm md:text-base leading-tight">{item.name}</h4>
-                        <p className="text-xs text-gray-400 mt-0.5">{fmt(item.unitPrice)} c/u</p>
+                        <h4 className="font-semibold text-foreground text-sm md:text-base leading-tight">{item.name}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">{fmt(item.unitPrice)} c/u</p>
                         {/* Modifiers */}
                         {item.modifiers && item.modifiers.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
@@ -2323,7 +2333,7 @@ export const App: React.FC = () => {
                     
                     {/* Cantidad y total - más espaciado */}
                     <div className="flex items-center justify-between">
-                      <div className={`flex items-center gap-1 rounded-lg p-1 ${activeComanda ? 'bg-gray-100' : 'bg-gray-50'}`}>
+                      <div className={`flex items-center gap-1 rounded-lg p-1 ${activeComanda ? 'bg-muted' : 'bg-muted'}`}>
                         <button 
                           onClick={() => activeComanda 
                             ? updateComandaItemQuantity(activeComanda.id, item.productId, item.quantity - 1) 
@@ -2332,14 +2342,14 @@ export const App: React.FC = () => {
                           disabled={!activeComanda}
                           className={`w-8 h-8 md:w-9 md:h-9 rounded-md flex items-center justify-center transition-all
                             ${activeComanda 
-                              ? 'bg-white shadow-sm hover:shadow active:scale-90 active:bg-gray-50' 
-                              : 'bg-gray-100 cursor-not-allowed'
+                              ? 'bg-card shadow-sm hover:shadow active:scale-90 active:bg-muted' 
+                              : 'bg-muted cursor-not-allowed'
                             }
                           `}
                         >
-                          <Minus className={`w-4 h-4 ${activeComanda ? 'text-gray-600' : 'text-gray-300'}`} />
+                          <Minus className={`w-4 h-4 ${activeComanda ? 'text-muted-foreground' : 'text-gray-300'}`} />
                         </button>
-                        <span className={`w-10 text-center text-sm md:text-base font-bold ${activeComanda ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <span className={`w-10 text-center text-sm md:text-base font-bold ${activeComanda ? 'text-foreground' : 'text-muted-foreground'}`}>
                           {item.quantity}
                         </span>
                         <button 
@@ -2350,15 +2360,15 @@ export const App: React.FC = () => {
                           disabled={!activeComanda}
                           className={`w-8 h-8 md:w-9 md:h-9 rounded-md flex items-center justify-center transition-all
                             ${activeComanda 
-                              ? 'bg-white shadow-sm hover:shadow active:scale-90 active:bg-emerald-50' 
-                              : 'bg-gray-100 cursor-not-allowed'
+                              ? 'bg-card shadow-sm hover:shadow active:scale-90 active:bg-accent' 
+                              : 'bg-muted cursor-not-allowed'
                             }
                           `}
                         >
-                          <Plus className={`w-4 h-4 ${activeComanda ? 'text-emerald-600' : 'text-gray-300'}`} />
+                          <Plus className={`w-4 h-4 ${activeComanda ? 'text-primary' : 'text-gray-300'}`} />
                         </button>
                       </div>
-                      <span className="font-bold text-gray-900 text-base md:text-lg">{fmt(item.totalPrice)}</span>
+                      <span className="font-bold text-foreground text-base md:text-lg">{fmt(item.totalPrice)}</span>
                     </div>
                   </motion.div>
                 ))}
@@ -2368,14 +2378,14 @@ export const App: React.FC = () => {
 
           {/* Cart totals + pay - STICKY y con jerarquía visual máxima */}
           {displayItems.length > 0 && (
-            <div className="border-t border-gray-200 bg-gradient-to-b from-gray-50 to-white p-3 md:p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <div className="border-t border-border bg-gradient-to-b from-gray-50 to-white p-3 md:p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
               {/* Desglose */}
-              <div className="space-y-1.5 mb-3 pb-3 border-b border-gray-200/60">
-                <div className="flex justify-between text-sm text-gray-500">
+              <div className="space-y-1.5 mb-3 pb-3 border-b border-border/60">
+                <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Subtotal</span>
                   <span className="font-medium">{fmt(displayTotals.subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-500">
+                <div className="flex justify-between text-sm text-muted-foreground">
                   <span>IVA 16% incluido</span>
                   <span className="font-medium">{fmt(displayTotals.taxAmount)}</span>
                 </div>
@@ -2383,8 +2393,8 @@ export const App: React.FC = () => {
               
               {/* Total destacado */}
               <div className="flex justify-between items-baseline mb-4">
-                <span className="text-lg md:text-xl font-bold text-gray-900">TOTAL</span>
-                <span className="text-2xl md:text-3xl font-black text-emerald-600 tracking-tight">
+                <span className="text-lg md:text-xl font-bold text-foreground">TOTAL</span>
+                <span className="text-2xl md:text-3xl font-black text-primary tracking-tight">
                   {fmt(displayTotals.total)}
                 </span>
               </div>
@@ -2424,9 +2434,9 @@ export const App: React.FC = () => {
                   flex items-center justify-center gap-3 min-h-[64px] md:min-h-[72px]
                   shadow-lg
                   ${!activeComandaId || !getActiveComanda() 
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' 
+                    ? 'bg-gray-300 text-muted-foreground cursor-not-allowed shadow-none' 
                     : posMode === 'COUNTER' 
-                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-emerald-600/30' 
+                      ? 'bg-gradient-to-r from-primary/90 to-primary hover:from-emerald-600 hover:to-emerald-700 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-emerald-600/30' 
                       : posMode === 'TABLE' 
                         ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-blue-600/30'
                         : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-purple-600/30'
@@ -2533,34 +2543,36 @@ export const App: React.FC = () => {
 
       {/* Print Error Modal */}
       {showPrintError && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            className="rounded-lg shadow-xl max-w-md w-full p-6"
+            style={{ backgroundColor: '#fff' }}
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <AlertCircle className="w-6 h-6 text-red-600" />
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#fee2e2' }}>
+                  <AlertCircle className="w-6 h-6" style={{ color: '#dc2626' }} />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">Error de Impresión</h2>
+                <h2 className="text-xl font-bold" style={{ color: '#111827' }}>Error de Impresión</h2>
               </div>
               <button
                 onClick={() => setShowPrintError(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="hover:opacity-90"
+                style={{ color: '#9ca3af' }}
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
             
             <div className="mb-6">
-              <p className="text-gray-700 mb-4">{printErrorMessage}</p>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-800">
+              <p className="mb-4" style={{ color: '#374151' }}>{printErrorMessage}</p>
+              <div className="border rounded-lg p-4" style={{ backgroundColor: '#fefce8', borderColor: '#fde68a' }}>
+                <p className="text-sm" style={{ color: '#92400e' }}>
                   <strong>Posibles soluciones:</strong>
                 </p>
-                <ul className="text-sm text-yellow-700 mt-2 space-y-1 list-disc list-inside">
+                <ul className="text-sm mt-2 space-y-1 list-disc list-inside" style={{ color: '#a16207' }}>
                   <li>Verifica que la impresora esté encendida</li>
                   <li>Asegúrate de que la impresora esté conectada</li>
                   <li>Permite ventanas emergentes en tu navegador</li>

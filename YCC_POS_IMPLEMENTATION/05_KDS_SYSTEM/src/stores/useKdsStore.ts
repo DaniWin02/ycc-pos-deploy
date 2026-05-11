@@ -67,6 +67,7 @@ interface KdsState {
   clearHistoryByStation: (stationId: string) => void // Limpiar historial de una estación específica
   checkAndClearForNewDay: () => boolean // Verificar y limpiar si es nuevo día
   forceClearAll: () => void // Forzar limpieza completa
+  cleanOldTickets: (hoursThreshold?: number) => void // Limpiar tickets antiguos (por defecto 24 horas)
 }
 
 // Cargar tickets desde localStorage al iniciar
@@ -359,6 +360,9 @@ export const useKdsStore = create<KdsState>()(
         try {
           set({ connectionStatus: 'reconnecting' })
           
+          // IMPORTANTE: Limpiar tickets antiguos antes de cargar nuevos
+          get().cleanOldTickets(24)
+          
           // IMPORTANTE: Cargar primero desde localStorage para no perder estados locales
           get().loadFromStorage()
           const currentTickets = get().tickets
@@ -385,10 +389,21 @@ export const useKdsStore = create<KdsState>()(
               console.log(`🚫 Ignorando ticket ${sale.folio} - está en lista de completados`)
               return false
             }
+            
+            // FILTRAR: No cargar tickets antiguos (más de 24 horas)
+            const createdAt = new Date(sale.createdAt)
+            const ageMs = Date.now() - createdAt.getTime()
+            const hoursOld = ageMs / (60 * 60 * 1000)
+            if (hoursOld > 24) {
+              console.log(`🚫 Ignorando ticket antiguo ${sale.folio} - ${Math.floor(hoursOld)} horas de antigüedad`)
+              get().addToCompletedList(sale.id)
+              return false
+            }
+            
             return true
           })
           
-          console.log(`🎯 Pedidos después de filtrar completados:`, filteredSales.length)
+          console.log(`🎯 Pedidos después de filtrar completados y antiguos:`, filteredSales.length)
           
           // FILTRAR: Solo ventas activas (no completadas ni canceladas)
           const activeSales = filteredSales.filter((sale: any) => {
@@ -663,6 +678,9 @@ export const useKdsStore = create<KdsState>()(
           localStorage.setItem('kds-last-session-date', today)
         }
         
+        // Siempre limpiar tickets antiguos (más de 24 horas)
+        get().cleanOldTickets(24)
+        
         return false
       },
 
@@ -678,6 +696,50 @@ export const useKdsStore = create<KdsState>()(
         localStorage.removeItem('kds-completed-ticket-ids')
         
         console.log('✅ Limpieza completa realizada')
+      },
+
+      // Limpiar tickets antiguos automáticamente (por defecto 24 horas)
+      cleanOldTickets: (hoursThreshold: number = 24) => {
+        const { tickets } = get()
+        const now = new Date()
+        const thresholdMs = hoursThreshold * 60 * 60 * 1000
+        
+        console.log(`🧹 Verificando tickets antiguos (más de ${hoursThreshold} horas)...`)
+        
+        // Encontrar tickets antiguos
+        const oldTickets = tickets.filter(ticket => {
+          const createdAt = new Date(ticket.createdAt)
+          const ageMs = now.getTime() - createdAt.getTime()
+          return ageMs > thresholdMs
+        })
+        
+        if (oldTickets.length === 0) {
+          console.log('✅ No hay tickets antiguos para limpiar')
+          return
+        }
+        
+        console.log(`🗑️ Encontrados ${oldTickets.length} tickets antiguos:`)
+        oldTickets.forEach(ticket => {
+          const ageHours = Math.floor((now.getTime() - new Date(ticket.createdAt).getTime()) / (60 * 60 * 1000))
+          console.log(`  - ${ticket.folio} (${ticket.status}): ${ageHours} horas de antigüedad`)
+        })
+        
+        // Agregar tickets antiguos a lista de completados
+        oldTickets.forEach(ticket => {
+          get().addToCompletedList(ticket.id)
+        })
+        
+        // Eliminar tickets antiguos del estado
+        set((s) => ({
+          tickets: s.tickets.filter(t => {
+            const createdAt = new Date(t.createdAt)
+            const ageMs = now.getTime() - createdAt.getTime()
+            return ageMs <= thresholdMs
+          })
+        }))
+        
+        get().saveToStorage()
+        console.log(`✅ ${oldTickets.length} tickets antiguos eliminados`)
       },
 
       saveToStorage: () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, useRef } from 'react';
+import React, { useState, useEffect, Component, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Settings,
@@ -18,9 +18,11 @@ import { SettingsPage } from './pages/SettingsPage';
 import InventoryPage from './pages/InventoryPage';
 import { FoliosPage } from './pages/FoliosPage';
 import { CustomersPage } from './pages/CustomersPage';
-import { AppearancePage } from './pages/AppearancePage';
+import { AppearancePageV2 } from './pages/AppearancePageV2';
 import { KDSConfigPage } from './pages/KDSConfigPage';
 import { SaleListItem, SaleItem, ProductListItem, TopProduct } from './types/api.types';
+import { useThemeStore } from './stores/theme.store';
+import { useThemeApplication } from './hooks/useThemeApplication';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
@@ -29,10 +31,10 @@ class ErrorBoundary extends Component<{children: React.ReactNode}, {hasError: bo
   static getDerivedStateFromError(error: any) { return { hasError: true, error: error?.message || 'Error desconocido' }; }
   render() {
     if (this.state.hasError) return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-        <div className="bg-white rounded-xl border border-red-200 p-8 max-w-lg">
+      <div className="min-h-screen bg-muted flex items-center justify-center p-8">
+        <div className="bg-card rounded-xl border border-red-200 p-8 max-w-lg">
           <h2 className="text-xl font-bold text-red-600 mb-2">Error en Admin Panel</h2>
-          <p className="text-sm text-gray-600 mb-4">{this.state.error}</p>
+          <p className="text-sm text-muted-foreground mb-4">{this.state.error}</p>
           <button onClick={() => window.location.reload()} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Recargar</button>
         </div>
       </div>
@@ -70,6 +72,9 @@ const SIDEBAR_ITEMS: { id: Page; label: string; icon: React.ComponentType<{ clas
 ];
 
 export const App: React.FC = () => {
+  // Apply theme globally - this listens for changes and applies them
+  useThemeApplication('admin');
+
   const [page, setPage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sales, setSales] = useState<SaleListItem[]>([]);
@@ -353,22 +358,22 @@ export const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen flex transition-colors duration-300" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0 sticky top-0 h-screen overflow-hidden`}>
-        <div className="h-16 border-b border-gray-200 flex items-center px-4 gap-3">
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} border-r flex flex-col transition-all duration-300 flex-shrink-0 sticky top-0 h-screen overflow-hidden`} style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
+        <div className="h-16 border-b flex items-center px-4 gap-3" style={{ borderColor: 'var(--border)' }}>
           {sidebarOpen && (
             <div className="flex items-center gap-3 flex-1">
-              <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <Store className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--primary)' }}>
+                <Store className="w-5 h-5 text-white" style={{ color: 'var(--primary-foreground)' }} />
               </div>
               <div>
-                <h1 className="font-bold text-gray-900 text-sm leading-tight">YCC Admin</h1>
-                <p className="text-xs text-gray-400">Country Club</p>
+                <h1 className="font-bold text-sm leading-tight">YCC Admin</h1>
+                <p className="text-xs opacity-60">Country Club</p>
               </div>
             </div>
           )}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400">
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:bg-muted/10" style={{ color: 'var(--muted-foreground)' }}>
             <Menu className="w-5 h-5" />
           </button>
         </div>
@@ -376,9 +381,9 @@ export const App: React.FC = () => {
           {(() => {
             const sections = [...new Set(SIDEBAR_ITEMS.map(i => i.section))];
             return sections.map((section, sectionIndex) => (
-              <div key={section} className={`${sectionIndex > 0 ? 'mt-4 pt-3 border-t border-gray-200' : ''}`}>
+              <div key={section} className={`${sectionIndex > 0 ? 'mt-4 pt-3 border-t' : ''}`} style={{ borderColor: 'var(--border)' }}>
                 {sidebarOpen && (
-                  <h3 className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  <h3 className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider opacity-50">
                     {section}
                   </h3>
                 )}
@@ -392,11 +397,14 @@ export const App: React.FC = () => {
                         onClick={() => setPage(item.id)}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                           active
-                            ? 'bg-indigo-50 text-indigo-700'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            ? 'shadow-sm'
+                            : 'hover:bg-muted/10'
                         }`}
+                        style={active
+                          ? { backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }
+                          : { color: 'var(--muted-foreground)' }}
                       >
-                        <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
+                        <Icon className="w-5 h-5 flex-shrink-0" />
                         {sidebarOpen && <span>{item.label}</span>}
                       </button>
                     );
@@ -406,13 +414,13 @@ export const App: React.FC = () => {
             ));
           })()}
         </nav>
-        <div className="p-3 border-t border-gray-200">
+        <div className="p-3 border-t" style={{ borderColor: 'var(--border)' }}>
           <div className={`flex items-center gap-3 px-3 py-2 ${sidebarOpen ? '' : 'justify-center'}`}>
-            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm">A</div>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}>A</div>
             {sidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">Admin</p>
-                <p className="text-xs text-gray-400">Supervisor</p>
+                <p className="text-sm font-medium truncate">Admin</p>
+                <p className="text-xs opacity-50">Supervisor</p>
               </div>
             )}
           </div>
@@ -422,29 +430,29 @@ export const App: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
+        <header className="h-16 border-b flex items-center justify-between px-6 flex-shrink-0" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold text-gray-900 capitalize">{page === 'dashboard' ? 'Dashboard' : SIDEBAR_ITEMS.find(i => i.id === page)?.label}</h2>
+            <h2 className="text-xl font-bold capitalize">{page === 'dashboard' ? 'Dashboard' : SIDEBAR_ITEMS.find(i => i.id === page)?.label}</h2>
           </div>
           <div className="flex items-center gap-3">
             {/* Socket.io Connection Status */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100" title={`Socket.io: ${connectionStatus}`}>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted" title={`Socket.io: ${connectionStatus}`}>
               <div className={`w-2 h-2 rounded-full ${
                 connectionStatus === 'connected' ? 'bg-green-500' :
                 connectionStatus === 'reconnecting' ? 'bg-yellow-500 animate-pulse' :
                 'bg-red-500'
               }`} />
-              <span className="text-xs text-gray-500 hidden sm:inline">
+              <span className="text-xs text-muted-foreground hidden sm:inline">
                 {connectionStatus === 'connected' ? 'En vivo' :
                  connectionStatus === 'reconnecting' ? 'Reconectando...' :
                  'Desconectado'}
               </span>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Buscar..." className="pl-9 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input type="text" placeholder="Buscar..." className="pl-9 pr-4 py-2 bg-muted rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64" />
             </div>
-            <button className="relative p-2 rounded-lg hover:bg-gray-100 text-gray-400">
+            <button className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>
@@ -457,12 +465,12 @@ export const App: React.FC = () => {
             <div className="space-y-6">
               {/* PRIORITY 1: Alerts - At the top - EN TIEMPO REAL */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-xl border border-gray-200 p-6 md:col-span-2">
+                <div className="bg-card rounded-xl border border-border p-6 md:col-span-2">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-gray-900">Alertas en Tiempo Real</h3>
+                    <h3 className="font-semibold text-foreground">Alertas en Tiempo Real</h3>
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                      <span className="text-xs font-medium text-gray-500">
+                      <span className="text-xs font-medium text-muted-foreground">
                         {dashboardAlerts.lowStock.count > 0 || dashboardAlerts.pendingClosures.count > 0 ? (
                           <span className="text-red-600 bg-red-100 px-2 py-1 rounded-full">
                             {dashboardAlerts.lowStock.count + dashboardAlerts.pendingClosures.count} pendientes
@@ -524,38 +532,38 @@ export const App: React.FC = () => {
                   </div>
                 </div>
                 {/* System Status - EN TIEMPO REAL */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Estado del Sistema</h3>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h3 className="font-semibold text-foreground mb-4">Estado del Sistema</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">API Gateway</span>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.apiGateway ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'}`}>
+                      <span className="text-sm text-muted-foreground">API Gateway</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.apiGateway ? 'text-primary bg-accent' : 'text-red-600 bg-red-100'}`}>
                         {dashboardAlerts.systemStatus.apiGateway ? 'Online' : 'Offline'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Base de Datos</span>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.database ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'}`}>
+                      <span className="text-sm text-muted-foreground">Base de Datos</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.database ? 'text-primary bg-accent' : 'text-red-600 bg-red-100'}`}>
                         {dashboardAlerts.systemStatus.database ? 'Online' : 'Offline'}
                       </span>
                     </div>
                     {dashboardAlerts.systemStatus.posTerminals.map(terminal => (
                       <div key={terminal.id} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{terminal.name}</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${terminal.active ? 'text-emerald-600 bg-emerald-100' : 'text-gray-500 bg-gray-100'}`}>
+                        <span className="text-sm text-muted-foreground">{terminal.name}</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${terminal.active ? 'text-primary bg-accent' : 'text-muted-foreground bg-muted'}`}>
                           {terminal.active ? 'Activo' : 'Inactivo'}
                         </span>
                       </div>
                     ))}
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">KDS Cocina</span>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.kds ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'}`}>
+                      <span className="text-sm text-muted-foreground">KDS Cocina</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dashboardAlerts.systemStatus.kds ? 'text-primary bg-accent' : 'text-red-600 bg-red-100'}`}>
                         {dashboardAlerts.systemStatus.kds ? 'Activo' : 'Offline'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Usuarios Online</span>
-                      <span className="text-sm font-bold text-gray-900">{dashboardAlerts.systemStatus.onlineUsers}</span>
+                      <span className="text-sm text-muted-foreground">Usuarios Online</span>
+                      <span className="text-sm font-bold text-foreground">{dashboardAlerts.systemStatus.onlineUsers}</span>
                     </div>
                   </div>
                 </div>
@@ -563,67 +571,67 @@ export const App: React.FC = () => {
 
               {/* Stats */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl border border-gray-200 p-5">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl border border-border p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-100">
-                      <DollarSign className="w-5 h-5 text-emerald-600" />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-accent">
+                      <DollarSign className="w-5 h-5 text-primary" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{fmt(stats.totalSales)}</p>
-                  <p className="text-sm text-gray-500 mt-1">Ventas Totales</p>
+                  <p className="text-2xl font-bold text-foreground">{fmt(stats.totalSales)}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Ventas Totales</p>
                 </motion.div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-xl border border-gray-200 p-5">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl border border-border p-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-100">
                       <ShoppingCart className="w-5 h-5 text-blue-600" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.salesCount}</p>
-                  <p className="text-sm text-gray-500 mt-1">Órdenes</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.salesCount}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Órdenes</p>
                 </motion.div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white rounded-xl border border-gray-200 p-5">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card rounded-xl border border-border p-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-purple-100">
                       <TrendingUp className="w-5 h-5 text-purple-600" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{fmt(stats.avgTicket)}</p>
-                  <p className="text-sm text-gray-500 mt-1">Ticket Promedio</p>
+                  <p className="text-2xl font-bold text-foreground">{fmt(stats.avgTicket)}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Ticket Promedio</p>
                 </motion.div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white rounded-xl border border-gray-200 p-5">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-card rounded-xl border border-border p-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-100">
                       <Package className="w-5 h-5 text-amber-600" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.productsCount}</p>
-                  <p className="text-sm text-gray-500 mt-1">Productos</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.productsCount}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Productos</p>
                 </motion.div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Sales info */}
-                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-6">Resumen de Ventas</h3>
+                <div className="lg:col-span-2 bg-card rounded-xl border border-border p-6">
+                  <h3 className="font-semibold text-foreground mb-6">Resumen de Ventas</h3>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                       <div>
-                        <p className="text-sm text-gray-600">Total de Ventas</p>
-                        <p className="text-2xl font-bold text-gray-900">{fmt(stats.totalSales)}</p>
+                        <p className="text-sm text-muted-foreground">Total de Ventas</p>
+                        <p className="text-2xl font-bold text-foreground">{fmt(stats.totalSales)}</p>
                       </div>
-                      <DollarSign className="w-10 h-10 text-emerald-500" />
+                      <DollarSign className="w-10 h-10 text-primary" />
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                       <div>
-                        <p className="text-sm text-gray-600">Número de Órdenes</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats.salesCount}</p>
+                        <p className="text-sm text-muted-foreground">Número de Órdenes</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.salesCount}</p>
                       </div>
                       <ShoppingCart className="w-10 h-10 text-blue-500" />
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                       <div>
-                        <p className="text-sm text-gray-600">Ticket Promedio</p>
-                        <p className="text-2xl font-bold text-gray-900">{fmt(stats.avgTicket)}</p>
+                        <p className="text-sm text-muted-foreground">Ticket Promedio</p>
+                        <p className="text-2xl font-bold text-foreground">{fmt(stats.avgTicket)}</p>
                       </div>
                       <TrendingUp className="w-10 h-10 text-purple-500" />
                     </div>
@@ -631,8 +639,8 @@ export const App: React.FC = () => {
                 </div>
 
                 {/* Top products */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Top Productos</h3>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h3 className="font-semibold text-foreground mb-4">Top Productos</h3>
                   <div className="space-y-3">
                     {topProducts.length > 0 ? topProducts.map((p: TopProduct, i: number) => {
                       // Validación adicional para evitar NaN
@@ -641,12 +649,12 @@ export const App: React.FC = () => {
                       const pricePerUnit = sold > 0 ? revenue / sold : 0;
                       
                       return (
-                        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div key={i} className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted transition-colors">
                           <div className="flex items-center gap-3">
                             <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center">{i + 1}</span>
                             <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <span>{sold} vendidos</span>
                                 <span>•</span>
                                 <span>{fmt(pricePerUnit)} c/u</span>
@@ -654,27 +662,27 @@ export const App: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-gray-900">{fmt(revenue)}</p>
-                            <p className="text-xs text-gray-500">ingresos</p>
+                            <p className="text-sm font-bold text-foreground">{fmt(revenue)}</p>
+                            <p className="text-xs text-muted-foreground">ingresos</p>
                           </div>
                         </div>
                       );
                     }) : (
-                      <p className="text-sm text-gray-400 text-center py-8">No hay datos de ventas</p>
+                      <p className="text-sm text-muted-foreground text-center py-8">No hay datos de ventas</p>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* Recent sales */}
-              <div className="bg-white rounded-xl border border-gray-200">
-                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-900">Ventas Recientes</h3>
+              <div className="bg-card rounded-xl border border-border">
+                <div className="p-6 border-b border-border flex items-center justify-between">
+                  <h3 className="font-semibold text-foreground">Ventas Recientes</h3>
                   <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">Ver todas <ChevronRight className="w-4 h-4" /></button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                    <thead className="bg-muted text-xs text-muted-foreground uppercase">
                       <tr>
                         <th className="px-6 py-3 text-left">Folio</th>
                         <th className="px-6 py-3 text-left">Cliente</th>
@@ -684,23 +692,23 @@ export const App: React.FC = () => {
                         <th className="px-6 py-3 text-left">Estado</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {recentSales.length > 0 ? recentSales.map((sale: any, i: number) => (
-                        <tr key={i} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{sale.folio}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{sale.customer}</td>
-                          <td className="px-6 py-4 text-sm font-semibold text-gray-900">{fmt(sale.total)}</td>
-                          <td className="px-6 py-4 text-sm text-gray-500">{sale.method}</td>
-                          <td className="px-6 py-4 text-sm text-gray-400">{sale.time}</td>
+                        <tr key={i} className="hover:bg-muted">
+                          <td className="px-6 py-4 text-sm font-medium text-foreground">{sale.folio}</td>
+                          <td className="px-6 py-4 text-sm text-muted-foreground">{sale.customer}</td>
+                          <td className="px-6 py-4 text-sm font-semibold text-foreground">{fmt(sale.total)}</td>
+                          <td className="px-6 py-4 text-sm text-muted-foreground">{sale.method}</td>
+                          <td className="px-6 py-4 text-sm text-muted-foreground">{sale.time}</td>
                           <td className="px-6 py-4">
-                            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                              {sale.status === 'COMPLETED' ? 'Completada' : sale.status}
+                            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-accent text-primary">
+                              {sale.status === 'READY' ? 'Completada' : sale.status}
                             </span>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">
+                          <td colSpan={6} className="px-6 py-8 text-center text-sm text-muted-foreground">
                             No hay ventas registradas
                           </td>
                         </tr>
@@ -723,7 +731,7 @@ export const App: React.FC = () => {
           {page === 'users' && <UsersPage />}
           {page === 'reports' && <ReportsPage />}
           {page === 'settings' && <SettingsPage />}
-          {page === 'appearance' && <AppearancePage />}
+          {page === 'appearance' && <AppearancePageV2 />}
         </main>
       </div>
     </div>

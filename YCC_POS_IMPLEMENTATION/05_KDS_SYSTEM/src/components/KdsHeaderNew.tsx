@@ -17,7 +17,7 @@ const STATION_ICONS: Record<string, React.ReactNode> = {
 }
 
 const STATION_COLORS: Record<string, string> = {
-  'bar': '#3b82f6',
+  'bar': '#059669', // Verde Country Club
   'cocina-caliente': '#ef4444',
   'cocina-fria': '#06b6d4',
   'cocina-general': '#8b5cf6',

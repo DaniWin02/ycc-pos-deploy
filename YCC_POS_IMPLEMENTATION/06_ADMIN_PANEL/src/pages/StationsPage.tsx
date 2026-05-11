@@ -30,7 +30,7 @@ const PRESET_COLORS = [
   '#84CC16', // Lima
   '#10B981', // Esmeralda
   '#06B6D4', // Cyan
-  '#3B82F6', // Azul
+  '#059669', // Verde Country Club (emerald-600)
   '#6366F1', // Índigo
   '#8B5CF6', // Violeta
   '#EC4899', // Rosa
@@ -48,7 +48,7 @@ export const StationsPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     displayName: '',
-    color: '#3B82F6',
+    color: '#059669', // Verde Country Club
   })
 
   // Cargar estaciones
@@ -78,7 +78,7 @@ export const StationsPage: React.FC = () => {
 
   const handleCreate = () => {
     setEditingStation(null)
-    setFormData({ name: '', displayName: '', color: '#3B82F6' })
+    setFormData({ name: '', displayName: '', color: '#059669' }) // Verde Country Club
     setIsModalOpen(true)
   }
 

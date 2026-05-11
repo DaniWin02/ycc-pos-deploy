@@ -146,7 +146,7 @@ app.get('/api/init-data', async (req, res) => {
     await prisma.station.upsert({
       where: { id: 'station-bar' },
       update: {},
-      create: { id: 'station-bar', name: 'bar', displayName: 'Barra', color: '#3B82F6', isActive: true }
+      create: { id: 'station-bar', name: 'bar', displayName: 'Barra', color: '#059669', isActive: true } // Verde Country Club
     })
     await prisma.station.upsert({
       where: { id: 'station-cocina' },

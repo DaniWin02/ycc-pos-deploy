@@ -32,6 +32,6 @@
     }
   },
   "include": ["src/main.tsx"],
-  "exclude": ["src/App_new.tsx", "src/routes.tsx", "src/components/Menu/**/*", "src/pages/InventoryIngredientsPage.tsx", "src/pages/InventoryStockPage.tsx", "src/pages/InventoryMovementsPage.tsx", "src/pages/MenuModifiersPage.tsx", "src/pages/RecipeEditorPage.tsx", "src/pages/RecipesAVTPage.tsx", "src/pages/RecipesFoodCostPage.tsx"],
+  "exclude": ["src/routes.tsx", "src/components/Menu/**/*", "src/pages/InventoryIngredientsPage.tsx", "src/pages/InventoryStockPage.tsx", "src/pages/InventoryMovementsPage.tsx", "src/pages/MenuModifiersPage.tsx", "src/pages/RecipeEditorPage.tsx", "src/pages/RecipesAVTPage.tsx", "src/pages/RecipesFoodCostPage.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

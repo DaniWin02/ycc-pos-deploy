@@ -44,10 +44,10 @@ export function KdsTimer({ startTime, size = 'medium', showSeconds = false }: Kd
   const getColorClass = () => {
     const minutes = Math.floor(elapsed / 60)
     
-    if (minutes > 15) return 'text-red-600 animate-pulse-red'
-    if (minutes > 10) return 'text-red-500'
-    if (minutes > 5) return 'text-yellow-500'
-    return 'text-green-500'
+    if (minutes > 15) return 'text-[var(--danger)] animate-pulse-red'
+    if (minutes > 10) return 'text-[var(--danger)]'
+    if (minutes > 5) return 'text-[var(--warning)]'
+    return 'text-[var(--success)]'
   }
 
   // Determinar tamaño

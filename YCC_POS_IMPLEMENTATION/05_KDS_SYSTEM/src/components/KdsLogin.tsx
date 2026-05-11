@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ChefHat, Delete, User } from 'lucide-react'
+import { ChefHat, Delete, User, Lock } from 'lucide-react'
 import { useResponsive } from '../hooks/useResponsive'
 
 interface KdsLoginProps {
@@ -156,95 +156,123 @@ export function KdsLogin({ onLogin }: KdsLoginProps) {
   }, [])
 
   return (
-    <div className="kds-login-container">
-      <div className="kds-login-card">
-        {/* Header */}
-        <div className="text-center mb-fluid-md">
-          <div className="bg-gradient-to-br from-green-100 to-green-200 p-fluid-md rounded-3xl shadow-lg inline-block mb-fluid-sm">
-            <ChefHat className="w-16 h-16 sm:w-20 sm:h-20 text-green-600" />
+    <div className="min-h-screen flex items-center justify-center p-4 transition-colors duration-500" style={{ backgroundColor: 'var(--background)' }}>
+      <div className="w-full max-w-sm">
+        {/* Header Branding */}
+        <div className="text-center mb-8">
+          <div className="p-4 rounded-3xl shadow-xl inline-block mb-4" style={{ backgroundColor: 'var(--card)', border: '2px solid var(--border)' }}>
+            <ChefHat className="w-12 h-12 sm:w-16 sm:h-16" style={{ color: 'var(--primary)' }} />
           </div>
-          <h1 className="text-fluid-2xl sm:text-fluid-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-1" style={{ color: 'var(--foreground)' }}>
             Kitchen Display
           </h1>
-          <p className="text-fluid-base text-gray-600">
+          <p className="text-sm font-bold uppercase tracking-widest opacity-40" style={{ color: 'var(--foreground)' }}>
             YCC Country Club
           </p>
         </div>
 
-        {/* PIN Display */}
-        <div className="bg-white rounded-3xl shadow-lg p-fluid-lg mb-fluid-md">
-          <div className="text-center mb-fluid-md">
-            <User className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2" />
-            <h2 className="text-fluid-lg font-bold text-gray-800">
-              Ingresa tu PIN
+        {/* PIN Entry Card */}
+        <div className="rounded-3xl shadow-2xl p-6 sm:p-8 border-2" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
+          <div className="text-center mb-8">
+            <div className="flex justify-center gap-3 mb-6">
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className={`w-12 h-12 border-2 flex items-center justify-center text-2xl font-bold transition-all duration-300`}
+                  style={{ 
+                    borderRadius: 'var(--radius-base)',
+                    borderColor: i < pin.length ? 'var(--primary)' : 'var(--border)',
+                    backgroundColor: i < pin.length ? 'var(--accent)' : 'transparent',
+                    color: i < pin.length ? 'var(--primary)' : 'var(--muted-foreground)'
+                  }}
+                >
+                   {i < pin.length ? '•' : ''}
+                </div>
+              ))}
+            </div>
+            <h2 className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>
+              Ingresar PIN
             </h2>
-            <p className="text-fluid-sm text-gray-500 mt-1">
-              PIN de 4 dígitos
-            </p>
-          </div>
-
-          {/* PIN Dots */}
-          <div className="flex justify-center gap-3 sm:gap-4 mb-fluid-md">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-all ${
-                  i < pin.length
-                    ? 'bg-green-600 scale-110 shadow-lg'
-                    : 'bg-gray-200'
-                }`}
-              />
-            ))}
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 text-red-600 px-fluid-sm py-fluid-xs rounded-xl text-center mb-fluid-sm font-medium text-fluid-sm">
+            <div className="px-4 py-2 rounded-xl text-center mb-4 font-bold text-xs" style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}>
               ⚠️ {error}
             </div>
           )}
 
           {/* Loading */}
           {loading && (
-            <div className="text-center mb-fluid-sm">
-              <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-b-2 border-green-600 mx-auto"></div>
-              <p className="text-fluid-xs text-gray-500 mt-2">Verificando...</p>
+            <div className="text-center mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" style={{ borderColor: 'var(--primary)' }}></div>
             </div>
           )}
 
           {/* PIN Pad */}
-          <div className="grid grid-cols-3 gap-fluid-sm">
+          <div className="grid grid-cols-3 gap-3">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
               <button
                 key={digit}
                 onClick={() => handlePinPress(digit)}
                 disabled={loading}
-                className="kds-touch-comfortable bg-gray-100 hover:bg-gray-200 active:bg-green-100 active:scale-95 text-gray-900 rounded-xl text-fluid-2xl font-bold transition-all duration-150 shadow-md"
+                className="h-16 text-2xl font-black transition-all active:scale-95 shadow-sm border-2"
+                style={{ 
+                  backgroundColor: 'var(--muted)', 
+                  color: 'var(--foreground)',
+                  borderColor: 'var(--border)',
+                  borderRadius: 'var(--radius-base)'
+                }}
               >
                 {digit}
               </button>
             ))}
             <button
+              onClick={handleDelete}
+              disabled={loading || pin.length === 0}
+              className="h-16 flex items-center justify-center transition-all active:scale-95 border-2"
+              style={{ 
+                backgroundColor: 'var(--muted)', 
+                color: 'var(--destructive)',
+                borderColor: 'var(--border)',
+                borderRadius: 'var(--radius-base)'
+              }}
+            >
+              <Delete className="w-6 h-6" />
+            </button>
+            <button
               onClick={() => handlePinPress('0')}
               disabled={loading}
-              className="kds-touch-comfortable col-span-2 bg-gray-100 hover:bg-gray-200 active:bg-green-100 active:scale-95 text-gray-900 rounded-xl text-fluid-2xl font-bold transition-all duration-150 shadow-md"
+              className="h-16 text-2xl font-black transition-all active:scale-95 border-2"
+              style={{ 
+                backgroundColor: 'var(--muted)', 
+                color: 'var(--foreground)',
+                borderColor: 'var(--border)',
+                borderRadius: 'var(--radius-base)'
+              }}
             >
               0
             </button>
             <button
-              onClick={handleDelete}
-              disabled={loading || pin.length === 0}
-              className="kds-touch-comfortable bg-gray-200 text-gray-900 rounded-xl flex items-center justify-center disabled:opacity-50 hover:bg-gray-300 active:scale-95 transition-all"
+              onClick={handleLogin}
+              disabled={loading || pin.length < 4}
+              className="h-16 flex items-center justify-center transition-all active:scale-95 shadow-lg"
+              style={{ 
+                backgroundColor: 'var(--primary)', 
+                color: 'var(--primary-foreground)',
+                borderRadius: 'var(--radius-base)',
+                opacity: pin.length === 4 ? 1 : 0.5
+              }}
             >
-              <Delete className="w-6 h-6 sm:w-7 sm:h-7" />
+              <Lock className="w-6 h-6" />
             </button>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center">
-          <p className="text-fluid-xs text-gray-500">
-            PINs: 1234, 1111, 2222, 9999
+        {/* Info Footer */}
+        <div className="mt-8 text-center opacity-40">
+           <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--foreground)' }}>
+            Turno Seguro • YCC KDS System
           </p>
         </div>
       </div>

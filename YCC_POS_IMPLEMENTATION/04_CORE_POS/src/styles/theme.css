@@ -2,10 +2,10 @@
 /* These variables are set dynamically by the useTheme hook */
 
 :root {
-  /* Primary Brand Colors */
-  --color-primary: #3B82F6;
-  --color-primary-light: #60A5FA;
-  --color-primary-dark: #2563EB;
+  /* Primary Brand Colors - Verde Country Club */
+  --color-primary: #059669; /* emerald-600 */
+  --color-primary-light: #10b981; /* emerald-500 */
+  --color-primary-dark: #047857; /* emerald-700 */
   
   /* Secondary Colors */
   --color-secondary: #8B5CF6;
@@ -32,14 +32,14 @@
   --color-warning-light: #FEF3C7;
   --color-error: #EF4444;
   --color-error-light: #FEE2E2;
-  --color-info: #3B82F6;
-  --color-info-light: #DBEAFE;
+  --color-info: #059669; /* emerald-600 */
+  --color-info-light: #d1fae5; /* emerald-100 */
   
   /* Sidebar Colors */
   --color-sidebar-background: #FFFFFF;
   --color-sidebar-text: #374151;
-  --color-sidebar-active: #EFF6FF;
-  --color-sidebar-active-text: #2563EB;
+  --color-sidebar-active: #d1fae5; /* emerald-100 */
+  --color-sidebar-active-text: #059669; /* emerald-600 */
   
   /* POS Specific Colors */
   --color-pos-header: #F9FAFB;
@@ -68,8 +68,8 @@
   --color-border-light: #4B5563;
   --color-sidebar-background: #1F2937;
   --color-sidebar-text: #D1D5DB;
-  --color-sidebar-active: #2563EB;
-  --color-sidebar-active-text: #FFFFFF;
+  --color-sidebar-active: #065f46; /* emerald-800 */
+  --color-sidebar-active-text: #10b981; /* emerald-500 */
   --color-pos-cart-background: #1F2937;
   --color-pos-product-card: #374151;
   --color-pos-product-card-hover: #4B5563;

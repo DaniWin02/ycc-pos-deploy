@@ -20,7 +20,7 @@ export class ProductFactory {
     const existing = await this.prisma.station.findFirst({ where: { name: stationName } })
     if (existing) return existing
     return await this.prisma.station.create({
-      data: { name: stationName, displayName: stationName, color: '#3B82F6' }
+      data: { name: stationName, displayName: stationName, color: '#059669' } // Verde Country Club
     })
   }
 

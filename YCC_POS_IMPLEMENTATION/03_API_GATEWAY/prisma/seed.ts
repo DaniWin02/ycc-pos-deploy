@@ -121,7 +121,7 @@ async function main() {
         create: {
           name: 'Barra de Bebidas',
           displayName: 'Bebidas',
-          color: '#3B82F6',
+          color: '#059669', // Verde Country Club
           isActive: true
         }
       }),

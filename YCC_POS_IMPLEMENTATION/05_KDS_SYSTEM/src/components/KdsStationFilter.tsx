@@ -20,38 +20,38 @@ interface KdsStationFilterProps {
 
 const STATION_CONFIG: Record<string, { color: string; textColor: string; bgColor: string; icon: React.ReactNode }> = {
   'bar': { 
-    color: '#2563eb',      // Azul más oscuro
-    textColor: '#1e40af',  // Texto azul oscuro
-    bgColor: '#dbeafe',
+    color: '#059669', // Verde Country Club
+    textColor: '#047857', // emerald-700
+    bgColor: '#d1fae5', // emerald-100
     icon: <Coffee className="w-6 h-6" />
   },
   'cocina-caliente': { 
-    color: '#dc2626',      // Rojo más oscuro
-    textColor: '#991b1b',  // Texto rojo oscuro
+    color: '#dc2626',
+    textColor: '#991b1b',
     bgColor: '#fee2e2',
     icon: <Flame className="w-6 h-6" />
   },
   'cocina-fria': { 
-    color: '#0891b2',      // Cyan más oscuro
-    textColor: '#155e75',  // Texto cyan oscuro
+    color: '#0891b2',
+    textColor: '#155e75',
     bgColor: '#cffafe',
     icon: <Snowflake className="w-6 h-6" />
   },
   'cocina-general': { 
-    color: '#7c3aed',      // Violeta más oscuro
-    textColor: '#5b21b6',  // Texto violeta oscuro
+    color: '#7c3aed',
+    textColor: '#5b21b6',
     bgColor: '#ede9fe',
     icon: <ChefHat className="w-6 h-6" />
   },
   'parrilla': { 
-    color: '#ea580c',      // Naranja más oscuro
-    textColor: '#c2410c',  // Texto naranja oscuro
+    color: '#ea580c',
+    textColor: '#c2410c',
     bgColor: '#ffedd5',
     icon: <Beef className="w-6 h-6" />
   },
   'postres': { 
-    color: '#db2777',      // Rosa más oscuro
-    textColor: '#be185d',  // Texto rosa oscuro
+    color: '#db2777',
+    textColor: '#be185d',
     bgColor: '#fce7f3',
     icon: <Cake className="w-6 h-6" />
   }
@@ -68,81 +68,83 @@ export function KdsStationFilter({ stations, selectedStationId, onSelectStation 
   const isShowingAll = selectedStationId === null
 
   return (
-    <div className="bg-white border-b-2 border-gray-200 px-4 py-4">
+    <div className="border-b-2 px-4 py-6" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
       <div className="max-w-7xl mx-auto">
-        {/* Header del filtro */}
-        <div className="flex items-center gap-3 mb-4">
-          {/* Título opcional */}
-        </div>
-
         {/* Estaciones en columna única */}
         <div className="flex flex-col gap-4 max-w-2xl mx-auto">
           {/* Botón "Todas las Estaciones" */}
           <button
             onClick={() => onSelectStation(null)}
             className={`
-              flex items-center gap-3 px-6 py-4 rounded-xl border-2 font-semibold transition-all
+              flex items-center gap-4 px-8 py-6 rounded-2xl border-2 font-black transition-all active:scale-95
               ${isShowingAll
-                ? 'border-green-500 bg-green-50 text-green-700 ring-2 ring-green-200'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-md'
+                ? 'shadow-xl scale-[1.02] ring-4 ring-opacity-20 ring-primary'
+                : 'opacity-70 hover:opacity-100'
               }
             `}
+            style={{
+              borderColor: isShowingAll ? 'var(--primary)' : 'var(--border)',
+              backgroundColor: isShowingAll ? 'var(--primary)' : 'var(--muted)',
+              color: isShowingAll ? 'var(--primary-foreground)' : 'var(--foreground)',
+            }}
           >
-            <LayoutGrid className="w-6 h-6" />
+            <div className={`p-3 rounded-xl ${isShowingAll ? 'bg-white bg-opacity-20' : ''}`} style={{ backgroundColor: isShowingAll ? '' : 'var(--background)' }}>
+              <LayoutGrid className="w-8 h-8" />
+            </div>
             <div className="flex-1 text-left">
-              <span className="block text-lg">Todas las Estaciones</span>
+              <span className="block text-xl uppercase tracking-tight">Todas las Estaciones</span>
+              <span className="text-xs font-bold opacity-60">VISTA GLOBAL DE COMANDAS</span>
             </div>
             <span className={`
-              px-3 py-1 rounded-full text-sm font-bold
-              ${isShowingAll ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-700'}
-            `}>
+              px-4 py-1.5 rounded-full text-base font-black
+              ${isShowingAll ? 'bg-white text-primary' : 'bg-gray-200 text-gray-700'}
+            `} style={{ color: isShowingAll ? 'var(--primary)' : '' }}>
               {stations.reduce((sum, s) => sum + s.pendingCount, 0)}
             </span>
           </button>
 
-          {/* Botones por estación */}
-          {sortedStations.map((station) => {
-            const config = STATION_CONFIG[station.name.toLowerCase().replace(/\s+/g, '-')] || STATION_CONFIG['cocina-general']
-            const isSelected = selectedStationId === station.id
-            
-            return (
-              <button
-                key={station.id}
-                onClick={() => onSelectStation(station.id)}
-                disabled={!station.isActive}
-                className={`
-                  flex items-center gap-3 px-6 py-4 rounded-xl border-2 font-semibold transition-all
-                  ${isSelected
-                    ? 'ring-2 ring-offset-2'
-                    : ''
-                  }
-                  ${!station.isActive ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'}
-                `}
-                style={{
-                  borderColor: isSelected ? config.color : '#e5e7eb',
-                  backgroundColor: isSelected ? config.bgColor : 'white',
-                  color: isSelected ? config.textColor : '#374151',
-                  '--tw-ring-color': config.color
-                } as React.CSSProperties}
-              >
-                <div style={{ color: isSelected ? config.color : config.textColor }}>
-                  {config.icon}
-                </div>
-                <div className="flex-1 text-left">
-                  <span className="block text-lg font-bold">{station.displayName || station.name}</span>
-                </div>
-                
-                {station.pendingCount > 0 && (
-                  <span 
-                    className="px-3 py-1 rounded-full text-sm font-bold text-white"
-                    style={{ backgroundColor: config.color }}
-                  >
-                    {station.pendingCount}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+          <div className="grid grid-cols-1 gap-3">
+            {/* Botones por estación */}
+            {sortedStations.map((station) => {
+              const config = STATION_CONFIG[station.name.toLowerCase().replace(/\s+/g, '-')] || STATION_CONFIG['cocina-general']
+              const isSelected = selectedStationId === station.id
+              
+              return (
+                <button
+                  key={station.id}
+                  onClick={() => onSelectStation(station.id)}
+                  disabled={!station.isActive}
+                  className={`
+                    flex items-center gap-4 px-6 py-4 rounded-2xl border-2 font-bold transition-all active:scale-95
+                    ${isSelected ? 'shadow-lg ring-2 ring-offset-2' : 'hover:border-gray-300'}
+                    ${!station.isActive ? 'opacity-30 grayscale cursor-not-allowed' : ''}
+                  `}
+                  style={{
+                    borderColor: isSelected ? config.color : 'var(--border)',
+                    backgroundColor: isSelected ? config.bgColor : 'var(--card)',
+                    color: isSelected ? config.textColor : 'var(--foreground)',
+                    '--tw-ring-color': config.color
+                  } as any}
+                >
+                  <div style={{ color: isSelected ? config.color : config.color }}>
+                    {config.icon}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="block text-lg font-black uppercase tracking-tight">{station.displayName || station.name}</span>
+                  </div>
+                  
+                  {station.pendingCount > 0 && (
+                    <span 
+                      className="px-3 py-1 rounded-lg text-sm font-black text-white shadow-sm"
+                      style={{ backgroundColor: config.color }}
+                    >
+                      {station.pendingCount}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
       </div>

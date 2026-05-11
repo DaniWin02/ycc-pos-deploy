@@ -31,7 +31,7 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({
 
   const getStatusIcon = (status: string) => {
     switch (status.toUpperCase()) {
-      case 'COMPLETED':
+      case 'READY':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'CANCELLED':
         return <XCircle className="w-4 h-4 text-red-600" />;
@@ -45,7 +45,7 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
-      case 'COMPLETED':
+      case 'READY':
         return 'text-green-600 bg-green-50';
       case 'CANCELLED':
         return 'text-red-600 bg-red-50';
@@ -60,7 +60,7 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({
 
   const getStatusText = (status: string) => {
     switch (status.toUpperCase()) {
-      case 'COMPLETED':
+      case 'READY':
         return 'Completada';
       case 'CANCELLED':
         return 'Cancelada';

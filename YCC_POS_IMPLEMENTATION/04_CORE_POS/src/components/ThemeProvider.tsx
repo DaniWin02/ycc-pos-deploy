@@ -1,25 +1,32 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useTheme, ThemeConfig, ThemeColors } from '../hooks/useTheme';
+import { useTheme, ModuleTheme } from '../hooks/useTheme';
 
 interface ThemeContextType {
-  theme: ThemeConfig;
-  updateTheme: (partial: Partial<ThemeConfig>) => void;
-  updateColors: (colors: Partial<ThemeColors>) => void;
-  resetTheme: () => void;
-  getColor: (colorKey: keyof ThemeColors, fallback?: string) => string;
-  cssVar: (name: string) => string;
+  theme: ModuleTheme | null;
   isDark: boolean;
-  shadows: boolean;
-  animations: boolean;
+  cssVar: (name: string) => string;
+  getColor: (key: string) => string;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const theme = useTheme();
+  const { theme, isDark, cssVar } = useTheme();
+
+  const getColor = (key: string) => {
+    if (!theme) return 'transparent';
+    return theme.colors[key] || 'transparent';
+  };
+
+  const value = {
+    theme,
+    isDark,
+    cssVar,
+    getColor
+  };
 
   return (
-    <ThemeContext.Provider value={theme}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

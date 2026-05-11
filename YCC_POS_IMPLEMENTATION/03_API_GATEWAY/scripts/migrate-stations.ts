@@ -95,7 +95,7 @@ const detectStation = (productName: string, categoryName?: string): string => {
 
 // Estaciones predefinidas
 const DEFAULT_STATIONS = [
-  { name: 'bar', displayName: 'Bar', color: '#3B82F6' },
+  { name: 'bar', displayName: 'Bar', color: '#059669' }, // Verde Country Club
   { name: 'parrilla', displayName: 'Parrilla', color: '#EF4444' },
   { name: 'cocina-fria', displayName: 'Cocina Fría', color: '#10B981' },
   { name: 'cocina-caliente', displayName: 'Cocina Caliente', color: '#F59E0B' },

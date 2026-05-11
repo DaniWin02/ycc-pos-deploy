@@ -8,8 +8,7 @@
     "03_API_GATEWAY",
     "04_CORE_POS",
     "05_KDS_SYSTEM",
-    "06_ADMIN_PANEL",
-    "07_MOBILE_APP"
+    "06_ADMIN_PANEL"
   ],
   "scripts": {
     "dev": "concurrently \"pnpm --filter @ycc-pos/api-gateway dev\" \"pnpm --filter @ycc/core-pos dev\" \"pnpm --filter @ycc/kds dev\" \"pnpm --filter @ycc/admin-panel dev\"",

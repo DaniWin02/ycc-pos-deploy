@@ -70,7 +70,7 @@ const defaultConfig: KDSConfig = {
   flashOnNewOrder: true,
   stationColors: {
     'cocina': '#EF4444',
-    'bar': '#3B82F6',
+    'bar': '#059669', // Verde Country Club
     'parrilla': '#F59E0B',
     'ensaladas': '#10B981',
     'pasteleria': '#8B5CF6',

@@ -14,8 +14,8 @@ interface Station {
 
 const STATION_COLORS: Record<string, { color: string; bgColor: string; icon: React.ReactNode }> = {
   'bar': { 
-    color: '#3b82f6', 
-    bgColor: '#dbeafe',
+    color: '#059669', // Verde Country Club
+    bgColor: '#d1fae5', // emerald-100
     icon: <Coffee className="w-12 h-12" />
   },
   'cocina-caliente': { 

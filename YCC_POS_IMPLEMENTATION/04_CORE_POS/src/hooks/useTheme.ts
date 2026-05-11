@@ -1,254 +1,246 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import type { SemanticTokens, ThemeConfiguration } from '../../../shared/tokens/semanticTokens';
 
-// Theme configuration interface (matching Admin Panel)
-export interface ThemeColors {
-  primary: string;
-  primaryLight: string;
-  primaryDark: string;
-  secondary: string;
-  secondaryLight: string;
-  background: string;
-  surface: string;
-  card: string;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  border: string;
-  borderLight: string;
-  success: string;
-  successLight: string;
-  warning: string;
-  warningLight: string;
-  error: string;
-  errorLight: string;
-  info: string;
-  infoLight: string;
-  sidebarBackground: string;
-  sidebarText: string;
-  sidebarActive: string;
-  sidebarActiveText: string;
-  posHeader: string;
-  posCartBackground: string;
-  posProductCard: string;
-  posProductCardHover: string;
-  posButtonPrimary: string;
-  posButtonSecondary: string;
-}
-
-export interface ThemeConfig {
-  id: string;
-  name: string;
-  colors: ThemeColors;
-  shadows: boolean;
-  animations: boolean;
+// Re-export types for backward compatibility
+export interface ModuleTheme {
+  colors: Record<string, string>;
+  typography: {
+    fontFamily: string;
+    fontSizeBase: string;
+    fontWeightNormal: number;
+    fontWeightMedium: number;
+    fontWeightBold: number;
+  };
+  borderRadius: {
+    base: string;
+  };
   isDark: boolean;
-  updatedAt: Date;
+  shadows: boolean;
 }
 
-// Default theme values
-const defaultColors: ThemeColors = {
-  primary: '#3B82F6',
-  primaryLight: '#60A5FA',
-  primaryDark: '#2563EB',
-  secondary: '#8B5CF6',
-  secondaryLight: '#A78BFA',
-  background: '#F3F4F6',
-  surface: '#FFFFFF',
-  card: '#FFFFFF',
-  textPrimary: '#111827',
-  textSecondary: '#4B5563',
-  textMuted: '#6B7280',
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  success: '#10B981',
-  successLight: '#D1FAE5',
-  warning: '#F59E0B',
-  warningLight: '#FEF3C7',
-  error: '#EF4444',
-  errorLight: '#FEE2E2',
-  info: '#3B82F6',
-  infoLight: '#DBEAFE',
-  sidebarBackground: '#FFFFFF',
-  sidebarText: '#374151',
-  sidebarActive: '#EFF6FF',
-  sidebarActiveText: '#2563EB',
-  posHeader: '#F9FAFB',
-  posCartBackground: '#FFFFFF',
-  posProductCard: '#FFFFFF',
-  posProductCardHover: '#F0FDF4',
-  posButtonPrimary: '#10B981',
-  posButtonSecondary: '#6B7280',
-};
+const THEME_KEY = 'ycc-theme-pos';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004';
 
-const defaultTheme: ThemeConfig = {
-  id: 'default',
-  name: 'Tema Predeterminado',
-  colors: defaultColors,
-  shadows: true,
-  animations: true,
-  isDark: false,
-  updatedAt: new Date(),
-};
+// Legacy interface maintained for backward compatibility
+export interface UseThemeReturn {
+  theme: ModuleTheme | null;
+  isDark: boolean;
+  cssVar: (name: string) => string;
+}
 
-// Theme hook for POS
-export function useTheme() {
-  const [theme, setTheme] = useState<ThemeConfig>(() => {
-    // Load from localStorage on init
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ycc-pos-theme');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          return { ...defaultTheme, ...parsed };
-        } catch {
-          return defaultTheme;
-        }
+/**
+ * Hook useTheme - Sistema de tema sincronizado para POS
+ * 
+ * Este hook ahora se integra con el sistema unificado de temas de YCC.
+ * Los cambios desde el Admin se sincronizan en tiempo real vía WebSocket.
+ */
+export const useTheme = (): UseThemeReturn => {
+  const [theme, setTheme] = useState<ModuleTheme | null>(() => {
+    // Cargar tema inicial
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing POS theme', e);
+        return null;
       }
     }
-    return defaultTheme;
+    return null;
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
+  const currentThemeRef = useRef(theme);
 
-  // Listen for theme changes from other tabs/windows (Admin Panel)
+  // Actualizar ref cuando cambia el tema
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'ycc-pos-theme' && e.newValue) {
+    currentThemeRef.current = theme;
+  }, [theme]);
+
+  // ==========================================================================
+  // APLICAR TEMA
+  // ==========================================================================
+
+  const applyTheme = useCallback((config: ModuleTheme | Partial<ModuleTheme>, source: string = 'unknown') => {
+    const root = document.documentElement;
+    
+    console.log(`🎨 [POS] Applying theme from: ${source}`, { isDark: config.isDark, colorCount: Object.keys(config.colors || {}).length });
+    
+    // Apply Colors
+    if (config.colors) {
+      let appliedCount = 0;
+      Object.entries(config.colors).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          const cssVar = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+          root.style.setProperty(`--${cssVar}`, value);
+          appliedCount++;
+        }
+      });
+      console.log(`🎨 [POS] Applied ${appliedCount} color variables`);
+    }
+
+    // Apply Typography
+    if (config.typography) {
+      if (config.typography.fontFamily) {
+        root.style.setProperty('--font-family', config.typography.fontFamily);
+        console.log(`🎨 [POS] Applied font-family: ${config.typography.fontFamily}`);
+      }
+      if (config.typography.fontSizeBase) {
+        root.style.setProperty('--font-size-base', config.typography.fontSizeBase);
+      }
+    }
+
+    // Apply Radius
+    if (config.borderRadius?.base) {
+      root.style.setProperty('--radius-base', config.borderRadius.base);
+    }
+
+    // Apply dark/light mode - CRITICAL for theme switching
+    if (config.isDark !== undefined) {
+      const themeValue = config.isDark ? 'dark' : 'light';
+      root.setAttribute('data-theme', themeValue);
+      console.log(`🎨 [POS] Theme mode set to: ${themeValue}`);
+    }
+
+    // Actualizar estado
+    setTheme(prev => {
+      const newTheme = { ...(prev || {} as any), ...config } as ModuleTheme;
+      
+      // Guardar en localStorage
+      localStorage.setItem(THEME_KEY, JSON.stringify(newTheme));
+      
+      // Notificar aplicación
+      localStorage.setItem(`${THEME_KEY}-applied`, JSON.stringify({
+        timestamp: Date.now(),
+        isDark: newTheme.isDark,
+      }));
+      
+      return newTheme;
+    });
+  }, []);
+
+  // ==========================================================================
+  // WEBSOCKET SYNC
+  // ==========================================================================
+
+  useEffect(() => {
+    const socket = io(API_URL, {
+      transports: ['websocket'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('🎨 [POS] Theme sync connected');
+      
+      // Unirse a la sala del módulo POS
+      socket.emit('join-module', 'pos');
+      
+      // Solicitar estado actual
+      socket.emit('theme:sync-all');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('🎨 [POS] Theme sync disconnected');
+    });
+
+    // Escuchar actualizaciones de tema
+    socket.on('theme:update', (payload: any) => {
+      const { module, tokens, isDark, typography, borderRadius } = payload;
+      
+      // Aplicar si es global o específicamente para POS
+      if (module === 'pos' || module === 'global') {
+        const update: Partial<ModuleTheme> = {
+          colors: { ...currentThemeRef.current?.colors, ...tokens },
+        };
+        
+        if (isDark !== undefined) {
+          update.isDark = isDark;
+        }
+        
+        if (typography) {
+          update.typography = { 
+            ...currentThemeRef.current?.typography, 
+            ...typography 
+          };
+        }
+        
+        if (borderRadius) {
+          update.borderRadius = {
+            ...currentThemeRef.current?.borderRadius,
+            ...borderRadius
+          };
+        }
+
+        applyTheme(update, `WebSocket-${module}`);
+        
+        console.log(`🎨 [POS] Theme updated from ${module}`);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [applyTheme]);
+
+  // ==========================================================================
+  // LOCALSTORAGE SYNC (Cross-tab)
+  // ==========================================================================
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === THEME_KEY && e.newValue) {
+        console.log('🎨 [POS] Theme changed from another tab (localStorage)');
         try {
-          const newTheme = JSON.parse(e.newValue);
-          setTheme(prev => ({ ...prev, ...newTheme }));
-        } catch {
-          console.error('Failed to parse theme from storage');
+          const config = JSON.parse(e.newValue);
+          applyTheme(config, 'localStorage');
+        } catch (err) {
+          console.error('Error parsing theme from storage:', err);
         }
       }
     };
 
-    const handleCustomEvent = (e: CustomEvent<ThemeConfig>) => {
-      setTheme(prev => ({ ...prev, ...e.detail }));
-    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [applyTheme]);
 
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('ycc-theme-change' as any, handleCustomEvent as any);
+  // ==========================================================================
+  // CUSTOM EVENT SYNC (Real-time intra-tab)
+  // ==========================================================================
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('ycc-theme-change' as any, handleCustomEvent as any);
-    };
-  }, []);
-
-  // Apply theme colors as CSS custom properties
   useEffect(() => {
-    const root = document.documentElement;
-    
-    // Set all theme colors as CSS variables
-    Object.entries(theme.colors).forEach(([key, value]) => {
-      root.style.setProperty(`--color-${key}`, value);
-    });
+    const handleThemeChange = (e: CustomEvent) => {
+      const { module, config } = e.detail || {};
+      
+      if (module === 'pos' || module === 'global') {
+        const update: Partial<ModuleTheme> = {
+          colors: { ...currentThemeRef.current?.colors, ...config?.colors },
+          isDark: config?.isDark ?? currentThemeRef.current?.isDark,
+        };
+        
+        if (config?.typography) {
+          update.typography = { 
+            ...currentThemeRef.current?.typography, 
+            ...config.typography 
+          };
+        }
 
-    // Set theme flags
-    root.style.setProperty('--theme-shadows', theme.shadows ? '1' : '0');
-    root.style.setProperty('--theme-animations', theme.animations ? '1' : '0');
-    root.style.setProperty('--theme-is-dark', theme.isDark ? '1' : '0');
+        applyTheme(update, 'CustomEvent');
+      }
+    };
 
-    // Apply dark mode class
-    if (theme.isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
-
-  const updateTheme = useCallback((partial: Partial<ThemeConfig>) => {
-    setTheme(prev => {
-      const updated = { ...prev, ...partial, updatedAt: new Date() };
-      localStorage.setItem('ycc-pos-theme', JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
-  const updateColors = useCallback((colors: Partial<ThemeColors>) => {
-    setTheme(prev => {
-      const updated = { 
-        ...prev, 
-        colors: { ...prev.colors, ...colors },
-        updatedAt: new Date() 
-      };
-      localStorage.setItem('ycc-pos-theme', JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
-  const resetTheme = useCallback(() => {
-    localStorage.removeItem('ycc-pos-theme');
-    setTheme(defaultTheme);
-  }, []);
-
-  // Helper to get color with fallback
-  const getColor = useCallback((colorKey: keyof ThemeColors, fallback?: string): string => {
-    return theme.colors[colorKey] || fallback || '#000000';
-  }, [theme.colors]);
-
-  // CSS variable string helper
-  const cssVar = useCallback((name: string) => {
-    return `var(--color-${name})`;
-  }, []);
+    window.addEventListener('ycc-theme-change', handleThemeChange as EventListener);
+    return () => window.removeEventListener('ycc-theme-change', handleThemeChange as EventListener);
+  }, [applyTheme]);
 
   return {
     theme,
-    isLoading,
-    updateTheme,
-    updateColors,
-    resetTheme,
-    getColor,
-    cssVar,
-    isDark: theme.isDark,
-    shadows: theme.shadows,
-    animations: theme.animations,
+    isDark: theme?.isDark ?? false,
+    cssVar: (name: string) => `var(${name})`,
   };
-}
-
-// Theme class helpers
-export const themeClasses = {
-  // Button variants
-  buttonPrimary: (colors: ThemeColors) => ({
-    backgroundColor: colors.posButtonPrimary,
-    color: '#FFFFFF',
-  }),
-  buttonSecondary: (colors: ThemeColors) => ({
-    backgroundColor: colors.posButtonSecondary,
-    color: '#FFFFFF',
-  }),
-  
-  // Card variants
-  card: (colors: ThemeColors) => ({
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-  }),
-  
-  // Text variants
-  textPrimary: (colors: ThemeColors) => ({
-    color: colors.textPrimary,
-  }),
-  textSecondary: (colors: ThemeColors) => ({
-    color: colors.textSecondary,
-  }),
-  textMuted: (colors: ThemeColors) => ({
-    color: colors.textMuted,
-  }),
-  
-  // State badges
-  success: (colors: ThemeColors) => ({
-    backgroundColor: colors.successLight,
-    color: colors.success,
-  }),
-  warning: (colors: ThemeColors) => ({
-    backgroundColor: colors.warningLight,
-    color: colors.warning,
-  }),
-  error: (colors: ThemeColors) => ({
-    backgroundColor: colors.errorLight,
-    color: colors.error,
-  }),
 };
-
-export default useTheme;

@@ -139,10 +139,10 @@ export const SalesChart: React.FC<SalesChartProps> = ({
               yAxisId="sales"
               type="monotone"
               dataKey="sales"
-              stroke="#3b82f6"
-              fill="#3b82f6"
+              stroke="#059669"
+              fill="#059669"
               strokeWidth={2}
-              dot={{ fill: '#3b82f6', r: 4 }}
+              dot={{ fill: '#059669', r: 4 }}
               activeDot={{ r: 6 }}
             />
             
