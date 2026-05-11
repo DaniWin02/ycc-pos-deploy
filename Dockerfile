@@ -6,13 +6,13 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Instalar pnpm
-RUN npm install -g pnpm@8
+RUN npm install -g pnpm@latest
 
 # Copiar archivos de dependencias desde el subdirectorio
 COPY YCC_POS_IMPLEMENTATION/03_API_GATEWAY/package.json YCC_POS_IMPLEMENTATION/03_API_GATEWAY/pnpm-lock.yaml ./
 
 # Instalar dependencias
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copiar código fuente y configuración
 COPY YCC_POS_IMPLEMENTATION/03_API_GATEWAY/src ./src
