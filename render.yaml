@@ -1,0 +1,25 @@
+services:
+  # API Gateway Backend
+  - type: web
+    name: ycc-pos-api
+    runtime: docker
+    dockerfilePath: ./YCC_POS_IMPLEMENTATION/03_API_GATEWAY/Dockerfile.render
+    dockerContext: ./YCC_POS_IMPLEMENTATION
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ycc-pos-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://ycc-pos.vercel.app,https://ycc-kds.vercel.app,https://ycc-admin.vercel.app
+
+databases:
+  - name: ycc-pos-db
+    databaseName: ycc_pos
+    user: ycc_pos_user
