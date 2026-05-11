@@ -2436,7 +2436,7 @@ export const App: React.FC = () => {
                   ${!activeComandaId || !getActiveComanda() 
                     ? 'bg-gray-300 text-muted-foreground cursor-not-allowed shadow-none' 
                     : posMode === 'COUNTER' 
-                      ? 'bg-gradient-to-r from-primary/90 to-primary hover:from-emerald-600 hover:to-emerald-700 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-emerald-600/30' 
+                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-emerald-600/30' 
                       : posMode === 'TABLE' 
                         ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-blue-600/30'
                         : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white hover:shadow-xl hover:-translate-y-0.5 shadow-purple-600/30'
