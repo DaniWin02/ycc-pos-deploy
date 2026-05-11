@@ -5,8 +5,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Instalar pnpm
-RUN npm install -g pnpm@latest
+# Instalar pnpm v9 (compatible con Node.js 20)
+RUN npm install -g pnpm@9
 
 # Copiar archivos de dependencias desde el subdirectorio
 COPY YCC_POS_IMPLEMENTATION/03_API_GATEWAY/package.json YCC_POS_IMPLEMENTATION/03_API_GATEWAY/pnpm-lock.yaml ./
