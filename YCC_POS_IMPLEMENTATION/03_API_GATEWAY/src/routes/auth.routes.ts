@@ -346,8 +346,7 @@ router.get('/activity', async (req, res) => {
         isOnline: true,
         currentModule: onlineUser.currentModule,
         lastSeen: onlineUser.lastSeen,
-        loginTime: onlineUser.loginTime,
-        isHardcoded: true // Marcar como usuario hardcodeado
+        loginTime: onlineUser.loginTime
       })
     }
 
