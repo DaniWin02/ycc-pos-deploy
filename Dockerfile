@@ -5,6 +5,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Instalar OpenSSL y dependencias para Prisma
+RUN apk add --no-cache openssl libc6-compat
+
 # Instalar pnpm v9 (compatible con Node.js 20)
 RUN npm install -g pnpm@9
 
