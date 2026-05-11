@@ -1,11 +1,9 @@
 {
-  "buildCommand": "pnpm run build",
+  "buildCommand": "cd .. && pnpm install && cd 04_CORE_POS && pnpm run build",
   "outputDirectory": "dist",
+  "installCommand": "pnpm install",
   "framework": "vite",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "env": {
-    "VITE_API_URL": "https://ycc-pos-api.onrender.com"
-  }
+  ]
 }
