@@ -4,6 +4,11 @@ const path = require('path');
 
 const root = path.resolve(__dirname, 'YCC_POS_IMPLEMENTATION');
 
+function run(cmd, cwd) {
+  console.log(`Running: ${cmd} in ${cwd || root}`);
+  execSync(cmd, { cwd: cwd || root, stdio: 'inherit', shell: true });
+}
+
 // Clean and create dist
 const distPath = path.join(root, 'dist');
 if (fs.existsSync(distPath)) {
@@ -11,23 +16,24 @@ if (fs.existsSync(distPath)) {
 }
 fs.mkdirSync(distPath, { recursive: true });
 
-// Install deps first (if needed)
-console.log('📦 Ensuring dependencies are installed...');
-try {
-  execSync('pnpm install', { cwd: root, stdio: 'inherit' });
-} catch (e) {
-  console.log('Continuing with existing node_modules...');
-}
+// Install deps in root workspace
+console.log('📦 Installing workspace dependencies...');
+run('pnpm install --no-frozen-lockfile');
 
-// Build all apps using pnpm workspace filter
+// Build POS
 console.log('🔨 Building POS...');
-execSync('pnpm --filter @ycc/core-pos run build', { cwd: root, stdio: 'inherit' });
+run('pnpm install --no-frozen-lockfile', path.join(root, '04_CORE_POS'));
+run('npx vite build', path.join(root, '04_CORE_POS'));
 
+// Build KDS
 console.log('🔨 Building KDS...');
-execSync('pnpm --filter @ycc/kds run build', { cwd: root, stdio: 'inherit' });
+run('pnpm install --no-frozen-lockfile', path.join(root, '05_KDS_SYSTEM'));
+run('npx tsc && npx vite build', path.join(root, '05_KDS_SYSTEM'));
 
+// Build Admin
 console.log('🔨 Building Admin...');
-execSync('pnpm --filter @ycc/admin-panel run build', { cwd: root, stdio: 'inherit' });
+run('pnpm install --no-frozen-lockfile', path.join(root, '06_ADMIN_PANEL'));
+run('npx vite build', path.join(root, '06_ADMIN_PANEL'));
 
 // Copy builds to dist
 console.log('📁 Copying builds to dist...');

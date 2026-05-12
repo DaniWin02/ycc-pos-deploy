@@ -1,0 +1,6 @@
+packages:
+  - '01_SETUP_INICIAL/*'
+  - '03_API_GATEWAY'
+  - '04_CORE_POS'
+  - '05_KDS_SYSTEM'
+  - '06_ADMIN_PANEL'

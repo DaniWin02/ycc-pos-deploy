@@ -1,7 +1,7 @@
 {
   "buildCommand": "node build-all.js",
   "outputDirectory": "YCC_POS_IMPLEMENTATION/dist",
-  "installCommand": "npm install -g pnpm@9 && cd YCC_POS_IMPLEMENTATION && pnpm install",
+  "installCommand": "npm install -g pnpm@9",
   "framework": null,
   "rewrites": [
     { "source": "/pos/(.*)", "destination": "/pos/index.html" },
