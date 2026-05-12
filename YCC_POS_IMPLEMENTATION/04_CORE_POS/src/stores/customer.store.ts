@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
-const API_URL = 'http://localhost:3004/api/customers';
+const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
+const API_URL = `${baseUrl}/api/customers`;
 
 export type CustomerType = 'SOCIO' | 'CLIENTE' | 'INVITADO' | 'CORPORATIVO';
 

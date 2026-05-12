@@ -606,7 +606,8 @@ export const App: React.FC = () => {
     // Emitir actividad de usuario al Admin Panel
     try {
       const { io } = await import('socket.io-client');
-      socketRef.current = io('http://localhost:3004', { 
+      const socketUrl = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:3004';
+      socketRef.current = io(socketUrl, { 
         transports: ['polling', 'websocket'],
         reconnectionDelay: 1000,
         reconnectionAttempts: 5
