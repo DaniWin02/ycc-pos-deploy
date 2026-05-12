@@ -1,9 +1,9 @@
+/* Importar sistema de tokens semánticos compartido */
+@import '../shared/styles/semantic-theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Importar sistema de tokens semánticos compartido */
-@import '../shared/styles/semantic-theme.css';
 
 @layer base {
   :root {
