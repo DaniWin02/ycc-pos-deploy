@@ -80,7 +80,7 @@
 }
 
 /* Importar sistema de tokens semánticos compartido */
-@import '../../shared/styles/semantic-theme.css';
+@import '../shared/styles/semantic-theme.css';
 
 /* Importar sistema responsive completo */
 @import './styles/theme.css';

@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, 'YCC_POS_IMPLEMENTATION');
+const sharedDir = path.join(root, 'shared');
 
 function run(cmd, cwd) {
   console.log(`Running: ${cmd} in ${cwd || root}`);
@@ -20,19 +21,33 @@ fs.mkdirSync(distPath, { recursive: true });
 console.log('📦 Installing workspace dependencies...');
 run('pnpm install --no-frozen-lockfile');
 
+// Copy shared into each app so relative imports work
+// CSS @import '../../shared/' from src/ resolves to app/../shared/
+// which is YCC_POS_IMPLEMENTATION/shared/ - already exists
+// But Vite restricts access outside project root during build
+// So we copy shared/ INTO each app directory
+const apps = ['04_CORE_POS', '05_KDS_SYSTEM', '06_ADMIN_PANEL'];
+apps.forEach(app => {
+  const appShared = path.join(root, app, 'shared');
+  if (fs.existsSync(appShared)) {
+    fs.rmSync(appShared, { recursive: true, force: true });
+  }
+  if (fs.existsSync(sharedDir)) {
+    fs.cpSync(sharedDir, appShared, { recursive: true });
+    console.log(`📋 Copied shared/ into ${app}/shared/`);
+  }
+});
+
 // Build POS
 console.log('🔨 Building POS...');
-run('pnpm install --no-frozen-lockfile', path.join(root, '04_CORE_POS'));
 run('npx vite build', path.join(root, '04_CORE_POS'));
 
 // Build KDS
 console.log('🔨 Building KDS...');
-run('pnpm install --no-frozen-lockfile', path.join(root, '05_KDS_SYSTEM'));
-run('npx tsc && npx vite build', path.join(root, '05_KDS_SYSTEM'));
+run('npx vite build', path.join(root, '05_KDS_SYSTEM'));
 
 // Build Admin
 console.log('🔨 Building Admin...');
-run('pnpm install --no-frozen-lockfile', path.join(root, '06_ADMIN_PANEL'));
 run('npx vite build', path.join(root, '06_ADMIN_PANEL'));
 
 // Copy builds to dist
