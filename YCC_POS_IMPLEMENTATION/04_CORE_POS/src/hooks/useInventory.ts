@@ -1,4 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004';
 
 interface InventoryCheckResult {
   available: boolean
@@ -24,7 +26,7 @@ export const useInventory = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:3004/inventory/check/${productId}?quantity=${quantity}`
+        `${API_URL}/inventory/check/${productId}?quantity=${quantity}`
       )
 
       if (!response.ok) {
@@ -53,7 +55,7 @@ export const useInventory = () => {
     setError(null)
 
     try {
-      const response = await fetch('http://localhost:3004/inventory/consume', {
+      const response = await fetch(`${API_URL}/inventory/consume`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -88,7 +90,7 @@ export const useInventory = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:3004/inventory/alerts?resolved=${resolved}`
+        `${API_URL}/inventory/alerts?resolved=${resolved}`
       )
 
       if (!response.ok) {

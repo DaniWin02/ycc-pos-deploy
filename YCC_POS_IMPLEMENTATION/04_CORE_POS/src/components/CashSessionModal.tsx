@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, DollarSign, Calculator, Printer, Clock, User, TrendingUp, TrendingDown } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004';
+
 interface CashSessionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -45,7 +47,7 @@ export const CashSessionModal: React.FC<CashSessionModalProps> = ({
 
   const loadActiveSession = async () => {
     try {
-      const response = await fetch(`http://localhost:3004/cash-sessions/active/${terminalId}`);
+      const response = await fetch(`${API_URL}/cash-sessions/active/${terminalId}`);
       if (response.ok) {
         const session = await response.json();
         setActiveSession(session);
@@ -63,7 +65,7 @@ export const CashSessionModal: React.FC<CashSessionModalProps> = ({
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3004/cash-sessions/open', {
+      const response = await fetch(`${API_URL}/cash-sessions/open`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -102,7 +104,7 @@ export const CashSessionModal: React.FC<CashSessionModalProps> = ({
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3004/cash-sessions/close/${activeSession.id}`, {
+      const response = await fetch(`${API_URL}/cash-sessions/close/${activeSession.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

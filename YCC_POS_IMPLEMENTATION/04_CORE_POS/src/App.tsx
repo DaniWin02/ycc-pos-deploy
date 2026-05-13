@@ -26,6 +26,7 @@ import { Logo, useBranding } from './hooks/useBranding';
 import { useThemeContext } from './components/ThemeProvider';
 
 // ===================== HELPERS =====================
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004';
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 const displayFolio = (folio: string) => {
   if (!folio) return '#---';
@@ -669,7 +670,7 @@ export const App: React.FC = () => {
   // Function to update payment method (con API)
   const handleUpdatePaymentMethod = async (saleId: string, newMethod: PaymentMethod) => {
     try {
-      const response = await fetch(`http://localhost:3004/api/sales/${saleId}`, {
+      const response = await fetch(`${API_URL}/api/sales/${saleId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentMethod: newMethod })
@@ -696,7 +697,7 @@ export const App: React.FC = () => {
   // Function to update order type (tipo de comanda)
   const handleUpdateOrderType = async (saleId: string, newType: OrderType) => {
     try {
-      const response = await fetch(`http://localhost:3004/api/sales/${saleId}`, {
+      const response = await fetch(`${API_URL}/api/sales/${saleId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderType: newType })
@@ -727,7 +728,7 @@ export const App: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`http://localhost:3004/api/sales/${saleId}`, {
+      const response = await fetch(`${API_URL}/api/sales/${saleId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'CANCELLED' })
@@ -876,7 +877,7 @@ export const App: React.FC = () => {
       saleDiscountAmount = comandaTotalsData.discountAmount;
 
       // Enviar venta directamente al backend
-      const response = await fetch('http://localhost:3004/api/sales', {
+      const response = await fetch(`${API_URL}/api/sales`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
