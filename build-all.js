@@ -75,7 +75,7 @@ const indexHtml = `<!DOCTYPE html>
       color: white;
     }
     .container { text-align: center; padding: 2rem; }
-    h1 { font-size: 3rem; margin-bottom: 0.5rem; }
+    h1 { font-size: 3rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 1rem; }
     p { font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.9; }
     .apps {
       display: grid;
@@ -98,28 +98,60 @@ const indexHtml = `<!DOCTYPE html>
       background: rgba(255,255,255,0.2);
       transform: translateY(-5px);
     }
-    .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .icon { 
+      margin-bottom: 1rem; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+    }
+    .icon svg { 
+      width: 64px; 
+      height: 64px; 
+      stroke: white;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     .app-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }
     .app-desc { opacity: 0.8; font-size: 0.95rem; }
+    .header-icon svg {
+      width: 48px;
+      height: 48px;
+      stroke: white;
+      fill: none;
+      stroke-width: 2;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🏌️‍♂️ YCC POS System</h1>
+    <h1>
+      <span class="header-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </span>
+      YCC POS System
+    </h1>
     <p>Sistema de Punto de Venta para Country Club</p>
     <div class="apps">
       <a href="/pos/" class="app-card">
-        <div class="icon">💰</div>
+        <div class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
+        </div>
         <div class="app-title">POS Terminal</div>
         <div class="app-desc">Terminal de ventas y cobro</div>
       </a>
       <a href="/kds/" class="app-card">
-        <div class="icon">📋</div>
+        <div class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+        </div>
         <div class="app-title">KDS Cocina</div>
         <div class="app-desc">Pantalla de cocina y barra</div>
       </a>
       <a href="/admin/" class="app-card">
-        <div class="icon">⚙️</div>
+        <div class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
         <div class="app-title">Admin Panel</div>
         <div class="app-desc">Panel de administración</div>
       </a>
