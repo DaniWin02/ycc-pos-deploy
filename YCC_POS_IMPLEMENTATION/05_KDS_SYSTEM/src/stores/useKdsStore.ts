@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import { io, Socket } from 'socket.io-client'
+
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
 
 export type KdsTicketStatus = 'NEW' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED'
 export type KdsItemStatus = 'PENDING' | 'PREPARING' | 'READY'
@@ -187,7 +190,7 @@ export const useKdsStore = create<KdsState>()(
             }
             
             // Crear nueva conexión
-            socket = io('http://localhost:3004', {
+            socket = io(API_URL, {
               transports: ['polling', 'websocket'], // Polling primero para evitar warnings
               reconnectionDelay: 1000,
               reconnectionAttempts: 5
@@ -327,7 +330,7 @@ export const useKdsStore = create<KdsState>()(
 
         // Sincronizar con el backend - marcar items como DELIVERED
         try {
-          const API_BASE_URL = 'http://localhost:3004/api'
+          const API_BASE_URL = `${API_URL}/api`
 
           const updatePromises = ticket.items.map(item =>
             fetch(`${API_BASE_URL}/order-items/${item.id}/status`, {
@@ -371,7 +374,7 @@ export const useKdsStore = create<KdsState>()(
           console.log(`📋 Lista de tickets completados cargada:`, completedIds.length, 'IDs')
           
           // Cargar ventas desde el API
-          const API_BASE_URL = 'http://localhost:3004/api'
+          const API_BASE_URL = `${API_URL}/api`
           const url = `${API_BASE_URL}/sales`
           console.log(`📡 Cargando TODOS los pedidos desde: ${url}`)
           

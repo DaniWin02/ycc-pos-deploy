@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Clock, LogOut, User, Calendar, ChevronRight, Plus } from 'lucide-react'
 
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
+
 interface Shift {
   id: string
   name: string
@@ -27,7 +29,7 @@ export function KdsShiftSelector({ user, onSelectShift, onLogout }: KdsShiftSele
     const loadShifts = async () => {
       try {
         // Intentar obtener turnos del API
-        const response = await fetch('http://localhost:3004/api/shifts?active=true')
+        const response = await fetch(`${API_URL}/api/shifts?active=true`)
         if (response.ok) {
           const data = await response.json()
           setShifts(data)

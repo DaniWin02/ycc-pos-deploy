@@ -7,6 +7,8 @@ import { KdsStationFilter } from './components/KdsStationFilter'
 import { KdsTicketNew } from './components/KdsTicketNew'
 import { KdsHistory } from './components/KdsHistory'
 
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
+
 interface Station {
   id: string
   name: string
@@ -153,7 +155,7 @@ function AppNew() {
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const response = await fetch('http://localhost:3004/api/stations')
+          const response = await fetch(`${API_URL}/api/stations`)
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`)
           }

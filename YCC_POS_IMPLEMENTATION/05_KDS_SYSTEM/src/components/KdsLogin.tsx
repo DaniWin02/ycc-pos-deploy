@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { ChefHat, Delete, User, Lock } from 'lucide-react'
 import { useResponsive } from '../hooks/useResponsive'
 
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
+
 interface KdsLoginProps {
   onLogin: (user: { id: string; name: string; role: string }) => void
 }
@@ -24,7 +26,7 @@ export function KdsLogin({ onLogin }: KdsLoginProps) {
     // Cargar usuarios desde la API que tienen acceso a KDS
     const loadUsers = async () => {
       try {
-        const response = await fetch('http://localhost:3004/api/users')
+        const response = await fetch(`${API_URL}/api/users`)
         if (response.ok) {
           const data = await response.json()
           // Filtrar solo usuarios que pueden acceder al KDS
@@ -99,7 +101,7 @@ export function KdsLogin({ onLogin }: KdsLoginProps) {
       // Reportar actividad al Admin Panel
       try {
         const { io } = await import('socket.io-client')
-        socketRef.current = io('http://localhost:3004', { 
+        socketRef.current = io(API_URL, { 
           transports: ['polling', 'websocket'],
           reconnectionDelay: 1000,
           reconnectionAttempts: 5
