@@ -71,6 +71,8 @@ const SIDEBAR_ITEMS: { id: Page; label: string; icon: React.ComponentType<{ clas
   { id: 'appearance', label: 'Apariencia', icon: Palette, section: 'Configuración' },
 ];
 
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
+
 export const App: React.FC = () => {
   // Apply theme globally - this listens for changes and applies them
   useThemeApplication('admin');
@@ -116,8 +118,8 @@ export const App: React.FC = () => {
       try {
         const timestamp = Date.now();
         const [salesRes, productsRes] = await Promise.all([
-          fetch(`http://localhost:3004/api/sales?t=${timestamp}`),
-          fetch(`http://localhost:3004/api/products?t=${timestamp}`)
+          fetch(`${API_URL}/api/sales?t=${timestamp}`),
+          fetch(`${API_URL}/api/products?t=${timestamp}`)
         ]);
         
         const salesData = await salesRes.json();
@@ -148,7 +150,7 @@ export const App: React.FC = () => {
   const loadDashboardAlerts = async () => {
     try {
       // Cargar productos con stock bajo
-      const productsRes = await fetch('http://localhost:3004/api/products');
+      const productsRes = await fetch(`${API_URL}/api/products`);
       const productsData = await productsRes.json();
       
       const lowStockItems = (productsData || []).filter((p: any) => 
@@ -156,7 +158,7 @@ export const App: React.FC = () => {
       );
       
       // Cargar estadísticas de actividad de usuarios
-      const activityRes = await fetch('http://localhost:3004/api/auth/activity/stats');
+      const activityRes = await fetch(`${API_URL}/api/auth/activity/stats`);
       const activityData = await activityRes.json().catch(() => ({ onlineUsers: 0 }));
       
       setDashboardAlerts(prev => ({
@@ -191,7 +193,7 @@ export const App: React.FC = () => {
 
   // Conectar a Socket.io para sincronización en tiempo real
   useEffect(() => {
-    const socket = io('http://localhost:3004', {
+    const socket = io(API_URL, {
       transports: ['polling', 'websocket'], // Polling primero para evitar warnings
       reconnectionDelay: 1000,
       reconnectionAttempts: 5
@@ -264,7 +266,7 @@ export const App: React.FC = () => {
     socket.on('sale:created', (data: any) => {
       console.log('📥 Nueva venta recibida:', data);
       // Recargar ventas para obtener la nueva
-      fetch('http://localhost:3004/api/sales?t=' + Date.now())
+      fetch(`${API_URL}/api/sales?t=` + Date.now())
         .then(res => res.json())
         .then(salesData => {
           const mappedSales = (salesData || []).map((sale: any) => ({
