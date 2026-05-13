@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ShoppingCart, Search, Calendar, DollarSign, User, Clock, Eye, Download } from 'lucide-react';
+import { Search, Filter, Download, Eye, X, DollarSign, ShoppingCart, Calendar, User, Clock } from 'lucide-react';
+import { API_URL } from '../lib/config';
 
 interface SaleItem {
   id: string;
@@ -37,7 +37,7 @@ export const SalesPage: React.FC = () => {
 
   const loadSales = async () => {
     try {
-      const response = await fetch(`http://localhost:3004/api/sales?t=${Date.now()}`);
+      const response = await fetch(`${API_URL}/sales?t=${Date.now()}`);
       const data = await response.json();
       // Mapear datos del API a la estructura esperada
       const mappedSales = data.map((sale: any) => ({

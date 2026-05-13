@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { Search, Filter, Eye, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { API_URL } from '../lib/config';
 import {
-  Utensils, Clock, CheckCircle, XCircle, AlertCircle, Search,
-  User, DollarSign, ChefHat, Truck, Home, Store, Phone, MapPin, Edit,
+  Utensils, User, DollarSign, ChefHat, Truck, Home, Store, Phone, MapPin, Edit,
   Eye, Download, RefreshCw, BarChart3, Save, Trash2, TrendingUp
 } from 'lucide-react';
 
@@ -63,7 +63,7 @@ const ComandasPage: React.FC = () => {
       setLoading(true);
       try {
         const timestamp = Date.now();
-        const response = await fetch(`http://localhost:3004/api/comandas?t=${timestamp}`);
+        const response = await fetch(`${API_URL}/comandas?t=${timestamp}`);
         
         if (!response.ok) {
           throw new Error('Error cargando comandas');
@@ -125,7 +125,7 @@ const ComandasPage: React.FC = () => {
   // Función para actualizar estado de comanda
   const updateEstado = async (comandaId: string, nuevoEstado: string) => {
     try {
-      const response = await fetch(`http://localhost:3004/api/comandas/${comandaId}/estado`, {
+      const response = await fetch(`${API_URL}/comandas/${comandaId}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: nuevoEstado })
@@ -145,7 +145,7 @@ const ComandasPage: React.FC = () => {
     if (!editingComanda) return;
 
     try {
-      const response = await fetch(`http://localhost:3004/api/comandas/${editingComanda.id}`, {
+      const response = await fetch(`${API_URL}/comandas/${editingComanda.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
