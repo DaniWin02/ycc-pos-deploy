@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, DollarSign, Calculator, Printer, Clock, User, TrendingUp, TrendingDown } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
 
 interface CashSessionModalProps {
   isOpen: boolean;

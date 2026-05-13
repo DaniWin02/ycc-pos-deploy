@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
 
 interface InventoryCheckResult {
   available: boolean

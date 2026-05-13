@@ -26,7 +26,8 @@ import { Logo, useBranding } from './hooks/useBranding';
 import { useThemeContext } from './components/ThemeProvider';
 
 // ===================== HELPERS =====================
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004';
+// Asegurar que API_URL no tenga /api al final para evitar duplicación
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3004').replace(/\/api\/?$/, '');
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 const displayFolio = (folio: string) => {
   if (!folio) return '#---';
