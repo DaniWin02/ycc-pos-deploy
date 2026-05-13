@@ -50,7 +50,7 @@ interface Station {
   isActive: boolean;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004/api';
+import { API_URL } from '../lib/config';
 
 export const ProductsPage: React.FC<{ onNavigate?: (page: string, params?: any) => void }> = ({ onNavigate }) => {
   let navigate: any = null;
