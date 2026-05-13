@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FolderOpen, Plus, Edit2, Trash2, Search, X } from 'lucide-react';
+import { API_URL } from '../lib/config';
 
 interface Category {
   id: string;
@@ -23,7 +24,7 @@ export const CategoriesPage: React.FC = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('http://localhost:3004/api/categories');
+      const response = await fetch(`${API_URL}/categories`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -47,8 +48,8 @@ export const CategoriesPage: React.FC = () => {
     e.preventDefault();
     try {
       const url = editingCategory 
-        ? `http://localhost:3004/api/categories/${editingCategory.id}`
-        : 'http://localhost:3004/api/categories';
+        ? `${API_URL}/categories/${editingCategory.id}`
+        : `${API_URL}/categories`;
       const method = editingCategory ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -69,7 +70,7 @@ export const CategoriesPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar esta categoría?')) return;
     try {
-      const response = await fetch(`http://localhost:3004/api/categories/${id}`, {
+      const response = await fetch(`${API_URL}/categories/${id}`, {
         method: 'DELETE'
       });
       if (response.ok) await loadCategories();

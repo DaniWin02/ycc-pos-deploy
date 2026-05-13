@@ -6,7 +6,8 @@ import {
   Filter, ChevronDown, UserCheck, UserX, Award, Building2, User
 } from 'lucide-react';
 
-const API_URL = 'http://localhost:3004/api/customers';
+import { API_URL as BASE_API_URL } from '../lib/config';
+const API_URL = `${BASE_API_URL}/customers`;
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
 type CustomerType = 'SOCIO' | 'CLIENTE' | 'INVITADO' | 'CORPORATIVO';

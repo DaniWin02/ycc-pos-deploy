@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Package, AlertTriangle, TrendingUp, TrendingDown, Plus, Search, Filter } from 'lucide-react'
+import { API_URL } from '../lib/config'
 
 interface Product {
   id: string
@@ -45,8 +46,8 @@ export default function InventoryPage() {
     setLoading(true)
     try {
       const [productsRes, alertsRes] = await Promise.all([
-        fetch('http://localhost:3004/api/products'),
-        fetch('http://localhost:3004/api/inventory/alerts')
+        fetch(`${API_URL}/products`),
+        fetch(`${API_URL}/inventory/alerts`)
       ])
 
       if (!productsRes.ok) {
@@ -82,7 +83,7 @@ export default function InventoryPage() {
     if (!selectedProduct || !stockQuantity) return
 
     try {
-      const response = await fetch('http://localhost:3004/inventory/add-stock', {
+      const response = await fetch(`${API_URL.replace('/api', '')}/inventory/add-stock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

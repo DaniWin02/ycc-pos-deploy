@@ -8,6 +8,7 @@ import {
   UserPlus, RefreshCw, Loader2, Zap, ArrowRight
 } from 'lucide-react';
 import { useThemeStore } from '../stores/theme.store';
+import { API_URL, API_BASE_URL } from '../lib/config';
 
 // ===================== INTERFACES =====================
 
@@ -208,7 +209,7 @@ export const UsersPage: React.FC = () => {
    */
   const loadUsersFromDB = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:3004/api/users');
+      const response = await fetch(`${API_URL}/users`);
       if (!response.ok) throw new Error('Error al cargar usuarios');
       
       const data = await response.json();
@@ -254,7 +255,7 @@ export const UsersPage: React.FC = () => {
       let activityData: { users?: any[]; stats?: ActivityStats } = {};
       
       try {
-        const response = await fetch('http://localhost:3004/api/auth/activity');
+        const response = await fetch(`${API_URL}/auth/activity`);
         if (response.ok) {
           activityData = await response.json();
         }
@@ -410,8 +411,8 @@ export const UsersPage: React.FC = () => {
     e.preventDefault();
     try {
       const url = editingUser 
-        ? `http://localhost:3004/api/users/${editingUser.id}`
-        : 'http://localhost:3004/api/users';
+        ? `${API_URL}/users/${editingUser.id}`
+        : `${API_URL}/users`;
       const method = editingUser ? 'PUT' : 'POST';
       
       const submitData = {
@@ -442,7 +443,7 @@ export const UsersPage: React.FC = () => {
     if (!confirm('Â¿EstÃ¡s seguro de eliminar este usuario?\n\nNota: Si el usuario tiene ventas o registros asociados, se desactivarÃ¡ en lugar de eliminarse.')) return;
     
     try {
-      const response = await fetch(`http://localhost:3004/api/users/${id}`, {
+      const response = await fetch(`${API_URL}/users/${id}`, {
         method: 'DELETE'
       });
       
