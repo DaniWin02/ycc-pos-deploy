@@ -309,7 +309,7 @@ export const UsersPage: React.FC = () => {
   // ===================== WEBSOCKETS =====================
 
   useEffect(() => {
-    const socket = io('http://localhost:3004', {
+    const socket = io(API_BASE_URL, {
       transports: ['polling', 'websocket'],
       reconnectionDelay: 1000,
       reconnectionAttempts: 5

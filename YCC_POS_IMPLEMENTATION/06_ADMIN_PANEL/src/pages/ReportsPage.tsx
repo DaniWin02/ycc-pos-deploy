@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Download, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Download, Calendar, Filter } from 'lucide-react';
 import { API_URL } from '../lib/config';
 
 interface SalesData {
