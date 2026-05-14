@@ -14,6 +14,8 @@ import { KdsTicketNew } from './components/KdsTicketNew'
 
 import { KdsHistory } from './components/KdsHistory'
 
+import { API_URL } from './lib/config'
+
 
 
 interface Station {
@@ -308,7 +310,7 @@ function AppNew() {
 
         try {
 
-          const response = await fetch('http://localhost:3004/api/stations')
+          const response = await fetch(`${API_URL}/stations`)
 
           if (!response.ok) {
 
