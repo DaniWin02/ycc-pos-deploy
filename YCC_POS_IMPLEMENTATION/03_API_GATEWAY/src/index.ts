@@ -29,6 +29,7 @@ import modifiersRouter from './routes/modifiers.routes'
 import productVariantsRouter from './routes/productVariants.routes'
 import productModifierGroupsRouter from './routes/productModifierGroups.routes'
 import themeRouter from './routes/theme.routes'
+import { initScheduler } from './services/scheduler.service'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -738,6 +739,9 @@ httpServer.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/health`)
   console.log(`🔌 Database connected: ${prisma ? 'Yes' : 'No'}`)
   console.log(`⚡ Socket.io ready for real-time communication`)
+  
+  // Inicializar tareas programadas
+  initScheduler()
 })
 
 // Export app for integration tests

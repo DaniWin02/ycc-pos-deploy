@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { autoCloseOldSessions, closeDailySessions, cleanupOldSessions } from '../services/cashSession.service';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -499,6 +500,66 @@ router.get('/:id/report', async (req, res) => {
       error: 'Error generando reporte',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// POST /cash-sessions/auto-close-old - Cerrar sesiones antiguas (>24h)
+router.post('/auto-close-old', async (req, res) => {
+  try {
+    console.log('🔄 Ejecutando cierre automático de sesiones antiguas...');
+    const result = await autoCloseOldSessions();
+    res.json({
+      success: true,
+      message: `${result.closed} sesión(es) cerrada(s) automáticamente`,
+      ...result
+    });
+  } catch (error: any) {
+    console.error('❌ Error en auto-close-old:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error cerrando sesiones antiguas',
+      details: error.message
+    });
+  }
+});
+
+// POST /cash-sessions/daily-close - Cierre diario de todas las sesiones abiertas
+router.post('/daily-close', async (req, res) => {
+  try {
+    console.log('🌙 Ejecutando cierre diario de sesiones...');
+    const result = await closeDailySessions();
+    res.json({
+      success: true,
+      message: `Cierre diario completado: ${result.closed} sesión(es) cerrada(s)`,
+      ...result
+    });
+  } catch (error: any) {
+    console.error('❌ Error en daily-close:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error en cierre diario',
+      details: error.message
+    });
+  }
+});
+
+// POST /cash-sessions/cleanup - Limpiar sesiones antiguas (>30 días)
+router.post('/cleanup', async (req, res) => {
+  try {
+    console.log('🧹 Ejecutando limpieza de sesiones antiguas...');
+    const result = await cleanupOldSessions();
+    res.json({
+      success: true,
+      message: `${result.deleted} sesión(es) antigua(s) eliminada(s)`,
+      ...result
+    });
+  } catch (error: any) {
+    console.error('❌ Error en cleanup:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error limpiando sesiones',
+      details: error.message
     });
   }
 });
