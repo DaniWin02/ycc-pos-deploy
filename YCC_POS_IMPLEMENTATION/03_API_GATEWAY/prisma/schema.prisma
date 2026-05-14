@@ -825,3 +825,15 @@ enum WasteReason {
   CONTAMINATED
   OTHER
 }
+
+// ========================================
+// CONFIGURACIÓN DE TEMAS
+// ========================================
+
+model ThemeConfig {
+  id        String   @id @default("default")
+  config    String   // JSON stringificado de la configuración completa
+  module    String   @default("global") // global, admin, pos, kds
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -28,6 +28,7 @@ import modifierGroupsRouter from './routes/modifierGroups.routes'
 import modifiersRouter from './routes/modifiers.routes'
 import productVariantsRouter from './routes/productVariants.routes'
 import productModifierGroupsRouter from './routes/productModifierGroups.routes'
+import themeRouter from './routes/theme.routes'
 
 // Initialize Prisma
 const prisma = new PrismaClient()
@@ -94,6 +95,7 @@ app.use('/api/modifier-groups', modifierGroupsRouter)
 app.use('/api/modifiers', modifiersRouter)
 app.use('/api/product-variants', productVariantsRouter)
 app.use('/api/product-modifier-groups', productModifierGroupsRouter)
+app.use('/api/theme', themeRouter)
 
 // Health check with feature flags
 app.get('/health', (req, res) => {

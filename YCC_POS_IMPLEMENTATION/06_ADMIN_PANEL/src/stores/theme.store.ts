@@ -10,6 +10,7 @@ import {
   defaultSemanticLight,
   defaultSemanticDark
 } from '../types/theme.types';
+import { API_URL } from '../lib/config';
 
 interface ThemeState {
   // Current complete config
@@ -37,7 +38,24 @@ interface ThemeState {
   // Export/Import
   exportTheme: () => string;
   importTheme: (json: string) => boolean;
+  
+  // Backend sync
+  saveToBackend: () => Promise<void>;
+  loadFromBackend: () => Promise<void>;
 }
+
+// Helper function to save theme to backend
+const saveThemeToBackend = async (config: ThemeConfig, module: ThemeModule) => {
+  try {
+    await fetch(`${API_URL}/theme/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config, module })
+    });
+  } catch (error) {
+    console.error('Error saving theme to backend:', error);
+  }
+};
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -74,6 +92,9 @@ export const useThemeStore = create<ThemeState>()(
             localStorage.setItem(`ycc-theme-${module}`, JSON.stringify(get().getEffectiveConfig(module)));
             window.dispatchEvent(new CustomEvent('ycc-theme-change', { detail: { module, config: newConfig[module] } }));
           }
+
+          // Save to backend
+          saveThemeToBackend(newConfig, module);
 
           return { config: newConfig };
         });
@@ -144,6 +165,25 @@ export const useThemeStore = create<ThemeState>()(
           return false;
         } catch {
           return false;
+        }
+      },
+
+      saveToBackend: async () => {
+        const { config, activeModule } = get();
+        await saveThemeToBackend(config, activeModule);
+      },
+
+      loadFromBackend: async () => {
+        try {
+          const response = await fetch(`${API_URL}/theme/config`);
+          if (response.ok) {
+            const { data } = await response.json();
+            if (data) {
+              set({ config: { ...data, updatedAt: new Date(data.updatedAt) } });
+            }
+          }
+        } catch (error) {
+          console.error('Error loading theme from backend:', error);
         }
       },
     }),
