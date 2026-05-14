@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Download, Calendar, Filter } from 'lucide-react';
 import { API_URL } from '../lib/config';
 
