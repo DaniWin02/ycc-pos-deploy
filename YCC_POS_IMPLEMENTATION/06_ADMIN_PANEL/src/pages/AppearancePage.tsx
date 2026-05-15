@@ -24,6 +24,7 @@ import type { ThemeModule } from '../../shared/theme';
 export function AppearancePage() {
   const { 
     config,
+    currentModule,
     setThemeMode,
     toggleThemeMode,
     setUseGlobal,
@@ -44,6 +45,45 @@ export function AppearancePage() {
 
   const currentMode = getCurrentMode(selectedModule);
   const usingGlobal = isUsingGlobal(selectedModule);
+
+  // Calcular colores del preview según el módulo y modo seleccionados
+  const getPreviewColors = () => {
+    const isDark = currentMode === 'dark';
+    
+    if (isDark) {
+      return {
+        background: 'hsl(222.2, 84%, 4.9%)',
+        foreground: 'hsl(210, 40%, 98%)',
+        card: 'hsl(222.2, 84%, 8%)',
+        cardForeground: 'hsl(210, 40%, 98%)',
+        primary: 'hsl(217.2, 91.2%, 59.8%)',
+        primaryForeground: 'hsl(222.2, 47.4%, 11.2%)',
+        secondary: 'hsl(217.2, 32.6%, 17.5%)',
+        secondaryForeground: 'hsl(210, 40%, 98%)',
+        destructive: 'hsl(0, 62.8%, 30.6%)',
+        destructiveForeground: 'hsl(210, 40%, 98%)',
+        border: 'hsl(217.2, 32.6%, 17.5%)',
+        muted: 'hsl(215, 20.2%, 65.1%)',
+      };
+    } else {
+      return {
+        background: 'hsl(0, 0%, 100%)',
+        foreground: 'hsl(222.2, 84%, 4.9%)',
+        card: 'hsl(0, 0%, 100%)',
+        cardForeground: 'hsl(222.2, 84%, 4.9%)',
+        primary: 'hsl(221.2, 83.2%, 53.3%)',
+        primaryForeground: 'hsl(210, 40%, 98%)',
+        secondary: 'hsl(210, 40%, 96.1%)',
+        secondaryForeground: 'hsl(222.2, 47.4%, 11.2%)',
+        destructive: 'hsl(0, 84.2%, 60.2%)',
+        destructiveForeground: 'hsl(210, 40%, 98%)',
+        border: 'hsl(214.3, 31.8%, 91.4%)',
+        muted: 'hsl(215.4, 16.3%, 46.9%)',
+      };
+    }
+  };
+
+  const previewColors = getPreviewColors();
 
   const handleToggleMode = () => {
     toggleThemeMode(selectedModule);
@@ -202,60 +242,67 @@ export function AppearancePage() {
               </div>
             </div>
 
-            {/* Preview Card - Usa tokens CSS reales */}
+            {/* Preview Card - Usa colores calculados dinámicamente */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">Vista Previa en Tiempo Real</label>
               <div 
-                data-theme={currentMode}
-                data-module={selectedModule}
-                className="p-6 rounded-lg border-2 transition-all bg-background text-foreground border-border"
+                className="p-6 rounded-lg border-2 transition-all duration-300"
                 style={{
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                  borderColor: 'hsl(var(--border))'
+                  backgroundColor: previewColors.background,
+                  color: previewColors.foreground,
+                  borderColor: previewColors.border
                 }}
               >
                 <div className="mb-4">
                   <h3 className="text-xl font-bold mb-2">Ejemplo de Contenido</h3>
-                  <p className="text-muted-foreground">
+                  <p style={{ color: previewColors.muted }}>
                     Este es un ejemplo de cómo se verá el contenido con el tema {currentMode === 'dark' ? 'oscuro' : 'claro'} en {modules.find(m => m.id === selectedModule)?.label}.
                   </p>
                 </div>
 
                 <div className="flex gap-3 flex-wrap">
                   <button 
-                    className="px-4 py-2 rounded-lg transition-colors"
+                    className="px-4 py-2 rounded-lg transition-all hover:opacity-90"
                     style={{
-                      backgroundColor: 'hsl(var(--primary))',
-                      color: 'hsl(var(--primary-foreground))'
+                      backgroundColor: previewColors.primary,
+                      color: previewColors.primaryForeground
                     }}
                   >
                     Botón Principal
                   </button>
                   <button 
-                    className="px-4 py-2 rounded-lg border transition-colors"
+                    className="px-4 py-2 rounded-lg border-2 transition-all hover:opacity-90"
                     style={{
-                      backgroundColor: 'hsl(var(--secondary))',
-                      color: 'hsl(var(--secondary-foreground))',
-                      borderColor: 'hsl(var(--border))'
+                      backgroundColor: previewColors.secondary,
+                      color: previewColors.secondaryForeground,
+                      borderColor: previewColors.border
                     }}
                   >
                     Botón Secundario
                   </button>
                   <button 
-                    className="px-4 py-2 rounded-lg transition-colors"
+                    className="px-4 py-2 rounded-lg transition-all hover:opacity-90"
                     style={{
-                      backgroundColor: 'hsl(var(--destructive))',
-                      color: 'hsl(var(--destructive-foreground))'
+                      backgroundColor: previewColors.destructive,
+                      color: previewColors.destructiveForeground
                     }}
                   >
                     Eliminar
                   </button>
                 </div>
 
-                <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}>
+                <div 
+                  className="mt-4 p-4 rounded-lg" 
+                  style={{ 
+                    backgroundColor: previewColors.card, 
+                    color: previewColors.cardForeground,
+                    border: `1px solid ${previewColors.border}`
+                  }}
+                >
                   <h4 className="font-semibold mb-2">Card de Ejemplo</h4>
-                  <p className="text-sm text-muted-foreground">Este es un card con el tema aplicado.</p>
+                  <p className="text-sm" style={{ color: previewColors.muted }}>
+                    Este es un card con el tema aplicado.
+                  </p>
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
