@@ -1,20 +1,15 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { App } from './App'
-import { applyGlobalUiCssVariables, readGlobalUiConfig } from './appearance/globalUi'
-import { UnifiedThemeProvider } from '../../shared/theme/UnifiedThemeProvider'
+import { ThemeProvider } from '../../shared/theme'
+import { API_URL } from './lib/config'
 import './index.css'
-
-applyGlobalUiCssVariables(readGlobalUiConfig())
-window.addEventListener('storage', (e) => {
-  if (e.key === 'ycc-ui-config') applyGlobalUiCssVariables(readGlobalUiConfig())
-})
-window.addEventListener('ycc-ui-config-change' as any, () => applyGlobalUiCssVariables(readGlobalUiConfig()))
+import '../../shared/theme/tokens.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <UnifiedThemeProvider module="admin" enableSync={true}>
+    <ThemeProvider module="admin" apiUrl={API_URL}>
       <App />
-    </UnifiedThemeProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 )

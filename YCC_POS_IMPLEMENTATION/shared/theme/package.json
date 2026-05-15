@@ -1,0 +1,16 @@
+{
+  "name": "theme",
+  "version": "1.0.0",
+  "description": "Sistema centralizado de personalización visual para Admin Panel, POS y KDS.",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}
