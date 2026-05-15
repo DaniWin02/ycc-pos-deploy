@@ -93,10 +93,25 @@ export function ThemeProvider({ children, module, apiUrl }: ThemeProviderProps) 
   // Aplicar tema al DOM cuando cambie la configuración
   useEffect(() => {
     const moduleConfig = config[module];
-    const effectiveMode = moduleConfig.useGlobal ? config.global.mode : moduleConfig.mode;
     
-    applyThemeToDOM(module, effectiveMode, moduleConfig.customColors);
+    // Determinar el modo efectivo considerando herencia global
+    let effectiveMode: ThemeMode;
+    let effectiveColors: Partial<ThemeTokens> | undefined;
+    
+    if (moduleConfig.useGlobal && module !== 'global') {
+      // Si usa tema global, heredar del global
+      effectiveMode = config.global.mode;
+      effectiveColors = config.global.customColors;
+    } else {
+      // Usar configuración propia del módulo
+      effectiveMode = moduleConfig.mode;
+      effectiveColors = moduleConfig.customColors;
+    }
+    
+    applyThemeToDOM(module, effectiveMode, effectiveColors);
     saveThemeToStorage(config);
+    
+    console.log(`🎨 [Theme] Aplicando tema: module=${module}, mode=${effectiveMode}, useGlobal=${moduleConfig.useGlobal}`);
   }, [config, module]);
 
   // Cargar tema desde backend al iniciar
