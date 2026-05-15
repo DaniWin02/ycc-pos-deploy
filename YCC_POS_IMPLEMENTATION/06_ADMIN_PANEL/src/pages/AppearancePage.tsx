@@ -202,36 +202,65 @@ export function AppearancePage() {
               </div>
             </div>
 
-            {/* Preview Card */}
+            {/* Preview Card - Usa tokens CSS reales */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">Vista Previa</label>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Vista Previa en Tiempo Real</label>
               <div 
-                className={`p-6 rounded-lg border-2 transition-all ${
-                  currentMode === 'dark' 
-                    ? 'bg-gray-900 border-gray-700' 
-                    : 'bg-white border-gray-200'
-                }`}
+                data-theme={currentMode}
+                data-module={selectedModule}
+                className="p-6 rounded-lg border-2 transition-all bg-background text-foreground border-border"
+                style={{
+                  backgroundColor: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  borderColor: 'hsl(var(--border))'
+                }}
               >
-                <div className={`mb-4 ${currentMode === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                <div className="mb-4">
                   <h3 className="text-xl font-bold mb-2">Ejemplo de Contenido</h3>
-                  <p className={currentMode === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
-                    Este es un ejemplo de cómo se verá el contenido con el tema {currentMode === 'dark' ? 'oscuro' : 'claro'}.
+                  <p className="text-muted-foreground">
+                    Este es un ejemplo de cómo se verá el contenido con el tema {currentMode === 'dark' ? 'oscuro' : 'claro'} en {modules.find(m => m.id === selectedModule)?.label}.
                   </p>
                 </div>
 
-                <div className="flex gap-3">
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <div className="flex gap-3 flex-wrap">
+                  <button 
+                    className="px-4 py-2 rounded-lg transition-colors"
+                    style={{
+                      backgroundColor: 'hsl(var(--primary))',
+                      color: 'hsl(var(--primary-foreground))'
+                    }}
+                  >
                     Botón Principal
                   </button>
-                  <button className={`px-4 py-2 rounded-lg border transition-colors ${
-                    currentMode === 'dark'
-                      ? 'border-gray-600 text-gray-300 hover:bg-gray-800'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}>
+                  <button 
+                    className="px-4 py-2 rounded-lg border transition-colors"
+                    style={{
+                      backgroundColor: 'hsl(var(--secondary))',
+                      color: 'hsl(var(--secondary-foreground))',
+                      borderColor: 'hsl(var(--border))'
+                    }}
+                  >
                     Botón Secundario
                   </button>
+                  <button 
+                    className="px-4 py-2 rounded-lg transition-colors"
+                    style={{
+                      backgroundColor: 'hsl(var(--destructive))',
+                      color: 'hsl(var(--destructive-foreground))'
+                    }}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+
+                <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}>
+                  <h4 className="font-semibold mb-2">Card de Ejemplo</h4>
+                  <p className="text-sm text-muted-foreground">Este es un card con el tema aplicado.</p>
                 </div>
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                ℹ️ Esta vista previa muestra cómo se verá <strong>{modules.find(m => m.id === selectedModule)?.label}</strong> con los cambios aplicados.
+              </p>
             </div>
 
             {/* Info Card */}
