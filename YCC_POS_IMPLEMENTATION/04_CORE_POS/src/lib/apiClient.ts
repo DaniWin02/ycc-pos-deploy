@@ -18,6 +18,9 @@
 // Base URL con /api incluido
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004/api';
 
+// Exportar para uso en ThemeProvider y otros módulos
+export const API_URL = API_BASE_URL.replace(/\/api$/, ''); // Sin /api para ThemeProvider
+
 interface ApiFetchOptions extends RequestInit {
   body?: any;
 }
