@@ -23,7 +23,6 @@ import { PrinterConfigModal } from './components/PrinterConfigModal';
 import { ProductCustomizationModal } from './components/ProductCustomizationModal';
 import { api, endpoints } from './lib/apiClient';
 import { Logo, useBranding } from './hooks/useBranding';
-import { useThemeContext } from './components/ThemeProvider';
 
 // ===================== HELPERS =====================
 // Asegurar que API_URL no tenga /api al final para evitar duplicación
@@ -44,8 +43,8 @@ type Screen = 'mode-select' | 'login' | 'pos' | 'payment' | 'complete' | 'cash-o
 
 // ===================== APP =====================
 export const App: React.FC = () => {
-  // Theme context
-  const { theme, cssVar, getColor } = useThemeContext();
+  // Theme ahora se maneja automáticamente vía tokens CSS
+  // No necesitamos el hook antiguo
 
   // Mode
   const [posMode, setPosMode] = useState<POSMode>('COUNTER');
