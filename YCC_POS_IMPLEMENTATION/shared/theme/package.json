@@ -1,16 +1,26 @@
 {
-  "name": "theme",
-  "version": "1.0.0",
+  "name": "@ycc/theme",
+  "version": "2.0.0",
   "description": "Sistema centralizado de personalización visual para Admin Panel, POS y KDS.",
-  "main": "tailwind.config.js",
+  "main": "index.ts",
+  "types": "index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.ts",
+      "require": "./index.ts"
+    },
+    "./tokens.css": "./tokens.css",
+    "./tailwind.config.js": "./tailwind.config.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["theme", "design-system", "tokens"],
+  "author": "YCC POS",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.1"
   }
 }
