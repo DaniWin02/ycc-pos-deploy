@@ -648,6 +648,31 @@ io.on('connection', (socket) => {
   socket.on('alert:acknowledge', (alertId: string) => {
     acknowledgeAlert(alertId)
   })
+  
+  // Temas: cambio de tema desde cliente
+  socket.on('theme:change', (event: any) => {
+    console.log(`🎨 [Theme] Cambio recibido de cliente:`, event);
+    // Reenviar a todos los demás clientes
+    socket.broadcast.emit('theme:updated', event);
+  })
+  
+  // Temas: solicitar configuración actual
+  socket.on('theme:get', async () => {
+    try {
+      const config = await prisma.themeConfig.findUnique({
+        where: { id: 'system-v2' }
+      });
+      
+      if (config) {
+        socket.emit('theme:config', JSON.parse(config.config));
+      } else {
+        socket.emit('theme:config', null);
+      }
+    } catch (error) {
+      console.error('🎨 [Theme] Error obteniendo configuración:', error);
+      socket.emit('theme:error', { message: 'Error loading theme' });
+    }
+  })
 })
 
 // ========================================

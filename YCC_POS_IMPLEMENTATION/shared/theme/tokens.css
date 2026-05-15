@@ -1,0 +1,273 @@
+/**
+ * YCC POS - Sistema de Tokens Semánticos
+ * Arquitectura centralizada de temas para Admin, POS y KDS
+ * 
+ * IMPORTANTE: Todos los componentes deben usar EXCLUSIVAMENTE estos tokens.
+ * NO usar colores hardcodeados.
+ */
+
+/* ============================================================================
+   TEMA CLARO (Light Mode) - Base
+   ============================================================================ */
+:root,
+[data-theme="light"] {
+  /* Superficies principales */
+  --background: 0 0% 100%;           /* Fondo principal blanco */
+  --foreground: 222.2 84% 4.9%;      /* Texto principal oscuro */
+  
+  /* Cards y contenedores */
+  --card: 0 0% 100%;                 /* Fondo de cards blanco */
+  --card-foreground: 222.2 84% 4.9%; /* Texto en cards */
+  
+  /* Popovers y dropdowns */
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  
+  /* Colores primarios */
+  --primary: 221.2 83.2% 53.3%;      /* Azul principal */
+  --primary-foreground: 210 40% 98%;
+  --primary-hover: 221.2 83.2% 45%;
+  --primary-active: 221.2 83.2% 38%;
+  
+  /* Colores secundarios */
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --secondary-hover: 210 40% 92%;
+  
+  /* Muted (elementos desactivados/secundarios) */
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  
+  /* Accent (elementos destacados) */
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  
+  /* Destructive (acciones peligrosas) */
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  
+  /* Estados */
+  --success: 142.1 76.2% 36.3%;
+  --success-foreground: 355.7 100% 97.3%;
+  --success-light: 142.1 76.2% 95%;
+  
+  --warning: 38 92% 50%;
+  --warning-foreground: 48 96% 89%;
+  --warning-light: 48 100% 96%;
+  
+  --danger: 0 84.2% 60.2%;
+  --danger-foreground: 210 40% 98%;
+  --danger-light: 0 86% 97%;
+  
+  --info: 199 89% 48%;
+  --info-foreground: 210 40% 98%;
+  --info-light: 204 94% 94%;
+  
+  /* Bordes e inputs */
+  --border: 214.3 31.8% 91.4%;
+  --border-hover: 214.3 31.8% 80%;
+  --input: 214.3 31.8% 91.4%;
+  --input-background: 0 0% 100%;
+  
+  /* Ring (focus) */
+  --ring: 221.2 83.2% 53.3%;
+  --ring-offset: 0 0% 100%;
+  
+  /* Sidebar */
+  --sidebar: 0 0% 98%;
+  --sidebar-foreground: 222.2 84% 4.9%;
+  --sidebar-border: 214.3 31.8% 91.4%;
+  --sidebar-hover: 210 40% 96.1%;
+  --sidebar-active: 221.2 83.2% 53.3%;
+  --sidebar-active-foreground: 210 40% 98%;
+  
+  /* Navbar */
+  --navbar: 0 0% 100%;
+  --navbar-foreground: 222.2 84% 4.9%;
+  --navbar-border: 214.3 31.8% 91.4%;
+  
+  /* Disabled */
+  --disabled: 214.3 31.8% 91.4%;
+  --disabled-foreground: 215.4 16.3% 46.9%;
+  
+  /* Placeholder */
+  --placeholder: 215.4 16.3% 46.9%;
+  
+  /* Radius */
+  --radius: 0.5rem;
+}
+
+/* ============================================================================
+   TEMA OSCURO (Dark Mode) - Base
+   ============================================================================ */
+[data-theme="dark"] {
+  /* Superficies principales */
+  --background: 222.2 84% 4.9%;      /* Fondo principal oscuro */
+  --foreground: 210 40% 98%;         /* Texto principal claro */
+  
+  /* Cards y contenedores */
+  --card: 222.2 84% 8%;              /* Cards ligeramente más claros */
+  --card-foreground: 210 40% 98%;
+  
+  /* Popovers y dropdowns */
+  --popover: 222.2 84% 8%;
+  --popover-foreground: 210 40% 98%;
+  
+  /* Colores primarios */
+  --primary: 217.2 91.2% 59.8%;      /* Azul más claro para dark mode */
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --primary-hover: 217.2 91.2% 65%;
+  --primary-active: 217.2 91.2% 70%;
+  
+  /* Colores secundarios */
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --secondary-hover: 217.2 32.6% 22%;
+  
+  /* Muted */
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  
+  /* Accent */
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  
+  /* Destructive */
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  
+  /* Estados */
+  --success: 142.1 70.6% 45.3%;
+  --success-foreground: 144.9 80.4% 10%;
+  --success-light: 142.1 70.6% 15%;
+  
+  --warning: 38 92% 50%;
+  --warning-foreground: 48 96% 10%;
+  --warning-light: 48 100% 15%;
+  
+  --danger: 0 62.8% 30.6%;
+  --danger-foreground: 210 40% 98%;
+  --danger-light: 0 62.8% 15%;
+  
+  --info: 199 89% 48%;
+  --info-foreground: 210 40% 98%;
+  --info-light: 199 89% 15%;
+  
+  /* Bordes e inputs */
+  --border: 217.2 32.6% 17.5%;
+  --border-hover: 217.2 32.6% 25%;
+  --input: 217.2 32.6% 17.5%;
+  --input-background: 222.2 84% 8%;
+  
+  /* Ring */
+  --ring: 217.2 91.2% 59.8%;
+  --ring-offset: 222.2 84% 4.9%;
+  
+  /* Sidebar */
+  --sidebar: 222.2 84% 6%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 217.2 32.6% 17.5%;
+  --sidebar-hover: 217.2 32.6% 17.5%;
+  --sidebar-active: 217.2 91.2% 59.8%;
+  --sidebar-active-foreground: 222.2 47.4% 11.2%;
+  
+  /* Navbar */
+  --navbar: 222.2 84% 6%;
+  --navbar-foreground: 210 40% 98%;
+  --navbar-border: 217.2 32.6% 17.5%;
+  
+  /* Disabled */
+  --disabled: 217.2 32.6% 17.5%;
+  --disabled-foreground: 215 20.2% 40%;
+  
+  /* Placeholder */
+  --placeholder: 215 20.2% 65.1%;
+}
+
+/* ============================================================================
+   TEMAS ESPECÍFICOS POR MÓDULO
+   ============================================================================ */
+
+/* Admin Panel - Tema personalizado */
+[data-module="admin"][data-theme="light"] {
+  /* Heredar de :root por defecto */
+  /* Personalizar solo si es necesario */
+}
+
+[data-module="admin"][data-theme="dark"] {
+  /* Heredar de [data-theme="dark"] por defecto */
+}
+
+/* POS - Tema personalizado */
+[data-module="pos"][data-theme="light"] {
+  /* Optimizado para rapidez y claridad */
+  --primary: 142.1 76.2% 36.3%;      /* Verde para POS */
+  --primary-foreground: 355.7 100% 97.3%;
+}
+
+[data-module="pos"][data-theme="dark"] {
+  --primary: 142.1 70.6% 45.3%;
+  --primary-foreground: 144.9 80.4% 10%;
+}
+
+/* KDS - Tema personalizado */
+[data-module="kds"][data-theme="light"] {
+  /* Optimizado para cocina */
+  --primary: 38 92% 50%;             /* Naranja para KDS */
+  --primary-foreground: 48 96% 10%;
+  --card: 48 100% 98%;               /* Fondo cálido */
+}
+
+[data-module="kds"][data-theme="dark"] {
+  --primary: 38 92% 50%;
+  --primary-foreground: 48 96% 10%;
+  --background: 24 9.8% 10%;         /* Fondo oscuro cálido */
+  --card: 24 9.8% 14%;
+}
+
+/* ============================================================================
+   UTILIDADES DE APLICACIÓN
+   ============================================================================ */
+
+/* Aplicar colores usando HSL */
+.bg-background { background-color: hsl(var(--background)); }
+.text-foreground { color: hsl(var(--foreground)); }
+
+.bg-card { background-color: hsl(var(--card)); }
+.text-card-foreground { color: hsl(var(--card-foreground)); }
+
+.bg-primary { background-color: hsl(var(--primary)); }
+.text-primary { color: hsl(var(--primary)); }
+.text-primary-foreground { color: hsl(var(--primary-foreground)); }
+
+.bg-secondary { background-color: hsl(var(--secondary)); }
+.text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
+
+.bg-muted { background-color: hsl(var(--muted)); }
+.text-muted-foreground { color: hsl(var(--muted-foreground)); }
+
+.bg-accent { background-color: hsl(var(--accent)); }
+.text-accent-foreground { color: hsl(var(--accent-foreground)); }
+
+.bg-destructive { background-color: hsl(var(--destructive)); }
+.text-destructive-foreground { color: hsl(var(--destructive-foreground)); }
+
+.border-border { border-color: hsl(var(--border)); }
+.border-input { border-color: hsl(var(--input)); }
+
+/* Estados */
+.bg-success { background-color: hsl(var(--success)); }
+.text-success { color: hsl(var(--success)); }
+.bg-warning { background-color: hsl(var(--warning)); }
+.text-warning { color: hsl(var(--warning)); }
+.bg-danger { background-color: hsl(var(--danger)); }
+.text-danger { color: hsl(var(--danger)); }
+.bg-info { background-color: hsl(var(--info)); }
+.text-info { color: hsl(var(--info)); }
+
+/* Transiciones suaves */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
